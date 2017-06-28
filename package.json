@@ -1,0 +1,36 @@
+{
+  "name": "junco",
+  "version": "0.0.1",
+  "description": "Spatial Audio Encoder in Web Audio API",
+  "main": "build/junco.js",
+  "keywords": [
+    "spatial audio",
+    "ambisonic",
+    "VR audio",
+    "360 audio",
+    "Web Audio API"
+  ],
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "copy-webpack-plugin": "^3.0.1",
+    "karma": "^1.6.0",
+    "karma-chai": "^0.1.0",
+    "karma-chrome-launcher": "^2.0.0",
+    "karma-mocha": "^1.3.0",
+    "karma-mocha-reporter": "^2.2.3",
+    "mocha": "^3.0.0",
+    "webpack": "^1.13.0"
+  },
+  "scripts": {
+    "build": "webpack --progress --color",
+    "watch": "webpack --progress --color --watch",
+    "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
+    "test": "node_modules/karma/bin/karma start"
+  },
+  "homepage": "https://github.com/GoogleChrome/junco",
+  "bugs": {
+    "url": "https://github.com/GoogleChrome/junco/issues"
+  },
+  "author": "The Chromium Authors",
+  "license": "Apache-2.0"
+}
