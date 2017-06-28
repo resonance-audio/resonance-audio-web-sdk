@@ -1,16 +1,14 @@
-# Omnitone: Spatial Audio on the Web
+# Junco: Spatial Audio Encoding on the Web
 
 [![Travis](https://img.shields.io/travis/GoogleChrome/omnitone.svg)](https://travis-ci.org/GoogleChrome/omnitone) [![npm](https://img.shields.io/npm/v/omnitone.svg?colorB=4bc51d)](https://www.npmjs.com/package/omnitone) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/GoogleChrome/omnitone/master/LICENSE)
 
-Omnitone is a robust implementation of [FOA (first-order-ambisonic)](https://en.wikipedia.org/wiki/Ambisonics) decoder with binaural rendering written in Web Audio API. Its decoding process is based on multiple gain nodes for ambisonic gain matrix and convolutions for [HRTF](https://en.wikipedia.org/wiki/Head-related_transfer_function) binaural rendering, ensuring the optimum performance.
+Junco is a real-time spatial audio encoding library written in Web Audio API. It allows web developers to dynamically spatially-encode streaming audio content into scalable [ambisonics](https://en.wikipedia.org/wiki/Ambisonics) signal, which can be rendered using a binaural renderer such as [Omnitone](https://github.com/GoogleChrome/omnitone) for realistic and quality-scalable 3D audio.
 
-See Omnitone in action:
-- __[Project Home](https://googlechrome.github.io/omnitone/#home)__
-- __[JauntVR Gallery: Music](https://www.jauntvr.com/lobby/MusicLobby)__
-- __[Plan8 Ambisonic Player](http://labs.plan8.se/ambisonics-webplayer/)__
-- __[Forge.js](http://forgejs.org/samples/ambisonics)__
+The implementation of Junco is based on the [Google spatial media](https://github.com/google/spatial-media) specification. It expects mono sources and outputs ACN channel layout with SN3D normalization.
 
-The implementation of Omnitone is based on the [Google spatial media](https://github.com/google/spatial-media) specification. The FOA input stream must be configured to ACN channel layout with SN3D normalization.
+(TODO:bitllama Fill out the rest of the README)
+...
+(THE REST OF THIS DOC IS COPIED FROM OMNITONE)
 
 - [Installation](#installation)
 - [Usage](#usage)
