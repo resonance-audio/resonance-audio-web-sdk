@@ -58,13 +58,16 @@ function LateReverbFilter (context, options) {
       (options.roomMaterials[1] + options.roomMaterials[2]) * yz;
 
   // Reverberation time.
-  this.T60 = k * V / A;
-  if (this.T60 > MAX_T60) {
-    this.T60 = MAX_T60;
+  t60 = k * V / A;
+  if (t60 > MAX_T60) {
+    t60 = MAX_T60;
   }
 
   // Over-sample beyond T60 to ensure no artificial dropout.
-  var t60_samples = Math.round(this.T60 * this._context.sampleRate * 1.25);
+  var t60_samples = Math.round(t60 * this._context.sampleRate * 1.25);
+  if (t60_samples < 1) {
+    t60_samples = 1;
+  }
   this._buffer =
     this._context.createBuffer(1, t60_samples, this._context.sampleRate);
 

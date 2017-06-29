@@ -21,7 +21,7 @@
   <script src="../build/junco.js"></script>
 </head>
 <body>
-  <p>X is back-front, Y is left-right, Z is down-up. All values are in meters.</p>
+  <p>X-/+ is left/right, Y-/+ is down-up, Z-/+ is forward-back. All values are in meters.</p>
   Source 1 &lt X, Y, Z &gt (% of Room Size)
   <br/>
   <input type="range" min="0" max="100" step="1" value="100" id="sourceX0"
@@ -91,7 +91,7 @@
     var buttonPlaybacks = Array(audioSources.length);
 
     var roomDimensions = [4, 5, 3];
-    var roomMaterials = [0.9, 0.1, 0.1];
+    var roomMaterials = [0.5, 0.1, 0.1];
 
     document.getElementById('roomX').value = roomDimensions[0];
     document.getElementById('roomY').value = roomDimensions[1];

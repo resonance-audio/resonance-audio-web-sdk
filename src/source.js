@@ -23,7 +23,6 @@
 // Internal dependencies.
 var AttenuationFilter = require('./attenuation-filter.js');
 var AmbisonicEncoder = require('./ambisonic-encoder.js');
-var Listener = require('./listener.js');
 
 /**
  * @class Source
@@ -60,19 +59,23 @@ function Source (listener, options) {
 }
 
 Source.prototype.setPosition = function(x, y, z) {
-  var dx = Array(3);
-  var dx_sqr = Array(3);
+  var dx = new Float32Array(3);
   this.position[0] = x;
   this.position[1] = y;
   this.position[2] = z;
   for (var i = 0; i < 3; i++) {
     dx[i] = this.position[i] - this._listener.position[i];
-    dx_sqr[i] = dx[i] * dx[i];
   }
-  var azimuth = Math.atan2(dx[1], dx[0]) * 57.295779513082323;
-  var elevation = Math.atan2(dx[2],
-    Math.sqrt(dx_sqr[0] + dx_sqr[1])) * 57.295779513082323;
-  var radius = Math.sqrt(dx_sqr[0] + dx_sqr[1] + dx_sqr[2]);
+  var radius = Math.sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
+
+  // Normalize direction vector.
+  dx[0] /= radius;
+  dx[1] /= radius;
+  dx[2] /= radius;
+
+  var azimuth = Math.atan2(-dx[0], -dx[2]) * 57.295779513082323;
+  var elevation = Math.atan2(dx[1],
+    Math.sqrt(dx[0] * dx[0] + dx[2] * dx[2])) * 57.295779513082323;
   this._attenuation.setDistance(radius);
   this._encoder.setDirection(azimuth, elevation);
 }

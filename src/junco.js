@@ -26,11 +26,6 @@
 var Junco = {};
 
 // Internal dependencies.
-var AmbisonicEncoderTable = require('./ambisonic-encoder-table.js');
-var AmbisonicEncoder = require('./ambisonic-encoder.js');
-//var DistanceFilter = require('./distance-filter.js');
-//var SoundObject = require('./sound-object.js');
-//var ConvolutionReverb = require('./convolution-reverb.js');
 var Listener = require('./listener.js');
 var Source = require('./source.js');
 
@@ -60,25 +55,5 @@ Junco.createListener = function (context, options) {
 Junco.createSource = function(listener, options) {
   return new Source(listener, options);
 }
-
-// Junco.createAmbisonicEncoderTable = function () {
-//   return AmbisonicEncoderTable;
-// };
-
-// Junco.createAmbisonicEncoder = function (context, ambisonicOrder) {
-//   return new AmbisonicEncoder(context, ambisonicOrder);
-// };
-
-// Junco.createDistanceFilter = function (context, speedOfSound) {
-//   return new DistanceFilter(context, speedOfSound);
-// }
-
-// Junco.createSoundObject = function (context, options) {
-//   return new SoundObject(context, options);
-// }
-
-// Junco.createConvolutionReverb = function (context, url) {
-//   return new ConvolutionReverb(context, url);
-// }
 
 module.exports = Junco;

@@ -38,7 +38,7 @@ var AmbisonicEncoder = require('./ambisonic-encoder.js');
 function RoomReflectionsFilter (context, options) {
   var maxDistance;
   var minDistance = 1;
-  var azimuths = [-90, 90, 0, 0, 0, 180];
+  var azimuths = [90, -90, 0, 0, 0, 180];
   var elevations = [0, 0, 90, -90, 0, 0];
   this._context = context;
 
