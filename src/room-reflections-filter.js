@@ -48,39 +48,41 @@ function RoomReflectionsFilter (context, options) {
   maxDistance = Math.sqrt(this._roomDimensions[0] * this._roomDimensions[0] +
                           this._roomDimensions[1] * this._roomDimensions[1] +
                           this._roomDimensions[2] * this._roomDimensions[2]);
-
   this.input = context.createGain();
   this.output = context.createGain();
 
-  this._absorptions = Array(6);
-  this._attenuations = Array(6);
-  this._propagations = Array(6);
-  this._encoders = Array(6);
-  for (var i = 0; i < 6; i++) {
-    // Construct nodes.
-    this._absorptions[i] = context.createGain();
-    this._attenuations[i] =
-      new AttenuationFilter(context, minDistance, maxDistance);
-    this._propagations[i] =
-      new PropagationFilter(context, maxDistance, options.speedOfSound);
-    this._encoders[i] = new AmbisonicEncoder(context, options.ambisonicOrder);
+  // If user has created a zero-volume room, skip creating rest of pipeline.
+  if (maxDistance > 1e-4) {
+    this._absorptions = Array(6);
+    this._attenuations = Array(6);
+    this._propagations = Array(6);
+    this._encoders = Array(6);
+    for (var i = 0; i < 6; i++) {
+      // Construct nodes.
+      this._absorptions[i] = context.createGain();
+      this._attenuations[i] =
+        new AttenuationFilter(context, minDistance, maxDistance);
+      this._propagations[i] =
+        new PropagationFilter(context, maxDistance, options.speedOfSound);
+      this._encoders[i] = new AmbisonicEncoder(context, options.ambisonicOrder);
 
-    // Constant intializations.
-    this._absorptions[i].gain.value = Math.sqrt(1 - this._roomMaterials[i]);
-    this._encoders[i].setDirection(azimuths[i], elevations[i]);
+      // Constant intializations.
+      this._absorptions[i].gain.value = Math.sqrt(1 - this._roomMaterials[i]);
+      this._encoders[i].setDirection(azimuths[i], elevations[i]);
 
-    // Connect in parallel.
-    this.input.connect(this._absorptions[i]);
-    this._absorptions[i].connect(this._attenuations[i].input);
-    this._attenuations[i].output.connect(this._propagations[i].input);
-    this._propagations[i].output.connect(this._encoders[i].input);
-    this._encoders[i].output.connect(this.output);
+      // Connect in parallel.
+      this.input.connect(this._absorptions[i]);
+      this._absorptions[i].connect(this._attenuations[i].input);
+      this._attenuations[i].output.connect(this._propagations[i].input);
+      this._propagations[i].output.connect(this._encoders[i].input);
+      this._encoders[i].output.connect(this.output);
+    }
+
+    // Place the listener in the middle of the room.
+    this.setListenerPosition(this._roomDimensions[0] / 2,
+                            this._roomDimensions[1] / 2,
+                            this._roomDimensions[2] / 2);
   }
-
-  // Place the listener in the middle of the room.
-  this.setListenerPosition(this._roomDimensions[0] / 2,
-                           this._roomDimensions[1] / 2,
-                           this._roomDimensions[2] / 2);
 }
 
 RoomReflectionsFilter.prototype.setListenerPosition = function(x, y, z) {

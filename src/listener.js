@@ -30,14 +30,30 @@ var LateReverbFilter = require('./late-reverb-filter.js');
  * @param {AudioContext} context            Associated AudioContext.
  * @param {Object} options
  * @param {Number} options.ambisonicOrder   Desired Ambisonic Order.
+ *                                          (Default 0).
  * @param {Number} options.speedOfSound     Speed of Sound (in meters / second).
+ *                                          (Default 343m/s).
  * @param {Array} options.roomDimensions    Size dimensions in meters (w, h, d).
+ *                                          (Default [0,0,0]).
  * @param {Array} options.roomMaterials     Absorption coeffs (L,R,U,D,F,B).
+ *                                          (Default [0,0,0,0,0,0]).
  */
 function Listener (context, options) {
   this._context = context;
 
   this._options = options;
+  if (options.ambisonicOrder == undefined) {
+    this._options.ambisonicOrder = 0
+  }
+  if (options.speedOfSound == undefined) {
+    this._options.speedOfSound = 343;
+  }
+  if (options.roomDimensions == undefined) {
+    this._options.roomDimensions = [0,0,0];
+  }
+  if (options.roomMaterials == undefined) {
+    this._options.roomMaterials = [0,0,0,0,0,0];
+  }
 
   this.early = this._context.createGain();
   this.late = this._context.createGain();
@@ -55,9 +71,15 @@ function Listener (context, options) {
   this.position = [this._options.roomDimensions[0] / 2,
                    this._options.roomDimensions[1] / 2,
                    this._options.roomDimensions[2] / 2];
-  this.velocity = [0, 0, 0];
+  this.velocity = [0,0,0];
 }
 
+/**
+ * Set listener's position using right-handed cartesian coordinates.
+ * @param {Number} x
+ * @param {Number} y
+ * @param {Number} z
+ */
 Listener.prototype.setPosition = function (x, y, z) {
   this.position[0] = x;
   this.position[1] = y;
@@ -65,6 +87,11 @@ Listener.prototype.setPosition = function (x, y, z) {
   this._earlyReflections.setListenerPosition(x, y, z);
 }
 
+/**
+ * Set associated room's dimensions and material properties.
+ * @param {Array} dimensions                3-d array (width, height, depth)
+ * @param {Array} materials                 TODO(bitllama)
+ */
 Listener.prototype.setRoomProperties = function(dimensions, materials) {
   // Set new properties.
   this._options.roomDimensions = dimensions;

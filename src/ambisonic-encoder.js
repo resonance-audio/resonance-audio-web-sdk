@@ -28,8 +28,8 @@ var Utils = require('./utils.js');
 /**
  * @class AmbisonicEncoder
  * @description Ambisonic Encoder of AudioBuffer.
- * @param {AudioContext} context        Associated AudioContext.
- * @param {Number} ambisonicOrder       Desired Ambisonic Order.
+ * @param {AudioContext} context            Associated AudioContext.
+ * @param {Number} ambisonicOrder           Desired Ambisonic Order.
  */
 function AmbisonicEncoder (context, ambisonicOrder) {
   this._active = false;
@@ -60,14 +60,10 @@ function AmbisonicEncoder (context, ambisonicOrder) {
 
 /**
  * Set the direction of the encoded source signal.
- * @param {Number} azimuth              Azimuth (in degrees)
- * @param {Number} elevation            Elevation (in degrees)
+ * @param {Number} azimuth                  Azimuth (in degrees).
+ * @param {Number} elevation                Elevation (in degrees).
  */
 AmbisonicEncoder.prototype.setDirection = function(azimuth, elevation) {
-  var l, m;
-  var azi_index, ele_index, acn_index;
-  var val;
-
   // Format input direction to nearest indices.
   if (isNaN(azimuth)) {
     azimuth = 0;
@@ -83,21 +79,19 @@ AmbisonicEncoder.prototype.setDirection = function(azimuth, elevation) {
   elevation = Math.round(elevation) + 90;
 
   // Assign gains to each output.
-  for (l = 1; l <= this._ambisonicOrder; l++) {
-    for (m = -l; m <= l; m++) {
-      acn_index = (l * l) + l + m;
-      ele_index = l * (l + 1) / 2 + Math.abs(m) - 1;
-      val = AmbisonicEncoderTable[1][elevation][ele_index];
-      azi_index = NaN;
-      if (m != 0) {
-        if (m < 0) {
-          azi_index = AmbisonicEncoderTableMaxOrder + m;
-        } else {
-          azi_index = AmbisonicEncoderTableMaxOrder + m - 1;
+  for (var i = 1; i <= this._ambisonicOrder; i++) {
+    for (var j = -i; j <= i; j++) {
+      var acnChannel = (i * i) + i + j;
+      var elevationIndex = i * (i + 1) / 2 + Math.abs(j) - 1;
+      var val = AmbisonicEncoderTable[1][elevation][elevationIndex];
+      if (j != 0) {
+        var azimuthIndex = AmbisonicEncoderTableMaxOrder + j - 1;
+        if (j < 0) {
+          azimuthIndex = AmbisonicEncoderTableMaxOrder + j;
         }
-        val *= AmbisonicEncoderTable[0][azimuth][azi_index];
+        val *= AmbisonicEncoderTable[0][azimuth][azimuthIndex];
       }
-      this._channelGain[acn_index].gain.value = val;
+      this._channelGain[acnChannel].gain.value = val;
     }
   }
 }

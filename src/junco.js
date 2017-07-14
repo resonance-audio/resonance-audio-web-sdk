@@ -46,9 +46,8 @@ Junco.createListener = function (context, options) {
 /**
  * @class Source
  * @description Source model to spatialize an AudioBuffer.
- * @param {AudioContext} context        Associated AudioContext.
+ * @param {AudioContext} context            Associated AudioContext.
  * @param {Object} options
- * @param {Number} options.ambisonicOrder   Desired Ambisonic Order.
  * @param {Number} options.minDistance      Min. distance (in meters).
  * @param {Number} options.maxDistance      Max. distance (in meters).
  */
