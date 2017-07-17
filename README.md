@@ -27,19 +27,14 @@ The implementation of Junco is based on the [Google spatial media](https://githu
 
 ## How it works
 
-Omnitone abstracts various technical layers of audio spatialization. The input audio stream can be either a media element (video or audio tags) or a multichannel web audio source. The rotation of the sound field also can be easily linked to the mobile phone's sensor or the on-screen user interaction.
-
-<p align="center">
-    <img src="https://raw.githubusercontent.com/GoogleChrome/omnitone/master/doc/diagram-omnitone.png" alt="Omnitone Diagram">
-</p>
-
+We propose a JavaScript API that ports a subset of the feature-set from Daydream Audio for the purpose of real-time spatial audio encoding for WebVR. A given audio stream would have additional parameters that control how the encoder processes the audio. The grouping of this audio stream and its associated parameters is known as a sound [source]. [Sources] are sent to a specified [Listener], which has information about relative position as well as a description of the room and reverberation to apply for that listener/source.
 
 ## Installation
 
-Omnitone is designed to be used for the web front-end projects. So [NPM](https://www.npmjs.com/) is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.
+Junco is designed to be used for the web front-end projects. So [NPM](https://www.npmjs.com/) is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.
 
 ```bash
-npm install omnitone
+npm install junco
 ```
 
 
