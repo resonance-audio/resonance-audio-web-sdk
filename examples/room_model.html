@@ -1,0 +1,403 @@
+<!--
+  Copyright 2017 Google Inc. All Rights Reserved.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Example: Room model (two sources).</title>
+  <script src="resources/omnitone.js"></script>
+  <script src="../build/junco.js"></script>
+</head>
+<body>
+  <p>Room model example using two sources.</p>
+  <p><b>Room dimensions</b><br/>
+  <label for="eWidthNumber" id="eWidthLabel">width</label>
+  <input id="eWidthNumber" type="number" min="0" max="100" value="4.7"
+    onchange="updateDimensions(this);"/>
+  <label for="eHeightNumber" id="eHeightLabel">height</label>
+  <input id="eHeightNumber" type="number" min="0" max="100" value="2.8"
+    onchange="updateDimensions(this);"/>
+  <label for="eDepthNumber" id="eDepthLabel">depth</label>
+  <input id="eDepthNumber" type="number" min="0" max="100" value="5.1"
+    onchange="updateDimensions(this);"/>
+  </p>
+  <p>
+  <b>Room materials</b><br/>
+  <label for="eLeftMaterial" id="eLeftLabel">left</label>
+  <select id="eLeftMaterial" onclick="updateMaterials(this);">
+    <option value="Transparent">Transparent</option>
+    <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
+    <option value="BrickBare" selected>BrickBare</option>
+    <option value="BrickPainted">BrickPainted</option>
+    <option value="ConcreteBlockCoarse">ConcreteBlockCoarse</option>
+    <option value="ConcreteBlockPainted">ConcreteBlockPainted</option>
+    <option value="CurtainHeavy">CurtainHeavy</option>
+    <option value="FiberGlassInsulation">FiberGlassInsulation</option>
+    <option value="GlassThin">GlassThin</option>
+    <option value="GlassThick">GlassThick</option>
+    <option value="Grass">Grass</option>
+    <option value="LinoleumOnConcrete">LinoleumOnConcrete</option>
+    <option value="Marble">Marble</option>
+    <option value="Metal">Metal</option>
+    <option value="ParquetOnConcrete">ParquetOnConcrete</option>
+    <option value="PlasterSmooth">PlasterSmooth</option>
+    <option value="PlywoodPanel">PlywoodPanel</option>
+    <option value="PolishedConcreteOrTile">PolishedConcreteOrTile</option>
+    <option value="Sheetrock">Sheetrock</option>
+    <option value="WaterOrIceSurface">WaterOrIceSurface</option>
+    <option value="WoodCeiling">WoodCeiling</option>
+    <option value="WoodPanel">WoodPanel</option>
+    <option value="Uniform">Uniform</option>
+  </select><br/>
+  <label for="eRightMaterial" id="eRightLabel">right</label>
+  <select id="eRightMaterial" onclick="updateMaterials(this);">
+    <option value="Transparent">Transparent</option>
+    <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
+    <option value="BrickBare" selected>BrickBare</option>
+    <option value="BrickPainted">BrickPainted</option>
+    <option value="ConcreteBlockCoarse">ConcreteBlockCoarse</option>
+    <option value="ConcreteBlockPainted">ConcreteBlockPainted</option>
+    <option value="CurtainHeavy">CurtainHeavy</option>
+    <option value="FiberGlassInsulation">FiberGlassInsulation</option>
+    <option value="GlassThin">GlassThin</option>
+    <option value="GlassThick">GlassThick</option>
+    <option value="Grass">Grass</option>
+    <option value="LinoleumOnConcrete">LinoleumOnConcrete</option>
+    <option value="Marble">Marble</option>
+    <option value="Metal">Metal</option>
+    <option value="ParquetOnConcrete">ParquetOnConcrete</option>
+    <option value="PlasterSmooth">PlasterSmooth</option>
+    <option value="PlywoodPanel">PlywoodPanel</option>
+    <option value="PolishedConcreteOrTile">PolishedConcreteOrTile</option>
+    <option value="Sheetrock">Sheetrock</option>
+    <option value="WaterOrIceSurface">WaterOrIceSurface</option>
+    <option value="WoodCeiling">WoodCeiling</option>
+    <option value="WoodPanel">WoodPanel</option>
+    <option value="Uniform">Uniform</option>
+  </select><br/>
+  <label for="eFrontMaterial" id="eFrontLabel">front</label>
+  <select id="eFrontMaterial" onclick="updateMaterials(this);">
+    <option value="Transparent">Transparent</option>
+    <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
+    <option value="BrickBare">BrickBare</option>
+    <option value="BrickPainted">BrickPainted</option>
+    <option value="ConcreteBlockCoarse">ConcreteBlockCoarse</option>
+    <option value="ConcreteBlockPainted">ConcreteBlockPainted</option>
+    <option value="CurtainHeavy" selected>CurtainHeavy</option>
+    <option value="FiberGlassInsulation">FiberGlassInsulation</option>
+    <option value="GlassThin">GlassThin</option>
+    <option value="GlassThick">GlassThick</option>
+    <option value="Grass">Grass</option>
+    <option value="LinoleumOnConcrete">LinoleumOnConcrete</option>
+    <option value="Marble">Marble</option>
+    <option value="Metal">Metal</option>
+    <option value="ParquetOnConcrete">ParquetOnConcrete</option>
+    <option value="PlasterSmooth">PlasterSmooth</option>
+    <option value="PlywoodPanel">PlywoodPanel</option>
+    <option value="PolishedConcreteOrTile">PolishedConcreteOrTile</option>
+    <option value="Sheetrock">Sheetrock</option>
+    <option value="WaterOrIceSurface">WaterOrIceSurface</option>
+    <option value="WoodCeiling">WoodCeiling</option>
+    <option value="WoodPanel">WoodPanel</option>
+    <option value="Uniform">Uniform</option>
+  </select><br/>
+  <label for="eBackMaterial" id="eBackLabel">back</label>
+  <select id="eBackMaterial" onclick="updateMaterials(this);">
+    <option value="Transparent">Transparent</option>
+    <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
+    <option value="BrickBare" selected>BrickBare</option>
+    <option value="BrickPainted">BrickPainted</option>
+    <option value="ConcreteBlockCoarse">ConcreteBlockCoarse</option>
+    <option value="ConcreteBlockPainted">ConcreteBlockPainted</option>
+    <option value="CurtainHeavy">CurtainHeavy</option>
+    <option value="FiberGlassInsulation">FiberGlassInsulation</option>
+    <option value="GlassThin">GlassThin</option>
+    <option value="GlassThick">GlassThick</option>
+    <option value="Grass">Grass</option>
+    <option value="LinoleumOnConcrete">LinoleumOnConcrete</option>
+    <option value="Marble">Marble</option>
+    <option value="Metal">Metal</option>
+    <option value="ParquetOnConcrete">ParquetOnConcrete</option>
+    <option value="PlasterSmooth">PlasterSmooth</option>
+    <option value="PlywoodPanel">PlywoodPanel</option>
+    <option value="PolishedConcreteOrTile">PolishedConcreteOrTile</option>
+    <option value="Sheetrock">Sheetrock</option>
+    <option value="WaterOrIceSurface">WaterOrIceSurface</option>
+    <option value="WoodCeiling">WoodCeiling</option>
+    <option value="WoodPanel">WoodPanel</option>
+    <option value="Uniform">Uniform</option>
+  </select><br/>
+  <label for="eFloorMaterial" id="eFloorLabel">floor</label>
+  <select id="eFloorMaterial" onclick="updateMaterials(this);">
+    <option value="Transparent">Transparent</option>
+    <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
+    <option value="BrickBare">BrickBare</option>
+    <option value="BrickPainted">BrickPainted</option>
+    <option value="ConcreteBlockCoarse" selected>ConcreteBlockCoarse</option>
+    <option value="ConcreteBlockPainted">ConcreteBlockPainted</option>
+    <option value="CurtainHeavy">CurtainHeavy</option>
+    <option value="FiberGlassInsulation">FiberGlassInsulation</option>
+    <option value="GlassThin">GlassThin</option>
+    <option value="GlassThick">GlassThick</option>
+    <option value="Grass">Grass</option>
+    <option value="LinoleumOnConcrete">LinoleumOnConcrete</option>
+    <option value="Marble">Marble</option>
+    <option value="Metal">Metal</option>
+    <option value="ParquetOnConcrete">ParquetOnConcrete</option>
+    <option value="PlasterSmooth">PlasterSmooth</option>
+    <option value="PlywoodPanel">PlywoodPanel</option>
+    <option value="PolishedConcreteOrTile">PolishedConcreteOrTile</option>
+    <option value="Sheetrock">Sheetrock</option>
+    <option value="WaterOrIceSurface">WaterOrIceSurface</option>
+    <option value="WoodCeiling">WoodCeiling</option>
+    <option value="WoodPanel">WoodPanel</option>
+    <option value="Uniform">Uniform</option>
+  </select><br/>
+  <label for="eCeilingMaterial" id="eCeilingLabel">ceiling</label>
+  <select id="eCeilingMaterial" onclick="updateMaterials(this);">
+    <option value="Transparent" selected>Transparent</option>
+    <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
+    <option value="BrickBare">BrickBare</option>
+    <option value="BrickPainted">BrickPainted</option>
+    <option value="ConcreteBlockCoarse">ConcreteBlockCoarse</option>
+    <option value="ConcreteBlockPainted">ConcreteBlockPainted</option>
+    <option value="CurtainHeavy">CurtainHeavy</option>
+    <option value="FiberGlassInsulation">FiberGlassInsulation</option>
+    <option value="GlassThin">GlassThin</option>
+    <option value="GlassThick">GlassThick</option>
+    <option value="Grass">Grass</option>
+    <option value="LinoleumOnConcrete">LinoleumOnConcrete</option>
+    <option value="Marble">Marble</option>
+    <option value="Metal">Metal</option>
+    <option value="ParquetOnConcrete">ParquetOnConcrete</option>
+    <option value="PlasterSmooth">PlasterSmooth</option>
+    <option value="PlywoodPanel">PlywoodPanel</option>
+    <option value="PolishedConcreteOrTile">PolishedConcreteOrTile</option>
+    <option value="Sheetrock">Sheetrock</option>
+    <option value="WaterOrIceSurface">WaterOrIceSurface</option>
+    <option value="WoodCeiling" selected>WoodCeiling</option>
+    <option value="WoodPanel">WoodPanel</option>
+    <option value="Uniform">Uniform</option>
+  </select>
+  </p>
+  <p>
+    <b>Source A position</b><br/>
+    <label for="eSourceAXRange" id="eSourceAXLabel">x</label>
+    <input id="eSourceAXRange" type="range" min="-50" max="50" value="0"
+      oninput="updateSourceAPosition(this);"/>
+    <label for="eSourceAYRange" id="eSourceAYLabel">y</label>
+    <input id="eSourceAYRange" type="range" min="-50" max="50" value="0"
+      oninput="updateSourceAPosition(this);"/>
+    <label for="eSourceAZRange" id="eSourceAZLabel">z</label>
+    <input id="eSourceAZRange" type="range" min="-50" max="50" value="0"
+      oninput="updateSourceAPosition(this);"/>
+    <button id="eSourceAPlayback" disabled>Play</button>
+  </p>
+  <p>
+    <b>Source B position</b><br/>
+    <label for="eSourceBXRange" id="eSourceBXLabel">x</label>
+    <input id="eSourceBXRange" type="range" min="-50" max="50" value="0"
+      oninput="updateSourceBPosition(this);"/>
+    <label for="eSourceBYRange" id="eSourceBYLabel">y</label>
+    <input id="eSourceBYRange" type="range" min="-50" max="50" value="0"
+      oninput="updateSourceBPosition(this);"/>
+    <label for="eSourceBZRange" id="eSourceBZLabel">z</label>
+    <input id="eSourceBZRange" type="range" min="-50" max="50" value="0"
+      oninput="updateSourceBPosition(this);"/>
+    <button id="eSourceBPlayback" disabled>Play</button>
+  </p>
+  <p>
+    <b>Listener position</b><br/>
+    <label for="eListenerXRange" id="eListenerXLabel">x</label>
+    <input id="eListenerXRange" type="range" min="-50" max="50" value="0"
+      oninput="updateListenerPosition(this);"/>
+    <label for="eListenerYRange" id="eListenerYLabel">y</label>
+    <input id="eListenerYRange" type="range" min="-50" max="50" value="0"
+      oninput="updateListenerPosition(this);"/>
+    <label for="eListenerZRange" id="eListenerZLabel">z</label>
+    <input id="eListenerZRange" type="range" min="-50" max="50" value="0"
+      oninput="updateListenerPosition(this);"/>
+  </p>
+  <script>
+    // Define source audio files.
+    var audioSources = ['female.wav', 'male.wav'];
+    var juncoSourceA, juncoSourceB, juncoListener;
+
+    // Attach labels to associated input elements.
+    var labels = document.getElementsByTagName('label');
+    for (var i = 0; i < labels.length; i++) {
+      if (labels[i].htmlFor != '') {
+        var elem = document.getElementById(labels[i].htmlFor);
+        if (elem)
+          elem.label = labels[i];
+      }
+    }
+
+    // This is used to scale the appropriate dimension.
+    var dimensionsLookup = {'x' : 'width', 'y' : 'height', 'z' : 'depth'};
+    var dimensionsParams = {
+      'width' : Number(document.getElementById('eWidthNumber').value),
+      'height' : Number(document.getElementById('eHeightNumber').value),
+      'depth' : Number(document.getElementById('eDepthNumber').value),
+    };
+    var materialsParams = {
+      'left' : document.getElementById('eLeftMaterial').value,
+      'right' : document.getElementById('eRightMaterial').value,
+      'front' : document.getElementById('eFrontMaterial').value,
+      'back' : document.getElementById('eBackMaterial').value,
+      'floor' : document.getElementById('eFloorMaterial').value,
+      'ceiling' : document.getElementById('eCeilingMaterial').value,
+    };
+    var sourceAParams = {
+      'x' : Number(document.getElementById('eSourceAXRange').value),
+      'y' : Number(document.getElementById('eSourceAYRange').value),
+      'z' : Number(document.getElementById('eSourceAZRange').value),
+    };
+    var sourceBParams = {
+      'x' : Number(document.getElementById('eSourceBXRange').value),
+      'y' : Number(document.getElementById('eSourceBYRange').value),
+      'z' : Number(document.getElementById('eSourceBZRange').value),
+    };
+    var listenerParams = {
+      'x' : Number(document.getElementById('eListenerXRange').value),
+      'y' : Number(document.getElementById('eListenerYRange').value),
+      'z' : Number(document.getElementById('eListenerZRange').value),
+    };
+
+    function updateRoomProperties() {
+      juncoListener.setRoomProperties(dimensionsParams, materialsParams);
+    }
+
+    function updatePositions() {
+      juncoSourceA.setPosition(sourceAParams['x'], sourceAParams['y'],
+        sourceAParams['z']);
+      juncoSourceB.setPosition(sourceBParams['x'], sourceBParams['y'],
+        sourceBParams['z']);
+      juncoListener.setPosition(listenerParams['x'], listenerParams['y'],
+        listenerParams['z']);
+    }
+
+    function updateDimensions(dimensionSelection) {
+      dimensionsParams[dimensionSelection.label.textContent] =
+        Number(dimensionSelection.value);
+
+        // Update positions of sources & listener.
+      updateSourceAPosition(document.getElementById('eSourceAXRange'));
+      updateSourceAPosition(document.getElementById('eSourceAYRange'));
+      updateSourceAPosition(document.getElementById('eSourceAZRange'));
+      updateSourceBPosition(document.getElementById('eSourceBXRange'));
+      updateSourceBPosition(document.getElementById('eSourceBYRange'));
+      updateSourceBPosition(document.getElementById('eSourceBZRange'));
+      updateListenerPosition(document.getElementById('eListenerXRange'));
+      updateListenerPosition(document.getElementById('eListenerYRange'));
+      updateListenerPosition(document.getElementById('eListenerZRange'));
+
+      updateRoomProperties();
+    }
+
+    function updateMaterials(wallSelection) {
+      materialsParams[wallSelection.value] = wallSelection.label.textContent;
+      updateRoomProperties();
+    };
+
+    function updateSourceAPosition(sourceASelection) {
+      var dimension = dimensionsLookup[sourceASelection.label.textContent];
+      sourceAParams[sourceASelection.label.textContent] =
+        Number(sourceASelection.value) / 100 * dimensionsParams[dimension];
+      updatePositions();
+    }
+
+    function updateSourceBPosition(sourceBSelection) {
+      var dimension = dimensionsLookup[sourceBSelection.label.textContent];
+      sourceBParams[sourceBSelection.label.textContent] =
+        Number(sourceBSelection.value) / 100 * dimensionsParams[dimension];
+      updatePositions();
+    }
+
+    function updateListenerPosition(listenerSelection) {
+      var dimension = dimensionsLookup[listenerSelection.label.textContent];
+      listenerParams[listenerSelection.label.textContent] =
+        Number(listenerSelection.value) / 100 * dimensionsParams[dimension];
+      updatePositions();
+    }
+
+    var onLoad = function () {
+      var audioElements = Array(audioSources.length);
+      var audioElementSources = Array(audioSources.length);
+      var context = new AudioContext();
+
+      // Create <audio> streaming audio sources.
+      for (var i = 0; i < audioSources.length; i++) {
+        audioElements[i] = document.createElement('audio');
+        audioElements[i].src = audioSources[i];
+        audioElements[i].loop = true;
+        audioElementSources[i] =
+          context.createMediaElementSource(audioElements[i]);
+      }
+
+      // Initialize Junco, create Listener and Source(s).
+      var juncoOptions = {
+        ambisonicOrder : 3,
+      };
+      juncoListener = Junco.createListener(context, juncoOptions);
+      juncoSourceA = Junco.createSource(juncoListener, juncoOptions);
+      juncoSourceB = Junco.createSource(juncoListener, juncoOptions);
+
+      // Initialize play button functionality.
+      var sourcesPlayback = Array(audioSources.length);
+      sourcesPlayback[0] = document.getElementById('eSourceAPlayback');
+      sourcesPlayback[1] = document.getElementById('eSourceBPlayback');
+      for (var i = 0; i < audioSources.length; i++) {
+        sourcesPlayback[i].index = i;
+        sourcesPlayback[i].onclick = function (event) {
+          if (event.target.textContent === 'Play') {
+            event.target.textContent = 'Pause';
+            audioElements[event.target.index].play();
+          } else {
+            event.target.textContent = 'Play';
+            audioElements[event.target.index].pause();
+          }
+        };
+      }
+
+      // Initialize Omnitone.
+      var omnitoneOptions = {
+        ambisonicOrder : 3,
+        HRIRUrl: ['resources/sh_hrir_o_3_ch0-ch7.wav',
+                  'resources/sh_hrir_o_3_ch8-ch15.wav'],
+      };
+      var hoaRenderer = Omnitone.createHOARenderer(context, omnitoneOptions);
+      hoaRenderer.initialize().then(function () {
+        // Connect elements.
+        audioElementSources[0].connect(juncoSourceA.input);
+        audioElementSources[1].connect(juncoSourceB.input);
+        juncoListener.output.connect(hoaRenderer.input);
+        hoaRenderer.output.connect(context.destination);
+
+        // Enable playback.
+        sourcesPlayback[0].disabled = false;
+        sourcesPlayback[1].disabled = false;
+
+        // Initialize scene.
+        updateRoomProperties();
+        updatePositions();
+      }, function (onInitializationError) {
+        console.error(onInitializationError);
+      });
+    };
+    window.addEventListener('load', onLoad);
+  </script>
+</body>
+</html>

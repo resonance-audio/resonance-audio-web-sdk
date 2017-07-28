@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Home</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Home</h1>
+
+    
+
+
+
+    
+
+
+    <h3> </h3>
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+    <section>
+        <article><h1>Junco: Spatial Audio Encoding on the Web</h1><p><a href="https://travis-ci.org/GoogleChrome/omnitone"><img src="https://img.shields.io/travis/GoogleChrome/omnitone.svg" alt="Travis"></a> <a href="https://www.npmjs.com/package/omnitone"><img src="https://img.shields.io/npm/v/omnitone.svg?colorB=4bc51d" alt="npm"></a> <a href="https://raw.githubusercontent.com/GoogleChrome/omnitone/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202-brightgreen.svg" alt="GitHub license"></a></p>
+<p>Junco is a real-time spatial audio encoding library written in Web Audio API. It allows web developers to dynamically spatially-encode streaming audio content into scalable <a href="https://en.wikipedia.org/wiki/Ambisonics">ambisonics</a> signal, which can be rendered using a binaural renderer such as <a href="https://github.com/GoogleChrome/omnitone">Omnitone</a> for realistic and quality-scalable 3D audio.</p>
+<p>The implementation of Junco is based on the <a href="https://github.com/google/spatial-media">Google spatial media</a> specification. It expects mono sources and outputs ACN channel layout with SN3D normalization.</p>
+<p>(TODO:bitllama Fill out the rest of the README)
+...
+(THE REST OF THIS DOC IS COPIED FROM OMNITONE)</p>
+<ul>
+<li><a href="#installation">Installation</a></li>
+<li><a href="#usage">Usage</a></li>
+<li><a href="#advanced-usage">Advanced Usage</a><ul>
+<li><strong><a href="#foarenderer">FOARenderer</a> (NEW in 0.2.0)</strong></li>
+<li><a href="#foadecoder">FOADecoder</a></li>
+<li><a href="#foarouter">FOARouter</a></li>
+<li><a href="#foarotator">FOARotator</a></li>
+<li><a href="#foaphasematchedfilter">FOAPhaseMatchedFilter</a></li>
+<li><a href="#foavirtualspeaker">FOAVirtualSpeaker</a></li>
+</ul>
+</li>
+<li><a href="#building">Building</a></li>
+<li><strong><a href="#test">Test</a> (NEW in 0.2.1)</strong></li>
+<li><a href="#audio-codec-compatibility">Audio Codec compatibility</a></li>
+<li><a href="#related-resouces">Related Resources</a></li>
+</ul>
+<h2>How it works</h2><p>We propose a JavaScript API that ports a subset of the feature-set from Daydream Audio for the purpose of real-time spatial audio encoding for WebVR. A given audio stream would have additional parameters that control how the encoder processes the audio. The grouping of this audio stream and its associated parameters is known as a sound [source]. [Sources] are sent to a specified [Listener], which has information about relative position as well as a description of the room and reverberation to apply for that listener/source.</p>
+<h2>Installation</h2><p>Junco is designed to be used for the web front-end projects. So <a href="https://www.npmjs.com/">NPM</a> is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.</p>
+<pre class="prettyprint source lang-bash"><code>npm install junco</code></pre><h2>Usage</h2><p>The first step is to include the library file in an HTML document.</p>
+<pre class="prettyprint source lang-html"><code>&lt;!-- Use Omnitone from installed node_modules/ -->
+&lt;script src=&quot;node_modules/omnitone/build/omnitone.min.js&quot;>&lt;/script>
+
+&lt;!-- if you prefer to use CDN -->
+&lt;script src=&quot;https://cdn.rawgit.com/GoogleChrome/omnitone/962089ca/build/omnitone.min.js&quot;>&lt;/script></code></pre><p>There are two different ways of rendering the ambisonic input stream with Omnitone.</p>
+<ul>
+<li><a href="#foarenderer-optimized">FOARenderer (Optimized)</a></li>
+<li><a href="#foadeocoder-fully-configurable">FOADeocoder (Fully-configurable)</a></li>
+</ul>
+<h3>FOARenderer (Optimized)</h3><p>Newly introduced with the version 0.2.0, <code>FOARenderer</code> is a highly optimized ambisonic renderer that outperforms the original renderer by <strong>~100%</strong>. The renderer instance also behaves like an AudioNode, so it can be integrated to the existing WebAudio audio graph easily.</p>
+<pre class="prettyprint source lang-js"><code>// Set up an audio element to feed the ambisonic source audio feed.
+var audioElement = document.createElement('audio');
+audioElement.src = 'audio-file-foa-acn.wav';
+
+// Create AudioContext, MediaElementSourceNode and FOARenderer.
+var audioContext = new AudioContext();
+var audioElementSource =
+    audioContext.createMediaElementSource(audioElement);
+var foaRenderer = Omnitone.createFOARenderer(audioContext, {
+    HRIRUrl: 'https://cdn.rawgit.com/GoogleChrome/omnitone/962089ca/build/resources/sh_hrir_o_1.wav'
+  });
+
+// Make connection and start play.
+foaRenderer.initialize().then(function () {
+    audioElementSource.connect(foaRenderer.input);
+    foaRenderer.output.connect(audioContext.destination);
+    audioElement.play();
+  });
+}</code></pre><p>Currently the HRIR for <code>FOARenderer</code> is available on Omnitone's repository. If you do not need a configurable audio path for ambisonic rendering, <code>FOARenderer</code> is strongly recommended. See the example <a href="https://cdn.rawgit.com/GoogleChrome/omnitone/0.2.2/examples/foa-renderer.html">here</a>.</p>
+<h3>FOADeocoder (Fully-configurable)</h3><p>The <code>FOADecoder</code> directly takes <code>&lt;audio&gt;</code> or <code>&lt;video&gt;</code> element along with the associated <code>AudioContext</code>. This object is a thin wrapper of building blocks described in the <a href="#advanced-usage">advanced usage</a>.</p>
+<pre class="prettyprint source lang-js"><code>// Prepare audio element to feed the ambisonic source audio feed.
+var audioElement = document.createElement('audio');
+audioElement.src = 'resources/4ch-spatial-audio-file.wav';
+
+// Create an AudioContext and an Omnitone decoder.
+var audioContext = new AudioContext();
+var decoder = Omnitone.createFOADecoder(audioContext, audioElement);
+
+// Initialize and then start playing the audio element.
+decoder.initialize().then(function () {
+  audioElement.play();
+}, function (onInitializationError) {
+  console.error(onInitializationError);
+});</code></pre><p>The decoder constructor accepts the context and the element as arguments. <code>FOADecoder</code> uses <a href="https://github.com/google/spatial-media/tree/master/spatial-audio">HRIRs</a> from Google spatial media repository, but you can use a custom set of HRIR files as well. The initialization of a decoder instance returns a promise which resolves when the resources (i.e. impulse responses) are fully loaded. See the example <a href="https://cdn.rawgit.com/GoogleChrome/omnitone/0.2.2/examples/foa-decoder.html">here</a>.</p>
+<h3>Basic Features: Rotation, ChannelMap, Rendering Mode</h3><p>The rotation matrix (3x3, row-major) in the decoder can be updated inside of the graphics render loop. This operation rotates the entire sound field. The rotation matrix is commonly derived from the quaternion of the orientation sensor on the VR headset or the smartphone. Also Omnitone converts the coordinate system from the WebGL space to the audio space internally, so you need not to transform the matrix manually.</p>
+<pre class="prettyprint source lang-js"><code>// Sound field rotation with 3x3 matrix.
+foaRenderer.setRotationMatrix(rotationMatrix);
+foaDecoder.setRotationMatrix(rotationMatrix);</code></pre><p>If you prefer to work with 4x4 rotation matrix (e.g. Three.js camera), you can use the following method instead.</p>
+<pre class="prettyprint source lang-js"><code>// Rotate the sound field by passing Three.js camera object. (4x4 matrix)
+foaRenderer.setRotationMatrixFromCamera(camera.matrix);
+foaDecoder.setRotationMatrixFromCamera(camera.matrix);</code></pre><p>Use <code>setRenderingMode</code> or <code>setMode</code> method to change the setting of the decoder. This is useful when the media source does not have spatially encoded (e.g. stereo or mono) or when you want to reduce the CPU usage or the power consumption by disabling the decoder.</p>
+<pre class="prettyprint source lang-js"><code>// Mono or regular multi-channel layouts.
+foaRenderer.setRenderingMode('bypass');
+foaDecoder.setMode('bypass');
+
+// Use ambisonic rendering.
+foaRenderer.setRenderingMode('ambisonic');
+foaDecoder.setMode('ambisonic');
+
+// Disable encoding completely. (audio processing disabled)
+foaRenderer.setRenderingMode('off');
+foaDecoder.setMode('off');</code></pre><h2>Advanced Usage</h2><p>Omnitone also provides various building blocks for the first-order-ambisonic decoding and the binaural rendering. The <code>FOADecoder</code> is just a ready-made object built with those components. You can create them and connect together build your own decoding mechanism.</p>
+<h3>FOARenderer</h3><p><code>FOARenderer</code> is an optimized FOA stream binaural renderer based on SH-MaxRe HRIR. It uses a specially crafted HRIR for the optimized audio processing, and the URL for HRIR is shown below. <code>FOARenderer</code> must be initialized before its usage.</p>
+<pre class="prettyprint source lang-js"><code>var foaRenderer = Omnitone.createFOARenderer(audioContext, {
+  HRIRUrl: 'https://cdn.rawgit.com/GoogleChrome/omnitone/962089ca/build/resources/sh_hrir_o_1.wav',
+  channelMap: [0, 1, 2, 3]
+});
+
+foaRenderer.initialize().then(/* do stuff when FOARenderer is ready. */);</code></pre><ul>
+<li>context (AudioContext): an AudioContext object.</li>
+<li>options (Object): options for decoder.<ul>
+<li>HRIRUrl (String): URL for the SH-MaxRe HRIR.</li>
+<li>channelMap (Array): A custom channel map.</li>
+</ul>
+</li>
+</ul>
+<pre class="prettyprint source lang-js"><code>foaRenderer.input   // A GainNode as an input of FOARenderer.
+foaRenderer.output  // A GainNode as an output of FOARenderer.</code></pre><p>Note that a <code>FOARenderer</code> instance has <code>input</code> and <code>output</code> GainNode. These nodes can be connected to the other AudioNodes for pre/post-processing.</p>
+<h3>FOADecoder</h3><p><code>FOADecoder</code> is a ready-made package of ambisonic gain decoder and binaural renderer.</p>
+<pre class="prettyprint source lang-js"><code>var foaDecoder = Omnitone.createFOADecoder(context, element, {
+  HRTFSetUrl: 'YOUR_HRTF_SET_URL',
+  postGainDB: 0,
+  channelMap: [0, 1, 2, 3]
+});</code></pre><ul>
+<li>context (AudioContext): an AudioContext object.</li>
+<li>element (MediaElement): A target video or audio element for streaming.</li>
+<li>options (Object): options for decoder.<ul>
+<li>HRTFSetUrl (String): Base URL for the cube HRTF sets.</li>
+<li>postGainDB (Number): Post-decoding gain compensation in dB.</li>
+<li>channelMap (Array): A custom channel map.</li>
+</ul>
+</li>
+</ul>
+<h3>FOARouter</h3><p><code>FOARouter</code> is useful when you need to change the channel layout of the incoming multichannel audio stream. This is necessary because the channel layout changes depending on the audio codec in the browser.</p>
+<pre class="prettyprint source lang-js"><code>var router = Omnitone.createFOARouter(context, channelMap);</code></pre><ul>
+<li>context (AudioContext): an AudioContext object.</li>
+<li>channelMap (Array): an array represents the target channel layout.</li>
+</ul>
+<h4>Methods</h4><pre class="prettyprint source lang-js"><code>router.setChannelMap([0, 1, 2, 3]); // 4-ch AAC in Chrome (default).
+router.setChannelMap([1, 2, 0, 3]); // 4-ch AAC in Safari.</code></pre><h3>FOARotator</h3><p><code>FOARotator</code> is a sound field rotator for the first-order-ambisonic decoding. It also performs the coordinate transformation between the world space and the audio space.</p>
+<pre class="prettyprint source lang-js"><code>var rotator = Omnitone.createFOARotator(context);</code></pre><ul>
+<li>context (AudioContext): an AudioContext object.</li>
+</ul>
+<h4>Methods</h4><pre class="prettyprint source lang-js"><code>rotator.setRotationMatrix([1, 0, 0, 0, 1, 0, 0, 0, 1]); // 3x3 row-major matrix.
+rotator.setRotationMatrix4([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]); // 4x4 row-major matrix.</code></pre><ul>
+<li>rotationMatrix (Array): 3x3 row-major matrix.</li>
+<li>rotationMatrix4 (Array): 4x4 row-major matrix.</li>
+</ul>
+<h3>FOAPhaseMatchedFilter</h3><p><code>FOAPhaseMatchedFilter</code> is a pair of pass filters (LP/HP) with a crossover frequency to compensate the gain of high frequency contents without a phase difference.</p>
+<pre class="prettyprint source lang-js"><code>var filter = Omnitone.createFOAPhaseMatchedFilter(context);</code></pre><ul>
+<li>context (AudioContext): an AudioContext object.</li>
+</ul>
+<h3>FOAVirtualSpeaker</h3><p><code>FOAVirtualSpeaker</code> is a virtual speaker abstraction with the decoding gain coefficients and HRTF convolution for the first-order-ambisonic audio stream. Note that the speaker instance directly connects to the destination node of <code>AudioContext</code>. So you cannot apply additional audio processing after this component.</p>
+<pre class="prettyprint source lang-js"><code>var speaker = Omnitone.createFOAVirtualSpeaker(context, options);</code></pre><ul>
+<li>context (AudioContext): an AudioContext object.</li>
+<li>options (Object): options for speaker.<ul>
+<li>coefficients: decoding coefficients for (W,X,Y,Z).</li>
+<li>IR: stereo IR buffer for HRTF convolution.</li>
+<li>gain: post-gain for the speaker.</li>
+</ul>
+</li>
+</ul>
+<h4>Methods</h4><pre class="prettyprint source lang-js"><code>speaker.enable();   // activate the speaker.
+speaker.disable();  // deactivate the speaker.</code></pre><p>Deactivating a virtual speaker can save CPU powers. Running multiple HRTF convolution can be computationally expensive, so disabling a speaker might be helpful when the binaural rendering is not necessary.</p>
+<h2>Building</h2><p>Omnitone uses <a href="https://webpack.github.io/">WebPack</a> to build the minified library and to manage dependencies.</p>
+<pre class="prettyprint source lang-bash"><code>npm install         # install dependencies.
+npm run build       # build a non-minified library.
+npm run watch       # recompile whenever any source file changes.
+npm run build-all   # build a minified library and copy static resources.</code></pre><h2>Test</h2><p>Omnitone uses <a href="https://travis-ci.org/">Travis</a> and <a href="https://karma-runner.github.io/1.0/index.html">Karma</a> test runner for continuous integration. (The index HTML page for the local testing is deprecated in v0.2.1.) To run the test suite locally, you have to clone the repository, install dependencies and launch the test runner:</p>
+<pre class="prettyprint source lang-bash"><code>npm test</code></pre><p>Note that unit tests require the promisified version of <code>OfflineAudioContext</code>, so they might not run on non-spec-compliant browsers. Omnitone's Travis CI is using the latest stable version of Chrome.</p>
+<h3>Testing Omnitone Locally</h3><p>For the local testing with Karma test runner, Chrome/Chromium-based browser is required. For Linux distros without Chrome browser, the following set up might be necessary for Karma to run properly:</p>
+<pre class="prettyprint source lang-bash"><code># Tested with Ubuntu 16.04
+sudo apt install chromium-browser
+export CHROME_BIN=chromium-browser</code></pre><p>Windows platform has not been tested for local testing.</p>
+<h2>Audio Codec Compatibility</h2><p>Omnitone is designed to run any browser that supports Web Audio API, however, it does not address the incompatibility issue around various media codecs in the browsers. At the time of writing, the decoding of compressed multichannel audio via <code>&lt;video&gt;</code> or <code>&lt;audio&gt;</code> elements is not fully supported by the majority of mobile browsers.</p>
+<h2>Related Resources</h2><ul>
+<li><a href="https://github.com/google/spatial-media">Google Spatial Media</a></li>
+<li><a href="https://webaudio.github.io/web-audio-api/">Web Audio API</a></li>
+<li><a href="https://webvr.info/">WebVR</a></li>
+</ul>
+<h2>Acknowledgments</h2><p>Special thanks to Boris Smus, Brandon Jones, Dillon Cower, Drew Allen, Julius Kammerl and Marcin Gorzel for their help on this project. We are also grateful to Tim Fain and Jaunt VR for their permission to use beautiful VR contents in the demo.</p>
+<h2>Support</h2><p>If you have found an error in this library, please file an issue at: https://github.com/GoogleChrome/omnitone/issues.</p>
+<p>Patches are encouraged, and may be submitted by forking this project and submitting a pull request through GitHub. See CONTRIBUTING for more detail.</p>
+<h2>License</h2><p>Copyright 2016 Google Inc. All Rights Reserved.</p>
+<p>Licensed under the Apache License, Version 2.0 (the &quot;License&quot;); you may not use this file except in compliance with the License. You may obtain a copy of the License at</p>
+<p>http://www.apache.org/licenses/LICENSE-2.0</p>
+<p>Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.</p></article>
+    </section>
+
+
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>ambisonic-encoder.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Spatially encodes input using spherical harmonics.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="ambisonic-encoder.js.html">ambisonic-encoder.js</a>, <a href="ambisonic-encoder.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>ambisonic-encoder-table.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Pre-computed lookup tables of spherical harmonics.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="ambisonic-encoder-table.js.html">ambisonic-encoder-table.js</a>, <a href="ambisonic-encoder-table.js.html#line16">line 16</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>attenuation.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Distance attenuation filter.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="attenuation.js.html">attenuation.js</a>, <a href="attenuation.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>globals.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Mathematical constants and default values for submodules.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="globals.js.html">globals.js</a>, <a href="globals.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>junco.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Junco library name space and common utilities.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="junco.js.html">junco.js</a>, <a href="junco.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>listener.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Listener model to spatialize sources in an environment.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="listener.js.html">listener.js</a>, <a href="listener.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>reflections.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Ray-based room reflections model.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="reflections.js.html">reflections.js</a>, <a href="reflections.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>reverb.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Late reverberation filter for Ambisonic content.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="reverb.js.html">reverb.js</a>, <a href="reverb.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>room.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Pre-defined wall materials and mathematical constants.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="room.js.html">room.js</a>, <a href="room.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>source.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Source model to spatialize an audio buffer.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="source.js.html">source.js</a>, <a href="source.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>utils.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Junco library common utilities.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="utils.js.html">utils.js</a>, <a href="utils.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>version.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Junco version.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="version.js.html">version.js</a>, <a href="version.js.html#line16">line 16</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="AmbisonicEncoder.html">AmbisonicEncoder</a></li><li><a href="Attenuation.html">Attenuation</a></li><li><a href="Globals.html">Globals</a></li><li><a href="Junco.html">Junco</a></li><li><a href="Listener.html">Listener</a></li><li><a href="Reflections.html">Reflections</a></li><li><a href="Reverb.html">Reverb</a></li><li><a href="Room.html">Room</a></li><li><a href="Source.html">Source</a></li></ul><h3>Global</h3><ul><li><a href="global.html#AmbisonicEncoderTable">AmbisonicEncoderTable</a></li><li><a href="global.html#log">log</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.3</a> on Fri Jul 28 2017 14:20:07 GMT-0700 (PDT)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
