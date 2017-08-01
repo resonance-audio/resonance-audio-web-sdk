@@ -18,25 +18,25 @@
   <meta charset="utf-8">
   <title>Example: Room model (two sources).</title>
   <script src="resources/omnitone.js"></script>
-  <script src="../build/junco.js"></script>
+  <script src="../build/songbird.js"></script>
 </head>
 <body>
   <p>Room model example using two sources.</p>
   <p><b>Room dimensions</b><br/>
   <label for="eWidthNumber" id="eWidthLabel">width</label>
-  <input id="eWidthNumber" type="number" min="0" max="100" value="4.7"
+  <input id="eWidthNumber" type="number" min="0" max="100" value="8.7"
     onchange="updateDimensions(this);"/>
   <label for="eHeightNumber" id="eHeightLabel">height</label>
-  <input id="eHeightNumber" type="number" min="0" max="100" value="2.8"
+  <input id="eHeightNumber" type="number" min="0" max="100" value="4.8"
     onchange="updateDimensions(this);"/>
   <label for="eDepthNumber" id="eDepthLabel">depth</label>
-  <input id="eDepthNumber" type="number" min="0" max="100" value="5.1"
+  <input id="eDepthNumber" type="number" min="0" max="100" value="9.1"
     onchange="updateDimensions(this);"/>
   </p>
   <p>
   <b>Room materials</b><br/>
   <label for="eLeftMaterial" id="eLeftLabel">left</label>
-  <select id="eLeftMaterial" onclick="updateMaterials(this);">
+  <select id="eLeftMaterial" onchange="updateMaterials(this);">
     <option value="Transparent">Transparent</option>
     <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
     <option value="BrickBare" selected>BrickBare</option>
@@ -62,7 +62,7 @@
     <option value="Uniform">Uniform</option>
   </select><br/>
   <label for="eRightMaterial" id="eRightLabel">right</label>
-  <select id="eRightMaterial" onclick="updateMaterials(this);">
+  <select id="eRightMaterial" onchange="updateMaterials(this);">
     <option value="Transparent">Transparent</option>
     <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
     <option value="BrickBare" selected>BrickBare</option>
@@ -88,7 +88,7 @@
     <option value="Uniform">Uniform</option>
   </select><br/>
   <label for="eFrontMaterial" id="eFrontLabel">front</label>
-  <select id="eFrontMaterial" onclick="updateMaterials(this);">
+  <select id="eFrontMaterial" onchange="updateMaterials(this);">
     <option value="Transparent">Transparent</option>
     <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
     <option value="BrickBare">BrickBare</option>
@@ -114,7 +114,7 @@
     <option value="Uniform">Uniform</option>
   </select><br/>
   <label for="eBackMaterial" id="eBackLabel">back</label>
-  <select id="eBackMaterial" onclick="updateMaterials(this);">
+  <select id="eBackMaterial" onchange="updateMaterials(this);">
     <option value="Transparent">Transparent</option>
     <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
     <option value="BrickBare" selected>BrickBare</option>
@@ -140,7 +140,7 @@
     <option value="Uniform">Uniform</option>
   </select><br/>
   <label for="eFloorMaterial" id="eFloorLabel">floor</label>
-  <select id="eFloorMaterial" onclick="updateMaterials(this);">
+  <select id="eFloorMaterial" onchange="updateMaterials(this);">
     <option value="Transparent">Transparent</option>
     <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
     <option value="BrickBare">BrickBare</option>
@@ -166,7 +166,7 @@
     <option value="Uniform">Uniform</option>
   </select><br/>
   <label for="eCeilingMaterial" id="eCeilingLabel">ceiling</label>
-  <select id="eCeilingMaterial" onclick="updateMaterials(this);">
+  <select id="eCeilingMaterial" onchange="updateMaterials(this);">
     <option value="Transparent" selected>Transparent</option>
     <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
     <option value="BrickBare">BrickBare</option>
@@ -192,47 +192,61 @@
     <option value="Uniform">Uniform</option>
   </select>
   </p>
+  <p>Sliders: x: left/right, y: down/up, z: front/back
   <p>
     <b>Source A position</b><br/>
+    <label for="eSourceAFilename" id="eSourceAFilenameLabel">File to play: </label>
+    <select id="eSourceAFilename" onchange="updateSourceAFilename(this);">
+      <option value="resources/CubeSound.wav" selected>CubeSound</option>
+      <option value="resources/SpeechSample.wav">Speech Sample</option>
+      <option value="resources/music1_30s_48kHz_16bit.wav">music1_30s_48kHz_16bit</option>
+    </select><br/>
     <label for="eSourceAXRange" id="eSourceAXLabel">x</label>
-    <input id="eSourceAXRange" type="range" min="-50" max="50" value="0"
+    <input id="eSourceAXRange" type="range" min="-45" max="45" value="-2"
       oninput="updateSourceAPosition(this);"/>
     <label for="eSourceAYRange" id="eSourceAYLabel">y</label>
-    <input id="eSourceAYRange" type="range" min="-50" max="50" value="0"
+    <input id="eSourceAYRange" type="range" min="-45" max="45" value="0"
       oninput="updateSourceAPosition(this);"/>
     <label for="eSourceAZRange" id="eSourceAZLabel">z</label>
-    <input id="eSourceAZRange" type="range" min="-50" max="50" value="0"
+    <input id="eSourceAZRange" type="range" min="-45" max="45" value="-2"
       oninput="updateSourceAPosition(this);"/>
     <button id="eSourceAPlayback" disabled>Play</button>
   </p>
   <p>
     <b>Source B position</b><br/>
+    <label for="eSourceBFilename" id="eSourceBFilenameLabel">File to play: </label>
+    <select id="eSourceBFilename" onchange="updateSourceBFilename(this);">
+      <option value="resources/CubeSound.wav">CubeSound</option>
+      <option value="resources/SpeechSample.wav" selected>Speech Sample</option>
+      <option value="resources/music1_30s_48kHz_16bit.wav">music1_30s_48kHz_16bit</option>
+    </select><br/>
     <label for="eSourceBXRange" id="eSourceBXLabel">x</label>
-    <input id="eSourceBXRange" type="range" min="-50" max="50" value="0"
+    <input id="eSourceBXRange" type="range" min="-45" max="45" value="3"
       oninput="updateSourceBPosition(this);"/>
     <label for="eSourceBYRange" id="eSourceBYLabel">y</label>
-    <input id="eSourceBYRange" type="range" min="-50" max="50" value="0"
+    <input id="eSourceBYRange" type="range" min="-45" max="45" value="0"
       oninput="updateSourceBPosition(this);"/>
     <label for="eSourceBZRange" id="eSourceBZLabel">z</label>
-    <input id="eSourceBZRange" type="range" min="-50" max="50" value="0"
+    <input id="eSourceBZRange" type="range" min="-45" max="45" value="3"
       oninput="updateSourceBPosition(this);"/>
     <button id="eSourceBPlayback" disabled>Play</button>
   </p>
   <p>
     <b>Listener position</b><br/>
     <label for="eListenerXRange" id="eListenerXLabel">x</label>
-    <input id="eListenerXRange" type="range" min="-50" max="50" value="0"
+    <input id="eListenerXRange" type="range" min="-45" max="45" value="0"
       oninput="updateListenerPosition(this);"/>
     <label for="eListenerYRange" id="eListenerYLabel">y</label>
-    <input id="eListenerYRange" type="range" min="-50" max="50" value="0"
+    <input id="eListenerYRange" type="range" min="-45" max="45" value="0"
       oninput="updateListenerPosition(this);"/>
     <label for="eListenerZRange" id="eListenerZLabel">z</label>
-    <input id="eListenerZRange" type="range" min="-50" max="50" value="0"
+    <input id="eListenerZRange" type="range" min="-45" max="45" value="0"
       oninput="updateListenerPosition(this);"/>
   </p>
   <script>
     // Define source audio files.
-    var audioSources = ['female.wav', 'male.wav'];
+    var audioSources = ['resources/CubeSound.wav', 'resources/SpeechSample.wav'];
+    var audioElements = Array(audioSources.length);
     var juncoSourceA, juncoSourceB, juncoListener;
 
     // Attach labels to associated input elements.
@@ -312,6 +326,17 @@
       updateRoomProperties();
     };
 
+    function updateSourceAFilename(sourceAFilename) {
+      audioElements[0].src = sourceAFilename.value;
+      audioElements[0].load();
+      document.getElementById('eSourceAPlayback').textContent = 'Play';
+    }
+    function updateSourceBFilename(sourceBFilename) {
+      audioElements[1].src = sourceBFilename.value;
+      audioElements[1].load();
+      document.getElementById('eSourceBPlayback').textContent = 'Play';
+    }
+
     function updateSourceAPosition(sourceASelection) {
       var dimension = dimensionsLookup[sourceASelection.label.textContent];
       sourceAParams[sourceASelection.label.textContent] =
@@ -334,7 +359,6 @@
     }
 
     var onLoad = function () {
-      var audioElements = Array(audioSources.length);
       var audioElementSources = Array(audioSources.length);
       var context = new AudioContext();
 
@@ -342,18 +366,19 @@
       for (var i = 0; i < audioSources.length; i++) {
         audioElements[i] = document.createElement('audio');
         audioElements[i].src = audioSources[i];
+        audioElements[i].load();
         audioElements[i].loop = true;
         audioElementSources[i] =
           context.createMediaElementSource(audioElements[i]);
       }
 
-      // Initialize Junco, create Listener and Source(s).
+      // Initialize Songbird, create Listener and Source(s).
       var juncoOptions = {
         ambisonicOrder : 3,
       };
-      juncoListener = Junco.createListener(context, juncoOptions);
-      juncoSourceA = Junco.createSource(juncoListener, juncoOptions);
-      juncoSourceB = Junco.createSource(juncoListener, juncoOptions);
+      juncoListener = Songbird.createListener(context, juncoOptions);
+      juncoSourceA = Songbird.createSource(juncoListener, juncoOptions);
+      juncoSourceB = Songbird.createSource(juncoListener, juncoOptions);
 
       // Initialize play button functionality.
       var sourcesPlayback = Array(audioSources.length);

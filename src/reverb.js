@@ -36,7 +36,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * Multiband RT60 durations (in secs) for each
  * {@link Globals.ReverbBands frequency band}.
  * @param {Number} options.preDelayMs Pre-delay (in ms).
- * @param {Number} options.gainLinear Output gain (linear).
+ * @param {Number} options.gain Output gain (linear).
  */
 function Reverb (context, options) {
   // Public variables.
@@ -63,8 +63,8 @@ function Reverb (context, options) {
   if (options.preDelayMs == undefined) {
     options.preDelayMs = Globals.DefaultReverbPreDelayMs;
   }
-  if (options.gainLinear == undefined) {
-    options.gainLinear = Globals.DefaultReverbGain;
+  if (options.gain == undefined) {
+    options.gain = Globals.DefaultReverbGain;
   }
 
   // Used for updating RT60s during runtime.
@@ -80,7 +80,7 @@ function Reverb (context, options) {
   this.output = context.createGain();
 
   // Set reverb attenuation.
-  this.output.gain.value = options.gainLinear;
+  this.output.gain.value = options.gain;
 
   // Disable normalization.
   this._convolver.normalize = false;

@@ -16,5 +16,5 @@
 
 'use strict';
 
-// Primary namespace for Junco library.
-exports.Junco = require('./junco.js');
+// Primary namespace for Songbird library.
+exports.Songbird = require('./songbird.js');

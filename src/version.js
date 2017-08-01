@@ -14,13 +14,14 @@
  */
 
 /**
- * @fileOverview Junco version.
+ * @file Songbird version.
+ * @author Andrew Allen <bitllama@google.com>
  */
 
 'use strict';
 
 /**
- * Junco library version
+ * Songbird library version
  * @type {String}
  */
 module.exports = '0.0.1';

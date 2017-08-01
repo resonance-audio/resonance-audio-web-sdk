@@ -72,8 +72,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
-	// Primary namespace for Junco library.
-	exports.Junco = __webpack_require__(1);
+	// Primary namespace for Songbird library.
+	exports.Songbird = __webpack_require__(1);
+
 
 /***/ }),
 /* 1 */
@@ -96,19 +97,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @fileOverview Junco library name space and common utilities.
+	 * @file Songbird library name space and common utilities.
+	 * @author Andrew Allen <bitllama@google.com>
 	 */
 
 	'use strict';
 
 	/**
-	 * @class Junco main namespace.
+	 * @class Songbird main namespace.
 	 */
-	var Junco = {};
+	var Songbird = {};
 
 	// Internal dependencies.
 	var Listener = __webpack_require__(2);
-	var Source = __webpack_require__(6);
+	var Source = __webpack_require__(10);
 
 	/**
 	 * Create {@link Listener Listener} to listen to
@@ -127,7 +129,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} options.speedOfSound
 	 * (in meters / second).
 	 */
-	Junco.createListener = function (context, options) {
+	Songbird.createListener = function (context, options) {
 	  return new Listener(context, options);
 	}
 
@@ -142,11 +144,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
 	 * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
 	 */
-	Junco.createSource = function(listener, options) {
+	Songbird.createSource = function(listener, options) {
 	  return new Source(listener, options);
 	}
 
-	module.exports = Junco;
+	module.exports = Songbird;
 
 /***/ }),
 /* 2 */
@@ -176,10 +178,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 
 	// Internal dependencies.
-	var Reflections = __webpack_require__(10);
-	var Reverb = __webpack_require__(12);
-	var Room = __webpack_require__(14);
-	var Globals = __webpack_require__(5);
+	var Reflections = __webpack_require__(3);
+	var Reverb = __webpack_require__(9);
+	var Room = __webpack_require__(7);
+	var Globals = __webpack_require__(8);
 
 	/**
 	 * @class Listener
@@ -297,140 +299,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = Listener;
 
 /***/ }),
-/* 3 */,
-/* 4 */
-/***/ (function(module, exports) {
-
-	/**
-	 * @license
-	 * Copyright 2016 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
-	 * @file Junco library common utilities.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	/**
-	 * Junco library logging function.
-	 * @type {Function}
-	 * @param {any} Message to be printed out.
-	 */
-	exports.log = function () {
-	  window.console.log.apply(window.console, [
-	    '%c[Junco]%c '
-	      + Array.prototype.slice.call(arguments).join(' ') + ' %c(@'
-	      + performance.now().toFixed(2) + 'ms)',
-	    'background: #BBDEFB; color: #FF5722; font-weight: 700',
-	    'font-weight: 400',
-	    'color: #AAA'
-	  ]);
-	};
-
-
-/***/ }),
-/* 5 */
-/***/ (function(module, exports) {
-
-	/**
-	 * @license
-	 * Copyright 2017 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
-	 * @file Mathematical constants and default values for submodules.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	/**
-	 * @class Globals
-	 * @description Mathematical constants and default values for submodules.
-	 */
-	var Globals = {};
-
-	// Math constants.
-	Globals.TwoPi = 6.28318530717959;
-	Globals.TwentyFourLog10 = 55.2620422318571;
-	Globals.TwentyFourLog10Div343 = 0.161113825748855;
-	Globals.Log1000 = 6.90775527898214;
-	Globals.Log2Div2 = 0.346573590279973;
-	Globals.PiByOneEighty = 0.017453292519943;
-	Globals.OneEightyByPi = 57.295779513082323;
-
-	// Numerical constants.
-	Globals.EpsilonFloat = 1e-6;
-
-	/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none'). */
-	Globals.RolloffModels = ['logarithmic', 'linear', 'none'];
-	/** Default rolloff model ('logarithmic'). */
-	Globals.DefaultRolloffModel = 'logarithmic';
-	Globals.DefaultMinDistance = 1;
-	Globals.DefaultMaxDistance = 1000;
-	Globals.DefaultGainLinear = 1;
-	Globals.DefaultPosition = [0, 0, 0];
-	Globals.DefaultOrientation = [0, 0, -1];
-
-	// Listener defaults.
-	Globals.DefaultAmbisonicOrder = 3;
-	Globals.DefaultSpeedOfSound = 343;
-
-	// Reverb constants and defaults.
-	/**
-	 * Center frequencies of the multiband reverberation engine.
-	 * Nine bands are computed by: 31.25 * 2^(0:8).
-	 * @member {Array}
-	 */
-	Globals.ReverbBands = [31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000];
-	/** The number of center frequencies supported.
-	 * @member {Number}
-	 */
-	Globals.NumReverbBands = Globals.ReverbBands.length;
-	/** The default bandwidth of the center frequencies. */
-	Globals.ReverbBandwidth = 1;
-	/** The default multiplier applied when computing tail lengths. */
-	Globals.ReverbDurationMultiplier = 1;
-	Globals.DefaultReverbPreDelayMs = 1.5;
-	Globals.DefaultReverbTailOnsetMs = 3.8;
-	Globals.DefaultReverbGain = 0.008;
-	Globals.DefaultReverbMaxDurationSecs = 3;
-
-	// Reflections constants and defaults.
-	Globals.ReflectionsMaxDuration = 1;
-	Globals.DefaultReflectionsCutoffFrequency = 6400; // -12dB cutoff.
-	Globals.DefaultReflectionsStartingBand = 4;
-	Globals.DefaultReflectionsNumAveragingBands = 3;
-
-	module.exports = Globals;
-
-
-/***/ }),
-/* 6 */
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	/**
@@ -450,166 +319,187 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @file Source model to spatialize an audio buffer.
+	 * @file Ray-based room reflections model.
 	 * @author Andrew Allen <bitllama@google.com>
 	 */
 
 	'use strict';
 
 	// Internal dependencies.
-	var Attenuation = __webpack_require__(13);
-	var AmbisonicEncoder = __webpack_require__(8);
-	var Globals = __webpack_require__(5);
+	var AmbisonicEncoder = __webpack_require__(4);
+	var Room = __webpack_require__(7);
+	var Globals = __webpack_require__(8);
 
 	/**
-	 * @class Source
-	 * @description Source model to spatialize an audio buffer.
-	 * @param {Listener} listener Associated Listener.
+	 * @class Reflections
+	 * @description Ray-based room reflections model.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
 	 * @param {Object} options
-	 * @param {Number} options.minDistance Min. distance (in meters).
-	 * @param {Number} options.maxDistance Max. distance (in meters).
-	 * @param {Number} options.gain Gain (linear).
-	 * @param {Float32Array} options.position Position [x,y,z] (in meters).
-	 * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
-	 * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
+	 * @param {Number} options.ambisonicOrder
+	 * Desired ambisonic order.
+	 * @param {Map} options.dimensions
+	 * Room dimensions (in meters).
+	 * @param {Map} options.coefficients
+	 * Multiband absorption coeffs per wall.
+	 * @param {Number} options.speedOfSound
+	 * (in meters / second) [optional].
 	 */
-	function Source (listener, options) {
+	function Reflections (context, options) {
 	  // Public variables.
+	  /**
+	   * The room's speed of sound (in meters/second).
+	   * @member {Number} speedOfSound
+	   * @memberof Reflections
+	   */
 	  /**
 	   * Input to .connect() input AudioNodes to.
 	   * @member {AudioNode} input
-	   * @memberof Source
+	   * @memberof Reflections
 	   */
+	  /**
+	   * Outuput to .connect() object from.
+	   * @member {AudioNode} output
+	   * @memberof Reflections
+	   */
+
+	  this._listenerPosition = new Float32Array(3);
+
+	  var wallAzimuthElevation = {
+	    'left' : [90, 0],
+	    'right' : [-90, 0],
+	    'front' : [0, 0],
+	    'back' : [180, 0],
+	    'ceiling' : [0, 90],
+	    'floor' : [0, -90]
+	  };
 
 	  // Assign defaults for undefined options.
 	  if (options == undefined) {
-	    options = new Object();
+	    options = {};
 	  }
-	  if (options.gain == undefined) {
-	    options.gain = Globals.DefaultGainLinear;
+	  if (options.ambisonicOrder == undefined) {
+	    options.ambisonicOrder = Globals.DefaultAmbisonicOrder;
 	  }
-	  if (options.position == undefined) {
-	    options.position = Globals.DefaultPosition;
+	  if (options.speedOfSound == undefined) {
+	    options.speedOfSound = Globals.DefaultSpeedOfSound;
 	  }
-	  if (options.velocity == undefined) {
-	    options.velocity = Globals.DefaultVelocity;
-	  }
-	  if (options.orientation == undefined) {
-	    options.orientation = Globals.DefaultOrientation;
-	  }
-
-	  this._listener = listener;
-	  this._position = new Float32Array(3);
-	  this._velocity = new Float32Array(3);
-	  this._orientation = new Float32Array(3);
+	  this.speedOfSound = options.speedOfSound;
 
 	  // Create nodes.
-	  var context = listener._context;
 	  this.input = context.createGain();
-	  this._attenuation =
-	    new Attenuation(context, options);
-	  this._encoder =
-	    new AmbisonicEncoder(context, listener._ambisonicOrder);
+	  this.output = context.createGain();
+	  this._lowpass = context.createBiquadFilter();
+	  this._delays = new Array(Room.NumWalls);
+	  this._gains = new Array(Room.NumWalls);
+	  this._encoders = new Array(Room.NumWalls);
+
+	  // For each wall, we connect a series of [delay] -> [gain] -> [encoder].
+	  for (var i = 0; i < Room.NumWalls; i++) {
+	    var key = Room.WallTypes[i];
+	    this._delays[key] = context.createDelay(Globals.ReflectionsMaxDuration);
+	    this._gains[key] = context.createGain();
+	    this._encoders[key] = new AmbisonicEncoder(context, options.ambisonicOrder);
+	  }
+
+	  // Initialize lowpass filter.
+	  this._lowpass.type = 'lowpass';
+	  this._lowpass.frequency.value = Globals.DefaultReflectionsCutoffFrequency;
+	  this._lowpass.Q.value = 0;
+
+	  // Initialize encoder directions, set delay times and gains to 0.
+	  for (var i = 0; i < Room.NumWalls; i++) {
+	    var key = Room.WallTypes[i];
+	    this._encoders[key].setDirection(wallAzimuthElevation[key][0],
+	      wallAzimuthElevation[key][1]);
+	    this._delays[key].delayTime.value = 0;
+	    this._gains[key].gain.value = 0;
+	  }
 
 	  // Connect nodes.
-	  this.input.connect(this._attenuation.input);
-	  this.input.connect(listener._reverb.input);
-	  this._attenuation.output.connect(this._encoder.input);
-	  this._attenuation.output.connect(listener._reflections.input);
-	  this._encoder.output.connect(listener.output);
-
-	  // Assign initial conditions.
-	  this.setPosition(options.position);
-	  this.setVelocity(options.velocity);
-	  this.setOrientation(options.orientation);
-	  this.input.gain.value = options.gain;
-	}
-
-	/**
-	 * Set source's position (in meters).
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
-	 */
-	Source.prototype.setPosition = function(x, y, z) {
-	  var dx = new Float32Array(3);
-
-	  // Assign new position.
-	  this._position[0] = x;
-	  this._position[1] = y;
-	  this._position[2] = z;
-
-	  // Compute distance to listener.
-	  for (var i = 0; i < 3; i++) {
-	    dx[i] = this._position[i] - this._listener._position[i];
+	  this.input.connect(this._lowpass);
+	  for (var i = 0; i < Room.NumWalls; i++) {
+	    var key = Room.WallTypes[i];
+	    this._lowpass.connect(this._delays[key]);
+	    this._delays[key].connect(this._gains[key]);
+	    this._gains[key].connect(this._encoders[key].input);
+	    this._encoders[key].output.connect(this.output);
 	  }
-	  var distance = Math.sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
 
-	  // Normalize direction vector.
-	  dx[0] /= distance;
-	  dx[1] /= distance;
-	  dx[2] /= distance;
-
-	  // Compuete angle of direction vector.
-	  var azimuth = Math.atan2(-dx[0], dx[2]) * Globals.OneEightyByPi;
-	  var elevation = Math.atan2(dx[1],
-	    Math.sqrt(dx[0] * dx[0] + dx[2] * dx[2])) * Globals.OneEightyByPi;
-
-	  // Set distance/direction values.
-	  this._attenuation.setDistance(distance);
-	  this._encoder.setDirection(azimuth, elevation);
+	  // Initialize.
+	  this.setRoomProperties(options.dimensions, options.coefficients);
 	}
 
 	/**
-	 * Set source's angle relative to the listener's position.
-	 * @param {Number} azimuth (in degrees).
-	 * @param {Number} elevation (in degrees).
-	 * @param {Number} distance (in meters).
-	 */
-	Source.prototype.setAngleFromListener = function(azimuth, elevation, distance) {
-	  var phi = azimuth * Globals.PiByOneEighty;
-	  var theta = elevation * Globals.PiByOneEighty;
-
-	  // Polar -> Cartesian.
-	  var x = Math.cos(phi) * Math.cos(theta);
-	  var y = Math.sin(theta);
-	  var z = Math.sin(phi) * Math.cos(theta);
-
-	  // Assign new position based on relationship to listener.
-	  this._position[0] = this._listener._position[0] + x;
-	  this._position[1] = this._listener._position[1] + y;
-	  this._position[2] = this._listener._position[2] + z;
-
-	  // Set distance/direction values.
-	  this._attenuation.setDistance(distance);
-	  this._encoder.setDirection(azimuth, elevation);
-	}
-
-	/**
-	 * Set source's forward orientation.
+	 * Set the listener position within the shoebox model.
 	 * @param {Number} x
 	 * @param {Number} y
 	 * @param {Number} z
 	 */
-	Source.prototype.setOrientation = function(x, y, z) {
-	  //TODO(bitllama) Make directivity thing here.
+	Reflections.prototype.setListenerPosition = function(x, y, z) {
+	  //TODO(bitllama): Handle listeners exiting the room!
+
+	  // Assign listener position.
+	  this._listenerPosition = [x, y, z];
+
+	  // Determine distances to each wall.
+	  var distances = {
+	    'left' : this._halfDimensions['width'] + x,
+	    'right' : this._halfDimensions['width'] - x,
+	    'front' : this._halfDimensions['depth'] + z,
+	    'back' : this._halfDimensions['depth'] - z,
+	    'floor' : this._halfDimensions['height'] + y,
+	    'ceiling' : this._halfDimensions['height'] - y,
+	  };
+
+	  // Assign delay & attenuation values using distances.
+	  for (var i = 0; i < Room.NumWalls; i++) {
+	    var key = Room.WallTypes[i];
+
+	    // Compute and assign delay (in secs).
+	    var delayInSecs = distances[key] / this.speedOfSound;
+	    this._delays[key].delayTime.value = delayInSecs;
+
+	    // Compute and assign gain, uses logarithmic rolloff: "g = R / (d + 1)"
+	    var attenuation = this._reflectionCoefficients[key] / (distances[key] + 1);
+	    this._gains[key].gain.value = attenuation;
+	  }
 	}
 
 	/**
-	 * Set source's velocity (in meters/second).
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
+	 * Set the room's properties which determines the characteristics of reflections.
+	 * @param {Map} dimensions
+	 * Dimensions map which should conform to the layout of
+	 * {@link Room.DefaultDimensions Room.DefaultDimensions}
+	 * @param {Map} coefficients
+	 * Absorption coefficients map which should contain the keys
+	 * {@link Room.WallTypes Room.WallTypes}, which each key containing nine (9)
+	 * values coninciding with desired coefficients for each
+	 * {@link Globals.ReverbBands frequency band}.
+	 *
 	 */
-	Source.prototype.setVelocity = function(x, y, z) {
-	  //TODO(bitllama) Make velocity/doppler thing here.
+	Reflections.prototype.setRoomProperties = function(dimensions, coefficients) {
+	  // Compute reflection coefficients.
+	  this._reflectionCoefficients =
+	    Room.computeReflectionCoefficients(coefficients);
+
+	  // Sanitize dimensions and store half-dimensions.
+	  dimensions = Room.sanitizeDimensions(dimensions);
+	  this._halfDimensions = {};
+	  this._halfDimensions['width'] = dimensions['width'] * 0.5;
+	  this._halfDimensions['height'] = dimensions['height'] * 0.5;
+	  this._halfDimensions['depth'] = dimensions['depth'] * 0.5;
+
+	  // Update listener position with new room properties.
+	  this.setListenerPosition(this._listenerPosition[0],
+	    this._listenerPosition[1], this._listenerPosition[2]);
 	}
 
-	module.exports = Source;
+	module.exports = Reflections;
 
 /***/ }),
-/* 7 */,
-/* 8 */
+/* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	/**
@@ -636,9 +526,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 
 	// Internal dependencies.
-	var AmbisonicEncoderTable = __webpack_require__(9);
+	var AmbisonicEncoderTable = __webpack_require__(5);
 	var AmbisonicEncoderTableMaxOrder = AmbisonicEncoderTable[0][0].length / 2;
-	var Utils = __webpack_require__(4);
+	var Utils = __webpack_require__(6);
 
 	/**
 	 * @class AmbisonicEncoder
@@ -663,7 +553,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	   */
 	  this._ambisonicOrder = ambisonicOrder;
 	  if (this._ambisonicOrder > AmbisonicEncoderTableMaxOrder) {
-	    Utils.log('Junco (Error):\nUnable to render ambisonic order',
+	    Utils.log('(Error):\nUnable to render ambisonic order',
 	      ambisonic_order, '(Max order is', AmbisonicEncoderTableMaxOrder,
 	      ')\nUsing max order instead.');
 	    this._ambisonicOrder = AmbisonicEncoderTableMaxOrder;
@@ -725,7 +615,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = AmbisonicEncoder;
 
 /***/ }),
-/* 9 */
+/* 5 */
 /***/ (function(module, exports) {
 
 	/**
@@ -744,7 +634,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @fileOverview Pre-computed lookup tables of spherical harmonics.
+	 * @file Pre-computed lookup tables of spherical harmonics.
+	 * @author Andrew Allen <bitllama@google.com>
 	 */
 
 	'use strict';
@@ -9074,8 +8965,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = AmbisonicEncoderTable;
 
 /***/ }),
-/* 10 */
-/***/ (function(module, exports, __webpack_require__) {
+/* 6 */
+/***/ (function(module, exports) {
 
 	/**
 	 * @license
@@ -9094,536 +8985,31 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @file Ray-based room reflections model.
+	 * @file Songbird library common utilities.
 	 * @author Andrew Allen <bitllama@google.com>
 	 */
 
 	'use strict';
 
-	// Internal dependencies.
-	var AmbisonicEncoder = __webpack_require__(8);
-	var Room = __webpack_require__(14);
-	var Globals = __webpack_require__(5);
-
 	/**
-	 * @class Reflections
-	 * @description Ray-based room reflections model.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Object} options
-	 * @param {Number} options.ambisonicOrder
-	 * Desired ambisonic order.
-	 * @param {Map} options.dimensions
-	 * Room dimensions (in meters).
-	 * @param {Map} options.coefficients
-	 * Multiband absorption coeffs per wall.
-	 * @param {Number} options.speedOfSound
-	 * (in meters / second) [optional].
+	 * Songbird library logging function.
+	 * @type {Function}
+	 * @param {any} Message to be printed out.
 	 */
-	function Reflections (context, options) {
-	  // Public variables.
-	  /**
-	   * The room's speed of sound (in meters/second).
-	   * @member {Number} speedOfSound
-	   * @memberof Reflections
-	   */
-	  /**
-	   * Input to .connect() input AudioNodes to.
-	   * @member {AudioNode} input
-	   * @memberof Reflections
-	   */
-	  /**
-	   * Outuput to .connect() object from.
-	   * @member {AudioNode} output
-	   * @memberof Reflections
-	   */
+	exports.log = function () {
+	  window.console.log.apply(window.console, [
+	    '%c[Songbird]%c '
+	      + Array.prototype.slice.call(arguments).join(' ') + ' %c(@'
+	      + performance.now().toFixed(2) + 'ms)',
+	    'background: #BBDEFB; color: #FF5722; font-weight: 700',
+	    'font-weight: 400',
+	    'color: #AAA'
+	  ]);
+	};
 
-	  this._listenerPosition = new Float32Array(3);
-
-	  var wallAzimuthElevation = {
-	    'left' : [90, 0],
-	    'right' : [-90, 0],
-	    'front' : [0, 0],
-	    'back' : [180, 0],
-	    'ceiling' : [0, 90],
-	    'floor' : [0, -90]
-	  };
-
-	  // Assign defaults for undefined options.
-	  if (options == undefined) {
-	    options = {};
-	  }
-	  if (options.ambisonicOrder == undefined) {
-	    options.ambisonicOrder = Globals.DefaultAmbisonicOrder;
-	  }
-	  if (options.speedOfSound == undefined) {
-	    options.speedOfSound = Globals.DefaultSpeedOfSound;
-	  }
-	  this.speedOfSound = options.speedOfSound;
-
-	  // Create nodes.
-	  this.input = context.createGain();
-	  this.output = context.createGain();
-	  this._lowpass = context.createBiquadFilter();
-	  this._delays = new Array(Room.NumWalls);
-	  this._gains = new Array(Room.NumWalls);
-	  this._encoders = new Array(Room.NumWalls);
-
-	  // For each wall, we connect a series of [delay] -> [gain] -> [encoder].
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-	    this._delays[key] = context.createDelay(Globals.ReflectionsMaxDuration);
-	    this._gains[key] = context.createGain();
-	    this._encoders[key] = new AmbisonicEncoder(context, options.ambisonicOrder);
-	  }
-
-	  // Initialize lowpass filter.
-	  this._lowpass.type = 'lowpass';
-	  this._lowpass.frequency.value = Globals.DefaultReflectionsCutoffFrequency;
-	  this._lowpass.Q.value = 0;
-
-	  // Initialize encoder directions, set delay times and gains to 0.
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-	    this._encoders[key].setDirection(wallAzimuthElevation[key][0],
-	      wallAzimuthElevation[key][1]);
-	    this._delays[key].delayTime.value = 0;
-	    this._gains[key].gain.value = 0;
-	  }
-
-	  // Connect nodes.
-	  this.input.connect(this._lowpass);
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-	    this._lowpass.connect(this._delays[key]);
-	    this._delays[key].connect(this._gains[key]);
-	    this._gains[key].connect(this._encoders[key].input);
-	    this._encoders[key].output.connect(this.output);
-	  }
-
-	  // Initialize.
-	  this.setRoomProperties(options.dimensions, options.coefficients);
-	}
-
-	/**
-	 * Set the listener position within the shoebox model.
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
-	 */
-	Reflections.prototype.setListenerPosition = function(x, y, z) {
-	  //TODO(bitllama): Handle listeners exiting the room!
-
-	  // Assign listener position.
-	  this._listenerPosition = [x, y, z];
-
-	  // Determine distances to each wall.
-	  var distances = {
-	    'left' : this._halfDimensions['width'] + x,
-	    'right' : this._halfDimensions['width'] - x,
-	    'front' : this._halfDimensions['depth'] + z,
-	    'back' : this._halfDimensions['depth'] - z,
-	    'floor' : this._halfDimensions['height'] + y,
-	    'ceiling' : this._halfDimensions['height'] - y,
-	  };
-
-	  // Assign delay & attenuation values using distances.
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-
-	    // Compute and assign delay (in secs).
-	    var delayInSecs = distances[key] / this.speedOfSound;
-	    this._delays[key].delayTime.value = delayInSecs;
-
-	    // Compute and assign gain, uses logarithmic rolloff: "g = R / (d + 1)"
-	    var attenuation = this._reflectionCoefficients[key] / (distances[key] + 1);
-	    this._gains[key].gain.value = attenuation;
-	  }
-	}
-
-	/**
-	 * Set the room's properties which determines the characteristics of reflections.
-	 * @param {Map} dimensions
-	 * Dimensions map which should conform to the layout of
-	 * {@link Room.DefaultDimensions Room.DefaultDimensions}
-	 * @param {Map} coefficients
-	 * Absorption coefficients map which should contain the keys
-	 * {@link Room.WallTypes Room.WallTypes}, which each key containing nine (9)
-	 * values coninciding with desired coefficients for each
-	 * {@link Globals.ReverbBands frequency band}.
-	 *
-	 */
-	Reflections.prototype.setRoomProperties = function(dimensions, coefficients) {
-	  // Compute reflection coefficients.
-	  this._reflectionCoefficients =
-	    Room.computeReflectionCoefficients(coefficients);
-
-	  // Sanitize dimensions and store half-dimensions.
-	  dimensions = Room.sanitizeDimensions(dimensions);
-	  this._halfDimensions = {};
-	  this._halfDimensions['width'] = dimensions['width'] * 0.5;
-	  this._halfDimensions['height'] = dimensions['height'] * 0.5;
-	  this._halfDimensions['depth'] = dimensions['depth'] * 0.5;
-
-	  // Update listener position with new room properties.
-	  this.setListenerPosition(this._listenerPosition[0],
-	    this._listenerPosition[1], this._listenerPosition[2]);
-	}
-
-	module.exports = Reflections;
 
 /***/ }),
-/* 11 */,
-/* 12 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	/**
-	 * @license
-	 * Copyright 2016 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
-	 * @file Late reverberation filter for Ambisonic content.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	// Internal dependencies.
-	var Globals = __webpack_require__(5);
-	var Utils = __webpack_require__(4);
-
-	/**
-	 * @class Reverb
-	 * @description Late reverberation filter for Ambisonic content.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Object} options
-	 * @param {Array} options.RT60DurationSecs
-	 * Multiband RT60 durations (in secs) for each
-	 * {@link Globals.ReverbBands frequency band}.
-	 * @param {Number} options.preDelayMs Pre-delay (in ms).
-	 * @param {Number} options.gainLinear Output gain (linear).
-	 */
-	function Reverb (context, options) {
-	  // Public variables.
-	  /**
-	   * Input to .connect() input AudioNodes to.
-	   * @member {AudioNode} input
-	   * @memberof Reverb
-	   */
-	  /**
-	   * Outuput to .connect() object from.
-	   * @member {AudioNode} output
-	   * @memberof Reverb
-	   */
-
-	  this._context = context;
-
-	  // Use defaults for undefined arguments
-	  if (options == undefined) {
-	    options = {};
-	  }
-	  if (options.RT60DurationSecs == undefined) {
-	    options.RT60DurationSecs = new Float32Array(Globals.NumReverbBands);
-	  }
-	  if (options.preDelayMs == undefined) {
-	    options.preDelayMs = Globals.DefaultReverbPreDelayMs;
-	  }
-	  if (options.gainLinear == undefined) {
-	    options.gainLinear = Globals.DefaultReverbGain;
-	  }
-
-	  // Used for updating RT60s during runtime.
-	  this._enabled = false;
-
-	  // Compute pre-delay.
-	  var delayInSecs = options.preDelayMs / 1000;
-
-	  // Create nodes.
-	  this.input = context.createGain();
-	  this._predelay = context.createDelay(delayInSecs);
-	  this._convolver = context.createConvolver();
-	  this.output = context.createGain();
-
-	  // Set reverb attenuation.
-	  this.output.gain.value = options.gainLinear;
-
-	  // Disable normalization.
-	  this._convolver.normalize = false;
-
-	  // Connect nodes.
-	  this.input.connect(this._predelay);
-	  this._predelay.connect(this._convolver);
-	  this._convolver.connect(this.output);
-
-	  // Compute IR using RT60 values.
-	  this.setRT60s(options.RT60DurationSecs);
-	}
-
-	/**
-	 * Re-compute a new impulse response by providing Multiband RT60 durations.
-	 * @param {Array} RT60DurationSecs
-	 * Multiband RT60 durations (in secs) for each
-	 * {@link Globals.ReverbBands frequency band}.
-	 */
-	Reverb.prototype.setRT60s = function (RT60DurationSecs) {
-	  if (RT60DurationSecs.length !== Globals.NumReverbBands) {
-	    Utils.log("Warning: invalid number of RT60 values provided to reverb.");
-	    return;
-	  }
-
-	  // Compute impulse response.
-	  var RT60Samples = new Float32Array(Globals.NumReverbBands);
-	  var sampleRate = this._context.sampleRate;
-
-	  for (var i = 0; i < Math.min(RT60DurationSecs.length, RT60Samples.length); i++) {
-	    // Clamp within suitable range.
-	    RT60DurationSecs[i] = Math.max(0, Math.min(
-	      Globals.DefaultReverbMaxDurationSecs, RT60DurationSecs[i]));
-
-	      // Convert seconds to samples.
-	    RT60Samples[i] =
-	      Math.round(RT60DurationSecs[i] * sampleRate * Globals.ReverbDurationMultiplier);
-	  };
-
-	  // Determine max RT60 length in samples.
-	  var RT60MaxLengthSamples = 0;
-	  for (var i = 0; i < RT60Samples.length; i++) {
-	    if (RT60Samples[i] > RT60MaxLengthSamples) {
-	      RT60MaxLengthSamples = RT60Samples[i];
-	    }
-	  }
-
-	  // Skip this step if there is no reverberation to compute.
-	  if (RT60MaxLengthSamples < 1) {
-	    RT60MaxLengthSamples = 1;
-	  }
-
-	  var buffer = this._context.createBuffer(1, RT60MaxLengthSamples, sampleRate);
-	  var bufferData = buffer.getChannelData(0);
-
-	  // Create noise signal (computed once, referenced in each band's routine).
-	  var noiseSignal = new Float32Array(RT60MaxLengthSamples);
-	  for (var i = 0; i < RT60MaxLengthSamples; i++) {
-	    noiseSignal[i] = Math.random() * 2 - 1;
-	  }
-
-	  // Compute the decay rate per-band and filter the decaying noise signal.
-	  for (var i = 0; i < Globals.NumReverbBands; i++) {
-	  //for (var i = 0; i < 1; i++) {
-	    // Compute decay rate.
-	    var decayRate = -Globals.Log1000 / RT60Samples[i];
-
-	    // Construct a standard bandpass filter:
-	    // H(z) = (b0 * z^0 + b1 * z^-1 + b2 * z^-2) / (1 + a1 * z^-1 + a2 * z^-2)
-	    var omega = Globals.TwoPi * Globals.ReverbBands[i] / sampleRate;
-	    var sinOmega = Math.sin(omega);
-	    var alpha = sinOmega * Math.sinh(Globals.Log2Div2 *
-	      Globals.ReverbBandwidth * omega / sinOmega);
-	    var a0CoeffReciprocal = 1 / (1 + alpha);
-	    var b0Coeff = alpha * a0CoeffReciprocal;
-	    var a1Coeff = -2 * Math.cos(omega) * a0CoeffReciprocal;
-	    var a2Coeff = (1 - alpha) * a0CoeffReciprocal;
-
-	    // We optimize since b2 = -b0, b1 = 0.
-	    // Update equation for two-pole bandpass filter:
-	    //   u[n] = x[n] - a1 * x[n-1] - a2 * x[n-2]
-	    //   y[n] = b0 * (u[n] - u[n-2])
-	    var um1 = 0;
-	    var um2 = 0;
-	    for (var j = 0; j < RT60Samples[i]; j++) {
-	      // Exponentially-decaying white noise.
-	      var x = noiseSignal[j] * Math.exp(decayRate * j);
-
-	      // Filter signal with bandpass filter and add to output.
-	      var u = x - a1Coeff * um1 - a2Coeff * um2;
-	      bufferData[j] += b0Coeff * (u - um2);
-
-	      // Update coefficients.
-	      um2 = um1;
-	      um1 = u;
-	    }
-	  }
-
-	  // Create and apply half-Hann window.
-	  var halfHannLength =
-	    Math.round(Globals.DefaultReverbTailOnsetMs / 1000 * sampleRate);
-	  for (var i = 0; i < Math.min(bufferData.length, halfHannLength); i++) {
-	    var halfHann =
-	      0.5 * (1 - Math.cos(Globals.TwoPi * i / (2 * halfHannLength - 1)));
-	    bufferData[i] *= halfHann;
-	  }
-	  this._convolver.buffer = buffer;
-	}
-
-	module.exports = Reverb;
-
-/***/ }),
-/* 13 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	/**
-	 * @license
-	 * Copyright 2016 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
-	 * @file Distance attenuation filter.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	// Internal dependencies.
-	var Globals = __webpack_require__(5);
-	var Utils = __webpack_require__(4);
-
-	/**
-	 * @class Attenuation
-	 * @description Distance attenuation filter.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Object} options
-	 * @param {Number} options.minDistance Min. distance (in meters).
-	 * @param {Number} options.maxDistance Max. distance (in meters).
-	 * @param {string} options.rolloffModel
-	 * Rolloff model to use, chosen from options in
-	 * {@link Globals.RolloffModels Global.RolloffModels}.
-	 */
-	function Attenuation (context, options) {
-	  // Public variables.
-	  /**
-	   * Minimum distance from the listener (in meters).
-	   * @member {Number} minDistance
-	   * @memberof Attenuation
-	   */
-	  /**
-	   * Maximum distance from the listener (in meters).
-	   * @member {Number} maxDistance
-	   * @memberof Attenuation
-	   */
-	  /**
-	   * Input to .connect() input AudioNodes to.
-	   * @member {AudioNode} input
-	   * @memberof Attenuation
-	   */
-	  /**
-	   * Outuput to .connect() object from.
-	   * @member {AudioNode} output
-	   * @memberof Attenuation
-	   */
-
-	  // Use defaults for undefined arguments
-	  if (options == undefined) {
-	    options = new Object();
-	  }
-	  if (options.minDistance == undefined) {
-	    options.minDistance = Globals.DefaultMinDistance;
-	  }
-	  if (options.maxDistance == undefined) {
-	    options.maxDistance = Globals.DefaultMaxDistance;
-	  }
-	  if (options.rollofModel == undefined) {
-	    options.rolloffModel = Globals.DefaultRolloffModel;
-	  }
-
-	  // Assign values.
-	  this.minDistance = options.minDistance;
-	  this.maxDistance = options.maxDistance;
-	  this.setRolloffModel(options.rolloffModel);
-
-	  // Create node.
-	  this._gainNode = context.createGain();
-
-	  // Initialize distance to max distance.
-	  this.setDistance(options.maxDistance);
-
-	  // Input/Output proxy.
-	  this.input = this._gainNode;
-	  this.output = this._gainNode;
-	}
-
-	/**
-	 * Set distance from the listener.
-	 * @param {Number} distance Distance (in meters).
-	 */
-	Attenuation.prototype.setDistance = function(distance) {
-	  var gain = 1;
-	  if (this._rolloffModel == 'logarithmic') {
-	    if (distance > this.maxDistance) {
-	      gain = 0;
-	    } else if (distance > this.minDistance) {
-	      var range = this.maxDistance - this.minDistance;
-	      if (range > Globals.EpsilonFloat) {
-	        // Compute the distance attenuation value by the logarithmic curve
-	        // "1 / (d + 1)" with an offset of |minDistance|.
-	        var relativeDistance = distance - this.minDistance;
-	        var attenuation = 1 / (relativeDistance + 1);
-	        var attenuationMax = 1 / (range + 1);
-	        gain = (attenuation - attenuationMax) / (1 - attenuationMax);
-	      }
-	    }
-	  } else if (this._rolloffModel == 'linear') {
-	    if (distance > this.maxDistance) {
-	      gain = 0;
-	    } else if (distance > this.minDistance) {
-	      var range = this.maxDistance - this.minDistance;
-	      if (range > Globals.EpsilonFloat) {
-	        gain = (this.maxDistance - distance) / range;
-	      }
-	    }
-	  }
-	  this._gainNode.gain.value = gain;
-	}
-
-	/**
-	 * Set rolloff model.
-	 * @param {string} rolloffModel
-	 * Rolloff model to use, chosen from options in
-	 * {@link Globals.RolloffModels Global.RolloffModels}.
-	 */
-	Attenuation.prototype.setRolloffModel = function (rolloffModel) {
-	  var isValidModel = ~Globals.RolloffModels.indexOf(rolloffModel);
-	  if (rolloffModel == undefined || !isValidModel) {
-	    if (!isValidModel) {
-	      Utils.log('Invalid rolloff model. Using default: \"' +
-	        Globals.DefaultRolloffModel + '\".');
-	    }
-	    rolloffModel = Globals.DefaultRolloffModel;
-	  }
-	  this._rolloffModel = rolloffModel;
-	}
-
-	module.exports = Attenuation;
-
-/***/ }),
-/* 14 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	/**
@@ -9650,8 +9036,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 
 	// Internal dependencies.
-	var Globals = __webpack_require__(5);
-	var Utils = __webpack_require__(4);
+	var Globals = __webpack_require__(8);
+	var Utils = __webpack_require__(6);
 
 	/**
 	 * @class Room
@@ -9662,6 +9048,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	Room.MinVolume = 1e-4;
 	Room.AirAbsorbtionCoefficients =
 	  [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
+	Room.EyringCorrection = 1.38;
 
 	/** Wall types are 'left', 'right', 'front', 'back', 'ceiling', and 'floor'. */
 	Room.WallTypes = ['left', 'right', 'front', 'back', 'ceiling', 'floor'];
@@ -9898,8 +9285,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	        Room.AirAbsorbtionCoefficients[i] * volume);
 	    } else {
 	      // Eyring equation.
-	      RT60Secs[i] = k * volume / (-totalArea * Math.log(1 -
-	        meanAbsorbtionArea) + 4 * Room.AirAbsorbtionCoefficients[i] * volume);
+	      RT60Secs[i] = Room.EyringCorrection * k * volume / (-totalArea *
+	        Math.log(1 - meanAbsorbtionArea) + 4 *
+	        Room.AirAbsorbtionCoefficients[i] * volume);
 	    }
 	  }
 	  return RT60Secs;
@@ -9907,6 +9295,629 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	module.exports = Room;
 
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports) {
+
+	/**
+	 * @license
+	 * Copyright 2017 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Mathematical constants and default values for submodules.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	/**
+	 * @class Globals
+	 * @description Mathematical constants and default values for submodules.
+	 */
+	var Globals = {};
+
+	// Math constants.
+	Globals.TwoPi = 6.28318530717959;
+	Globals.TwentyFourLog10 = 55.2620422318571;
+	Globals.TwentyFourLog10Div343 = 0.161113825748855;
+	Globals.Log1000 = 6.90775527898214;
+	Globals.Log2Div2 = 0.346573590279973;
+	Globals.PiByOneEighty = 0.017453292519943;
+	Globals.OneEightyByPi = 57.295779513082323;
+
+	// Numerical constants.
+	Globals.EpsilonFloat = 1e-6;
+
+	/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none'). */
+	Globals.RolloffModels = ['logarithmic', 'linear', 'none'];
+	/** Default rolloff model ('logarithmic'). */
+	Globals.DefaultRolloffModel = 'logarithmic';
+	Globals.DefaultMinDistance = 1;
+	Globals.DefaultMaxDistance = 1000;
+	Globals.DefaultGainLinear = 1;
+	Globals.DefaultPosition = [0, 0, 0];
+	Globals.DefaultOrientation = [0, 0, -1];
+
+	// Listener defaults.
+	Globals.DefaultAmbisonicOrder = 1;
+	Globals.DefaultSpeedOfSound = 343;
+
+	// Reverb constants and defaults.
+	/**
+	 * Center frequencies of the multiband reverberation engine.
+	 * Nine bands are computed by: 31.25 * 2^(0:8).
+	 * @member {Array}
+	 */
+	Globals.ReverbBands = [31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000];
+	/** The number of center frequencies supported.
+	 * @member {Number}
+	 */
+	Globals.NumReverbBands = Globals.ReverbBands.length;
+	/** The default bandwidth of the center frequencies. */
+	Globals.ReverbBandwidth = 1;
+	/** The default multiplier applied when computing tail lengths. */
+	Globals.ReverbDurationMultiplier = 1;
+	Globals.DefaultReverbPreDelayMs = 1.5;
+	Globals.DefaultReverbTailOnsetMs = 3.8;
+	Globals.DefaultReverbGain = 0.01;
+	Globals.DefaultReverbMaxDurationSecs = 3;
+
+	// Reflections constants and defaults.
+	Globals.ReflectionsMaxDuration = 1;
+	Globals.DefaultReflectionsCutoffFrequency = 6400; // -12dB cutoff.
+	Globals.DefaultReflectionsStartingBand = 4;
+	Globals.DefaultReflectionsNumAveragingBands = 3;
+
+	module.exports = Globals;
+
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	/**
+	 * @license
+	 * Copyright 2016 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Late reverberation filter for Ambisonic content.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	// Internal dependencies.
+	var Globals = __webpack_require__(8);
+	var Utils = __webpack_require__(6);
+
+	/**
+	 * @class Reverb
+	 * @description Late reverberation filter for Ambisonic content.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @param {Object} options
+	 * @param {Array} options.RT60DurationSecs
+	 * Multiband RT60 durations (in secs) for each
+	 * {@link Globals.ReverbBands frequency band}.
+	 * @param {Number} options.preDelayMs Pre-delay (in ms).
+	 * @param {Number} options.gain Output gain (linear).
+	 */
+	function Reverb (context, options) {
+	  // Public variables.
+	  /**
+	   * Input to .connect() input AudioNodes to.
+	   * @member {AudioNode} input
+	   * @memberof Reverb
+	   */
+	  /**
+	   * Outuput to .connect() object from.
+	   * @member {AudioNode} output
+	   * @memberof Reverb
+	   */
+
+	  this._context = context;
+
+	  // Use defaults for undefined arguments
+	  if (options == undefined) {
+	    options = {};
+	  }
+	  if (options.RT60DurationSecs == undefined) {
+	    options.RT60DurationSecs = new Float32Array(Globals.NumReverbBands);
+	  }
+	  if (options.preDelayMs == undefined) {
+	    options.preDelayMs = Globals.DefaultReverbPreDelayMs;
+	  }
+	  if (options.gain == undefined) {
+	    options.gain = Globals.DefaultReverbGain;
+	  }
+
+	  // Used for updating RT60s during runtime.
+	  this._enabled = false;
+
+	  // Compute pre-delay.
+	  var delayInSecs = options.preDelayMs / 1000;
+
+	  // Create nodes.
+	  this.input = context.createGain();
+	  this._predelay = context.createDelay(delayInSecs);
+	  this._convolver = context.createConvolver();
+	  this.output = context.createGain();
+
+	  // Set reverb attenuation.
+	  this.output.gain.value = options.gain;
+
+	  // Disable normalization.
+	  this._convolver.normalize = false;
+
+	  // Connect nodes.
+	  this.input.connect(this._predelay);
+	  this._predelay.connect(this._convolver);
+	  this._convolver.connect(this.output);
+
+	  // Compute IR using RT60 values.
+	  this.setRT60s(options.RT60DurationSecs);
+	}
+
+	/**
+	 * Re-compute a new impulse response by providing Multiband RT60 durations.
+	 * @param {Array} RT60DurationSecs
+	 * Multiband RT60 durations (in secs) for each
+	 * {@link Globals.ReverbBands frequency band}.
+	 */
+	Reverb.prototype.setRT60s = function (RT60DurationSecs) {
+	  if (RT60DurationSecs.length !== Globals.NumReverbBands) {
+	    Utils.log("Warning: invalid number of RT60 values provided to reverb.");
+	    return;
+	  }
+
+	  // Compute impulse response.
+	  var RT60Samples = new Float32Array(Globals.NumReverbBands);
+	  var sampleRate = this._context.sampleRate;
+
+	  for (var i = 0; i < Math.min(RT60DurationSecs.length, RT60Samples.length); i++) {
+	    // Clamp within suitable range.
+	    RT60DurationSecs[i] = Math.max(0, Math.min(
+	      Globals.DefaultReverbMaxDurationSecs, RT60DurationSecs[i]));
+
+	      // Convert seconds to samples.
+	    RT60Samples[i] =
+	      Math.round(RT60DurationSecs[i] * sampleRate * Globals.ReverbDurationMultiplier);
+	  };
+
+	  // Determine max RT60 length in samples.
+	  var RT60MaxLengthSamples = 0;
+	  for (var i = 0; i < RT60Samples.length; i++) {
+	    if (RT60Samples[i] > RT60MaxLengthSamples) {
+	      RT60MaxLengthSamples = RT60Samples[i];
+	    }
+	  }
+
+	  // Skip this step if there is no reverberation to compute.
+	  if (RT60MaxLengthSamples < 1) {
+	    RT60MaxLengthSamples = 1;
+	  }
+
+	  var buffer = this._context.createBuffer(1, RT60MaxLengthSamples, sampleRate);
+	  var bufferData = buffer.getChannelData(0);
+
+	  // Create noise signal (computed once, referenced in each band's routine).
+	  var noiseSignal = new Float32Array(RT60MaxLengthSamples);
+	  for (var i = 0; i < RT60MaxLengthSamples; i++) {
+	    noiseSignal[i] = Math.random() * 2 - 1;
+	  }
+
+	  // Compute the decay rate per-band and filter the decaying noise signal.
+	  for (var i = 0; i < Globals.NumReverbBands; i++) {
+	  //for (var i = 0; i < 1; i++) {
+	    // Compute decay rate.
+	    var decayRate = -Globals.Log1000 / RT60Samples[i];
+
+	    // Construct a standard bandpass filter:
+	    // H(z) = (b0 * z^0 + b1 * z^-1 + b2 * z^-2) / (1 + a1 * z^-1 + a2 * z^-2)
+	    var omega = Globals.TwoPi * Globals.ReverbBands[i] / sampleRate;
+	    var sinOmega = Math.sin(omega);
+	    var alpha = sinOmega * Math.sinh(Globals.Log2Div2 *
+	      Globals.ReverbBandwidth * omega / sinOmega);
+	    var a0CoeffReciprocal = 1 / (1 + alpha);
+	    var b0Coeff = alpha * a0CoeffReciprocal;
+	    var a1Coeff = -2 * Math.cos(omega) * a0CoeffReciprocal;
+	    var a2Coeff = (1 - alpha) * a0CoeffReciprocal;
+
+	    // We optimize since b2 = -b0, b1 = 0.
+	    // Update equation for two-pole bandpass filter:
+	    //   u[n] = x[n] - a1 * x[n-1] - a2 * x[n-2]
+	    //   y[n] = b0 * (u[n] - u[n-2])
+	    var um1 = 0;
+	    var um2 = 0;
+	    for (var j = 0; j < RT60Samples[i]; j++) {
+	      // Exponentially-decaying white noise.
+	      var x = noiseSignal[j] * Math.exp(decayRate * j);
+
+	      // Filter signal with bandpass filter and add to output.
+	      var u = x - a1Coeff * um1 - a2Coeff * um2;
+	      bufferData[j] += b0Coeff * (u - um2);
+
+	      // Update coefficients.
+	      um2 = um1;
+	      um1 = u;
+	    }
+	  }
+
+	  // Create and apply half-Hann window.
+	  var halfHannLength =
+	    Math.round(Globals.DefaultReverbTailOnsetMs / 1000 * sampleRate);
+	  for (var i = 0; i < Math.min(bufferData.length, halfHannLength); i++) {
+	    var halfHann =
+	      0.5 * (1 - Math.cos(Globals.TwoPi * i / (2 * halfHannLength - 1)));
+	    bufferData[i] *= halfHann;
+	  }
+	  this._convolver.buffer = buffer;
+	}
+
+	module.exports = Reverb;
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	/**
+	 * @license
+	 * Copyright 2016 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Source model to spatialize an audio buffer.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	// Internal dependencies.
+	var Attenuation = __webpack_require__(11);
+	var AmbisonicEncoder = __webpack_require__(4);
+	var Globals = __webpack_require__(8);
+
+	/**
+	 * @class Source
+	 * @description Source model to spatialize an audio buffer.
+	 * @param {Listener} listener Associated Listener.
+	 * @param {Object} options
+	 * @param {Number} options.minDistance Min. distance (in meters).
+	 * @param {Number} options.maxDistance Max. distance (in meters).
+	 * @param {Number} options.gain Gain (linear).
+	 * @param {Float32Array} options.position Position [x,y,z] (in meters).
+	 * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
+	 * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
+	 */
+	function Source (listener, options) {
+	  // Public variables.
+	  /**
+	   * Input to .connect() input AudioNodes to.
+	   * @member {AudioNode} input
+	   * @memberof Source
+	   */
+
+	  // Assign defaults for undefined options.
+	  if (options == undefined) {
+	    options = new Object();
+	  }
+	  if (options.gain == undefined) {
+	    options.gain = Globals.DefaultGainLinear;
+	  }
+	  if (options.position == undefined) {
+	    options.position = Globals.DefaultPosition;
+	  }
+	  if (options.velocity == undefined) {
+	    options.velocity = Globals.DefaultVelocity;
+	  }
+	  if (options.orientation == undefined) {
+	    options.orientation = Globals.DefaultOrientation;
+	  }
+
+	  this._listener = listener;
+	  this._position = new Float32Array(3);
+	  this._velocity = new Float32Array(3);
+	  this._orientation = new Float32Array(3);
+
+	  // Create nodes.
+	  var context = listener._context;
+	  this.input = context.createGain();
+	  this._attenuation =
+	    new Attenuation(context, options);
+	  this._encoder =
+	    new AmbisonicEncoder(context, listener._ambisonicOrder);
+
+	  // Connect nodes.
+	  this.input.connect(this._attenuation.input);
+	  this.input.connect(listener._reverb.input);
+	  this._attenuation.output.connect(this._encoder.input);
+	  this._attenuation.output.connect(listener._reflections.input);
+	  this._encoder.output.connect(listener.output);
+
+	  // Assign initial conditions.
+	  this.setPosition(options.position);
+	  this.setVelocity(options.velocity);
+	  this.setOrientation(options.orientation);
+	  this.input.gain.value = options.gain;
+	}
+
+	/**
+	 * Set source's position (in meters).
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 */
+	Source.prototype.setPosition = function(x, y, z) {
+	  var dx = new Float32Array(3);
+
+	  // Assign new position.
+	  this._position[0] = x;
+	  this._position[1] = y;
+	  this._position[2] = z;
+
+	  // Compute distance to listener.
+	  for (var i = 0; i < 3; i++) {
+	    dx[i] = this._position[i] - this._listener._position[i];
+	  }
+	  var distance = Math.sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
+
+	  // Normalize direction vector.
+	  dx[0] /= distance;
+	  dx[1] /= distance;
+	  dx[2] /= distance;
+
+	  // Compuete angle of direction vector.
+	  var azimuth = Math.atan2(-dx[0], dx[2]) * Globals.OneEightyByPi;
+	  var elevation = Math.atan2(dx[1],
+	    Math.sqrt(dx[0] * dx[0] + dx[2] * dx[2])) * Globals.OneEightyByPi;
+
+	  // Set distance/direction values.
+	  this._attenuation.setDistance(distance);
+	  this._encoder.setDirection(azimuth, elevation);
+	}
+
+	/**
+	 * Set source's angle relative to the listener's position.
+	 * @param {Number} azimuth (in degrees).
+	 * @param {Number} elevation (in degrees).
+	 * @param {Number} distance (in meters).
+	 */
+	Source.prototype.setAngleFromListener = function(azimuth, elevation, distance) {
+	  if (elevation == undefined) {
+	    elevation = 0;
+	  }
+	  if (distance == undefined) {
+	    distance = 1;
+	  }
+	  var theta = azimuth * Globals.PiByOneEighty;
+	  var phi = elevation * Globals.PiByOneEighty;
+
+	  // Polar -> Cartesian.
+	  var x = -Math.sin(theta) * Math.cos(phi);
+	  var y = Math.sin(theta);
+	  var z = -Math.cos(theta) * Math.cos(phi);
+
+	  // Assign new position based on relationship to listener.
+	  this._position[0] = this._listener._position[0] + x;
+	  this._position[1] = this._listener._position[1] + y;
+	  this._position[2] = this._listener._position[2] + z;
+
+	  // Set distance/direction values.
+	  this._attenuation.setDistance(distance);
+	  this._encoder.setDirection(-azimuth, elevation);
+	}
+
+	/**
+	 * Set source's forward orientation.
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 */
+	Source.prototype.setOrientation = function(x, y, z) {
+	  var radius = Math.sqrt(x * x + y * y + z * z);
+	  this._orientation[0] = x / radius;
+	  this._orientation[1] = y / radius;
+	  this._orientation[2] = z / radius;
+	}
+
+	/**
+	 * Set source's velocity (in meters/second).
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 */
+	Source.prototype.setVelocity = function(x, y, z) {
+	  //TODO(bitllama) Make velocity/doppler thing here.
+	}
+
+	module.exports = Source;
+
+/***/ }),
+/* 11 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	/**
+	 * @license
+	 * Copyright 2016 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Distance attenuation filter.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	// Internal dependencies.
+	var Globals = __webpack_require__(8);
+	var Utils = __webpack_require__(6);
+
+	/**
+	 * @class Attenuation
+	 * @description Distance attenuation filter.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @param {Object} options
+	 * @param {Number} options.minDistance Min. distance (in meters).
+	 * @param {Number} options.maxDistance Max. distance (in meters).
+	 * @param {string} options.rolloffModel
+	 * Rolloff model to use, chosen from options in
+	 * {@link Globals.RolloffModels Global.RolloffModels}.
+	 */
+	function Attenuation (context, options) {
+	  // Public variables.
+	  /**
+	   * Minimum distance from the listener (in meters).
+	   * @member {Number} minDistance
+	   * @memberof Attenuation
+	   */
+	  /**
+	   * Maximum distance from the listener (in meters).
+	   * @member {Number} maxDistance
+	   * @memberof Attenuation
+	   */
+	  /**
+	   * Input to .connect() input AudioNodes to.
+	   * @member {AudioNode} input
+	   * @memberof Attenuation
+	   */
+	  /**
+	   * Outuput to .connect() object from.
+	   * @member {AudioNode} output
+	   * @memberof Attenuation
+	   */
+
+	  // Use defaults for undefined arguments
+	  if (options == undefined) {
+	    options = new Object();
+	  }
+	  if (options.minDistance == undefined) {
+	    options.minDistance = Globals.DefaultMinDistance;
+	  }
+	  if (options.maxDistance == undefined) {
+	    options.maxDistance = Globals.DefaultMaxDistance;
+	  }
+	  if (options.rollofModel == undefined) {
+	    options.rolloffModel = Globals.DefaultRolloffModel;
+	  }
+
+	  // Assign values.
+	  this.minDistance = options.minDistance;
+	  this.maxDistance = options.maxDistance;
+	  this.setRolloffModel(options.rolloffModel);
+
+	  // Create node.
+	  this._gainNode = context.createGain();
+
+	  // Initialize distance to max distance.
+	  this.setDistance(options.maxDistance);
+
+	  // Input/Output proxy.
+	  this.input = this._gainNode;
+	  this.output = this._gainNode;
+	}
+
+	/**
+	 * Set distance from the listener.
+	 * @param {Number} distance Distance (in meters).
+	 */
+	Attenuation.prototype.setDistance = function(distance) {
+	  var gain = 1;
+	  if (this._rolloffModel == 'logarithmic') {
+	    if (distance > this.maxDistance) {
+	      gain = 0;
+	    } else if (distance > this.minDistance) {
+	      var range = this.maxDistance - this.minDistance;
+	      if (range > Globals.EpsilonFloat) {
+	        // Compute the distance attenuation value by the logarithmic curve
+	        // "1 / (d + 1)" with an offset of |minDistance|.
+	        var relativeDistance = distance - this.minDistance;
+	        var attenuation = 1 / (relativeDistance + 1);
+	        var attenuationMax = 1 / (range + 1);
+	        gain = (attenuation - attenuationMax) / (1 - attenuationMax);
+	      }
+	    }
+	  } else if (this._rolloffModel == 'linear') {
+	    if (distance > this.maxDistance) {
+	      gain = 0;
+	    } else if (distance > this.minDistance) {
+	      var range = this.maxDistance - this.minDistance;
+	      if (range > Globals.EpsilonFloat) {
+	        gain = (this.maxDistance - distance) / range;
+	      }
+	    }
+	  }
+	  this._gainNode.gain.value = gain;
+	}
+
+	/**
+	 * Set rolloff model.
+	 * @param {string} rolloffModel
+	 * Rolloff model to use, chosen from options in
+	 * {@link Globals.RolloffModels Global.RolloffModels}.
+	 */
+	Attenuation.prototype.setRolloffModel = function (rolloffModel) {
+	  var isValidModel = ~Globals.RolloffModels.indexOf(rolloffModel);
+	  if (rolloffModel == undefined || !isValidModel) {
+	    if (!isValidModel) {
+	      Utils.log('Invalid rolloff model. Using default: \"' +
+	        Globals.DefaultRolloffModel + '\".');
+	    }
+	    rolloffModel = Globals.DefaultRolloffModel;
+	  }
+	  this._rolloffModel = rolloffModel;
+	}
+
+	module.exports = Attenuation;
 
 /***/ })
 /******/ ])

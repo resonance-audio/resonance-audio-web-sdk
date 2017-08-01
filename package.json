@@ -1,8 +1,8 @@
 {
-  "name": "junco",
+  "name": "Songbird",
   "version": "0.0.1",
   "description": "Spatial Audio Encoder in Web Audio API",
-  "main": "build/junco.js",
+  "main": "build/songbird.js",
   "keywords": [
     "spatial audio",
     "ambisonic",
@@ -27,9 +27,9 @@
     "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
     "test": "node_modules/karma/bin/karma start"
   },
-  "homepage": "https://github.com/GoogleChrome/junco",
+  "homepage": "https://github.com/GoogleChrome/Songbird",
   "bugs": {
-    "url": "https://github.com/GoogleChrome/junco/issues"
+    "url": "https://github.com/GoogleChrome/Songbird/issues"
   },
   "author": "The Chromium Authors",
   "license": "Apache-2.0"

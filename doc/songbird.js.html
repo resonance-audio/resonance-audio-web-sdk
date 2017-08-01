@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>JSDoc: Source: globals.js</title>
+    <title>JSDoc: Source: songbird.js</title>
 
     <script src="scripts/prettify/prettify.js"> </script>
     <script src="scripts/prettify/lang-css.js"> </script>
@@ -17,7 +17,7 @@
 
 <div id="main">
 
-    <h1 class="page-title">Source: globals.js</h1>
+    <h1 class="page-title">Source: songbird.js</h1>
 
     
 
@@ -28,7 +28,7 @@
         <article>
             <pre class="prettyprint source linenums"><code>/**
  * @license
- * Copyright 2017 Google Inc. All Rights Reserved.
+ * Copyright 2016 Google Inc. All Rights Reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -43,72 +43,58 @@
  */
 
 /**
- * @file Mathematical constants and default values for submodules.
+ * @file Songbird library name space and common utilities.
  * @author Andrew Allen &lt;bitllama@google.com>
  */
 
 'use strict';
 
 /**
- * @class Globals
- * @description Mathematical constants and default values for submodules.
+ * @class Songbird main namespace.
  */
-var Globals = {};
+var Songbird = {};
 
-// Math constants.
-Globals.TwoPi = 6.28318530717959;
-Globals.TwentyFourLog10 = 55.2620422318571;
-Globals.TwentyFourLog10Div343 = 0.161113825748855;
-Globals.Log1000 = 6.90775527898214;
-Globals.Log2Div2 = 0.346573590279973;
-Globals.PiByOneEighty = 0.017453292519943;
-Globals.OneEightyByPi = 57.295779513082323;
+// Internal dependencies.
+var Listener = require('./listener.js');
+var Source = require('./source.js');
 
-// Numerical constants.
-Globals.EpsilonFloat = 1e-6;
-
-/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none'). */
-Globals.RolloffModels = ['logarithmic', 'linear', 'none'];
-/** Default rolloff model ('logarithmic'). */
-Globals.DefaultRolloffModel = 'logarithmic';
-Globals.DefaultMinDistance = 1;
-Globals.DefaultMaxDistance = 1000;
-Globals.DefaultGainLinear = 1;
-Globals.DefaultPosition = [0, 0, 0];
-Globals.DefaultOrientation = [0, 0, -1];
-
-// Listener defaults.
-Globals.DefaultAmbisonicOrder = 1;
-Globals.DefaultSpeedOfSound = 343;
-
-// Reverb constants and defaults.
 /**
- * Center frequencies of the multiband reverberation engine.
- * Nine bands are computed by: 31.25 * 2^(0:8).
- * @member {Array}
+ * Create {@link Listener Listener} to listen to
+ * sources in a configurable environment.
+ * @param {AudioContext} context
+ * Associated {@link
+https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+ * @param {Number} options.ambisonicOrder
+ * Desired ambisonic order.
+ * @param {Map} options.dimensions
+ * Dimensions map which should conform to the layout of
+ * {@link Room.DefaultDimensions Room.DefaultDimensions}
+ * @param {Map} options.materials
+ * Materials map which should conform to the layout of
+ * {@link Room.DefaultMaterials Room.DefaultMaterials}
+ * @param {Number} options.speedOfSound
+ * (in meters / second).
  */
-Globals.ReverbBands = [31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000];
-/** The number of center frequencies supported.
- * @member {Number}
+Songbird.createListener = function (context, options) {
+  return new Listener(context, options);
+}
+
+/**
+ * Create {@link Source Source} to spatialize an audio buffer.
+ * @param {Listener} listener Associated Listener.
+ * @param {Object} options
+ * @param {Number} options.minDistance Min. distance (in meters).
+ * @param {Number} options.maxDistance Max. distance (in meters).
+ * @param {Number} options.gain Gain (linear).
+ * @param {Float32Array} options.position Position [x,y,z] (in meters).
+ * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
+ * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
  */
-Globals.NumReverbBands = Globals.ReverbBands.length;
-/** The default bandwidth of the center frequencies. */
-Globals.ReverbBandwidth = 1;
-/** The default multiplier applied when computing tail lengths. */
-Globals.ReverbDurationMultiplier = 1;
-Globals.DefaultReverbPreDelayMs = 1.5;
-Globals.DefaultReverbTailOnsetMs = 3.8;
-Globals.DefaultReverbGain = 0.01;
-Globals.DefaultReverbMaxDurationSecs = 3;
+Songbird.createSource = function(listener, options) {
+  return new Source(listener, options);
+}
 
-// Reflections constants and defaults.
-Globals.ReflectionsMaxDuration = 1;
-Globals.DefaultReflectionsCutoffFrequency = 6400; // -12dB cutoff.
-Globals.DefaultReflectionsStartingBand = 4;
-Globals.DefaultReflectionsNumAveragingBands = 3;
-
-module.exports = Globals;
-</code></pre>
+module.exports = Songbird;</code></pre>
         </article>
     </section>
 

@@ -15,20 +15,20 @@
  */
 
 /**
- * @file Junco library common utilities.
+ * @file Songbird library common utilities.
  * @author Andrew Allen <bitllama@google.com>
  */
 
 'use strict';
 
 /**
- * Junco library logging function.
+ * Songbird library logging function.
  * @type {Function}
  * @param {any} Message to be printed out.
  */
 exports.log = function () {
   window.console.log.apply(window.console, [
-    '%c[Junco]%c '
+    '%c[Songbird]%c '
       + Array.prototype.slice.call(arguments).join(' ') + ' %c(@'
       + performance.now().toFixed(2) + 'ms)',
     'background: #BBDEFB; color: #FF5722; font-weight: 700',

@@ -49,7 +49,7 @@ function AmbisonicEncoder (context, ambisonicOrder) {
    */
   this._ambisonicOrder = ambisonicOrder;
   if (this._ambisonicOrder > AmbisonicEncoderTableMaxOrder) {
-    Utils.log('Junco (Error):\nUnable to render ambisonic order',
+    Utils.log('(Error):\nUnable to render ambisonic order',
       ambisonic_order, '(Max order is', AmbisonicEncoderTableMaxOrder,
       ')\nUsing max order instead.');
     this._ambisonicOrder = AmbisonicEncoderTableMaxOrder;

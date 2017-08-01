@@ -34,6 +34,7 @@ var Room = {};
 Room.MinVolume = 1e-4;
 Room.AirAbsorbtionCoefficients =
   [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
+Room.EyringCorrection = 1.38;
 
 /** Wall types are 'left', 'right', 'front', 'back', 'ceiling', and 'floor'. */
 Room.WallTypes = ['left', 'right', 'front', 'back', 'ceiling', 'floor'];
@@ -270,8 +271,9 @@ Room.computeRT60Secs = function(dimensions, coefficients, speedOfSound) {
         Room.AirAbsorbtionCoefficients[i] * volume);
     } else {
       // Eyring equation.
-      RT60Secs[i] = k * volume / (-totalArea * Math.log(1 -
-        meanAbsorbtionArea) + 4 * Room.AirAbsorbtionCoefficients[i] * volume);
+      RT60Secs[i] = Room.EyringCorrection * k * volume / (-totalArea *
+        Math.log(1 - meanAbsorbtionArea) + 4 *
+        Room.AirAbsorbtionCoefficients[i] * volume);
     }
   }
   return RT60Secs;

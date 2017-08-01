@@ -15,15 +15,16 @@
  */
 
 /**
- * @fileOverview Junco library name space and common utilities.
+ * @file Songbird library name space and common utilities.
+ * @author Andrew Allen <bitllama@google.com>
  */
 
 'use strict';
 
 /**
- * @class Junco main namespace.
+ * @class Songbird main namespace.
  */
-var Junco = {};
+var Songbird = {};
 
 // Internal dependencies.
 var Listener = require('./listener.js');
@@ -46,7 +47,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Number} options.speedOfSound
  * (in meters / second).
  */
-Junco.createListener = function (context, options) {
+Songbird.createListener = function (context, options) {
   return new Listener(context, options);
 }
 
@@ -61,8 +62,8 @@ Junco.createListener = function (context, options) {
  * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
  * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
  */
-Junco.createSource = function(listener, options) {
+Songbird.createSource = function(listener, options) {
   return new Source(listener, options);
 }
 
-module.exports = Junco;
+module.exports = Songbird;

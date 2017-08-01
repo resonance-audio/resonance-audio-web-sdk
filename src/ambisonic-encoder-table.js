@@ -14,7 +14,8 @@
  */
 
 /**
- * @fileOverview Pre-computed lookup tables of spherical harmonics.
+ * @file Pre-computed lookup tables of spherical harmonics.
+ * @author Andrew Allen <bitllama@google.com>
  */
 
 'use strict';

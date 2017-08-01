@@ -132,13 +132,19 @@ Source.prototype.setPosition = function(x, y, z) {
  * @param {Number} distance (in meters).
  */
 Source.prototype.setAngleFromListener = function(azimuth, elevation, distance) {
-  var phi = azimuth * Globals.PiByOneEighty;
-  var theta = elevation * Globals.PiByOneEighty;
+  if (elevation == undefined) {
+    elevation = 0;
+  }
+  if (distance == undefined) {
+    distance = 1;
+  }
+  var theta = azimuth * Globals.PiByOneEighty;
+  var phi = elevation * Globals.PiByOneEighty;
 
   // Polar -> Cartesian.
-  var x = Math.cos(phi) * Math.cos(theta);
+  var x = -Math.sin(theta) * Math.cos(phi);
   var y = Math.sin(theta);
-  var z = Math.sin(phi) * Math.cos(theta);
+  var z = -Math.cos(theta) * Math.cos(phi);
 
   // Assign new position based on relationship to listener.
   this._position[0] = this._listener._position[0] + x;
@@ -147,7 +153,7 @@ Source.prototype.setAngleFromListener = function(azimuth, elevation, distance) {
 
   // Set distance/direction values.
   this._attenuation.setDistance(distance);
-  this._encoder.setDirection(azimuth, elevation);
+  this._encoder.setDirection(-azimuth, elevation);
 }
 
 /**
@@ -157,7 +163,10 @@ Source.prototype.setAngleFromListener = function(azimuth, elevation, distance) {
  * @param {Number} z
  */
 Source.prototype.setOrientation = function(x, y, z) {
-  //TODO(bitllama) Make directivity thing here.
+  var radius = Math.sqrt(x * x + y * y + z * z);
+  this._orientation[0] = x / radius;
+  this._orientation[1] = y / radius;
+  this._orientation[2] = z / radius;
 }
 
 /**

@@ -50,7 +50,7 @@ Globals.DefaultPosition = [0, 0, 0];
 Globals.DefaultOrientation = [0, 0, -1];
 
 // Listener defaults.
-Globals.DefaultAmbisonicOrder = 3;
+Globals.DefaultAmbisonicOrder = 1;
 Globals.DefaultSpeedOfSound = 343;
 
 // Reverb constants and defaults.
@@ -70,7 +70,7 @@ Globals.ReverbBandwidth = 1;
 Globals.ReverbDurationMultiplier = 1;
 Globals.DefaultReverbPreDelayMs = 1.5;
 Globals.DefaultReverbTailOnsetMs = 3.8;
-Globals.DefaultReverbGain = 0.008;
+Globals.DefaultReverbGain = 0.01;
 Globals.DefaultReverbMaxDurationSecs = 3;
 
 // Reflections constants and defaults.

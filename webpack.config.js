@@ -19,7 +19,7 @@ module.exports = {
   entry: './src/main.js',
   output: {
     path: __dirname + '/build',
-    filename: 'junco.js',
+    filename: 'songbird.js',
     libraryTarget: 'umd'
   }
 };

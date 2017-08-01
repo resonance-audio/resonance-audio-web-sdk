@@ -1,0 +1,165 @@
+<!--
+  Copyright 2017 Google Inc. All Rights Reserved.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Example: Basic panning (one source).</title>
+  <script src="resources/omnitone.js"></script>
+  <script src="../build/songbird.js"></script>
+</head>
+<body>
+  <p>Basic panning example using a single source.</p>
+  <br/>
+  Azimuth (in degrees): <label for="eAzimuthRange" id="eAzimuthLabel">0</label><br/>
+  (Rotates horizontally counterclockwise, 0 is in front, 90 is left, -90 is right, +/-180 is behind).
+  <br/>
+  <input type="range" min="-180" max="180" step="1" value="0" id="eAzimuthRange"
+    oninput="updatePositions();">
+  <br/>
+  Elevation (in degrees): <label for="eElevationRange" id="eElevationLabel">0</label><br/>
+  (-90 is directly below, 90 is directly above, be mindful of axis locks).
+  <br/>
+  <input type="range" min="-90" max="90" step="1" value="0" id="eElevationRange"
+    oninput="updatePositions();">
+  <br/>
+  Ambisonic Order (can be changed during playback):</br>
+  <select id="eSelectAmbisonicOrder">
+    <option value="1" selected>First-Order Ambisonics (FOA)</option>
+    <option value="2">Second-Order Ambisonics (SOA)</option>
+    <option value="3">Third-Order Ambisonics (TOA)</option>
+  </select>
+  <button id="eButtonPlayback" disabled>Play</button>
+  <br/>
+  <script>
+    var audioSource = 'resources/CubeSound.wav';
+    var foaSource, soaSource, toaSource;
+
+    function updatePositions() {
+      var azimuth = document.getElementById('eAzimuthRange').value;
+      var elevation = document.getElementById('eElevationRange').value;
+
+      document.getElementById('eAzimuthLabel').textContent = azimuth;
+      document.getElementById('eElevationLabel').textContent = elevation;
+
+      foaSource.setAngleFromListener(azimuth, elevation, 1);
+      soaSource.setAngleFromListener(azimuth, elevation, 1);
+      toaSource.setAngleFromListener(azimuth, elevation, 1);
+    }
+
+    var onLoad = function () {
+      var audioContext = new AudioContext();
+
+      // Create <audio> streaming audio source.
+      var audioElement = document.createElement('audio');
+      audioElement.src = audioSource;
+      audioElement.loop = true;
+      var audioElementSource =
+          audioContext.createMediaElementSource(audioElement);
+
+      // Create FOA listener and source.
+      var foaListener = Songbird.createListener(audioContext, {ambisonicOrder: 1});
+      foaSource = Songbird.createSource(foaListener);
+
+      // Create SOA listener and source.
+      var soaListener = Songbird.createListener(audioContext, {ambisonicOrder: 2});
+      soaSource = Songbird.createSource(soaListener);
+
+      // Create TOA listener and source.
+      var toaListener = Songbird.createListener(audioContext, {ambisonicOrder: 3});
+      toaSource = Songbird.createSource(toaListener);
+
+      // Initialize play button functionality.
+      var buttonPlayback = document.getElementById('eButtonPlayback');
+      buttonPlayback.onclick = function (event) {
+        if (event.target.textContent === 'Play') {
+          event.target.textContent = 'Pause';
+          audioElement.play();
+        } else {
+          event.target.textContent = 'Play';
+          audioElement.pause();
+        }
+      };
+
+      // Initialize ambisonic order selector functionality.
+      var selectAmbisonicOrder =
+        document.getElementById('eSelectAmbisonicOrder');
+      selectAmbisonicOrder.onchange = function (event) {
+        var desiredAmbisonicOrder = event.target.value;
+        if (desiredAmbisonicOrder == 1) {
+          foaRenderer.setRenderingMode('ambisonic');
+          soaRenderer.setRenderingMode('off');
+          toaRenderer.setRenderingMode('off');
+        } else if (desiredAmbisonicOrder == 2) {
+          foaRenderer.setRenderingMode('off');
+          soaRenderer.setRenderingMode('ambisonic');
+          toaRenderer.setRenderingMode('off');
+        } else {
+          foaRenderer.setRenderingMode('off');
+          soaRenderer.setRenderingMode('off');
+          toaRenderer.setRenderingMode('ambisonic');
+        }
+      };
+
+      // Initialize Omnitone(s), connect elements.
+      foaRenderer = Omnitone.createHOARenderer(audioContext,
+        {ambisonicOrder: 1, HRIRUrl: ['resources/sh_hrir_o_1.wav']});
+      soaRenderer = Omnitone.createHOARenderer(audioContext,
+        {ambisonicOrder: 3, HRIRUrl: ['resources/sh_hrir_o_2_ch0-ch7.wav',
+        'resources/sh_hrir_o_2_ch8.wav']});
+      toaRenderer = Omnitone.createHOARenderer(audioContext,
+        {ambisonicOrder: 3, HRIRUrl: ['resources/sh_hrir_o_3_ch0-ch7.wav',
+        'resources/sh_hrir_o_3_ch8-ch15.wav']});
+
+      foaRenderer.initialize().then(function () {
+        soaRenderer.initialize().then(function () {
+          toaRenderer.initialize().then(function () {
+            // Connect media element to both renderers.
+            audioElementSource.connect(foaSource.input);
+            audioElementSource.connect(soaSource.input);
+            audioElementSource.connect(toaSource.input);
+
+            // Connect listeners to renderers.
+            foaListener.output.connect(foaRenderer.input);
+            soaListener.output.connect(soaRenderer.input);
+            toaListener.output.connect(toaRenderer.input);
+
+            // Connect renderers to output.
+            foaRenderer.output.connect(audioContext.destination);
+            soaRenderer.output.connect(audioContext.destination);
+            toaRenderer.output.connect(audioContext.destination);
+
+            // Disable hoa renderers.
+            soaRenderer.setRenderingMode('off');
+            toaRenderer.setRenderingMode('off');
+
+            // Enable playback button.
+            buttonPlayback.disabled = false;
+          }, function (onInitializationError) {
+            console.error(onInitializationError);
+          });
+        }, function (onInitializationError) {
+          console.error(onInitializationError);
+        });
+      }, function (onInitializationError) {
+        console.error(onInitializationError);
+      });
+      updatePositions();
+    };
+
+    window.addEventListener('load', onLoad);
+  </script>
+</body>
+</html>

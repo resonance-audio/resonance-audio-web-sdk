@@ -1,147 +1,141 @@
-# Junco: Spatial Audio Encoding on the Web
+# Songbird: Spatial Audio Encoding on the Web
 
-[![Travis](https://img.shields.io/travis/GoogleChrome/omnitone.svg)](https://travis-ci.org/GoogleChrome/omnitone) [![npm](https://img.shields.io/npm/v/omnitone.svg?colorB=4bc51d)](https://www.npmjs.com/package/omnitone) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/GoogleChrome/omnitone/master/LICENSE)
+<!-- [![Travis](https://img.shields.io/travis/GoogleChrome/omnitone.svg)](https://travis-ci.org/GoogleChrome/omnitone) [![npm](https://img.shields.io/npm/v/omnitone.svg?colorB=4bc51d)](https://www.npmjs.com/package/omnitone) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/GoogleChrome/omnitone/master/LICENSE) -->
 
-Junco is a real-time spatial audio encoding library written in Web Audio API. It allows web developers to dynamically spatially-encode streaming audio content into scalable [ambisonics](https://en.wikipedia.org/wiki/Ambisonics) signal, which can be rendered using a binaural renderer such as [Omnitone](https://github.com/GoogleChrome/omnitone) for realistic and quality-scalable 3D audio.
+Songbird is a real-time spatial audio encoding library written in Web Audio API. It allows web developers to dynamically spatially-encode streaming audio content into scalable [ambisonics](https://en.wikipedia.org/wiki/Ambisonics) signal, which can be rendered using a binaural renderer such as [Omnitone](https://github.com/GoogleChrome/omnitone) for realistic and quality-scalable 3D audio.
 
-The implementation of Junco is based on the [Google spatial media](https://github.com/google/spatial-media) specification. It expects mono sources and outputs ACN channel layout with SN3D normalization.
+The implementation of Songbird is based on the [Google spatial media](https://github.com/google/spatial-media) specification. It expects mono sources and outputs ACN channel layout with SN3D normalization.
 
-(TODO:bitllama Fill out the rest of the README)
-...
-(THE REST OF THIS DOC IS COPIED FROM OMNITONE)
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
 
+- [How it works](#how-it-works)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Advanced Usage](#advanced-usage)
-  + __[FOARenderer](#foarenderer) (NEW in 0.2.0)__
-  + [FOADecoder](#foadecoder)
-  + [FOARouter](#foarouter)
-  + [FOARotator](#foarotator)
-  + [FOAPhaseMatchedFilter](#foaphasematchedfilter)
-  + [FOAVirtualSpeaker](#foavirtualspeaker)
-- [Building](#building)
-- __[Test](#test) (NEW in 0.2.1)__
-- [Audio Codec compatibility](#audio-codec-compatibility)
-- [Related Resources](#related-resouces)
+  - ["Hello World" Example](#hello-world-example)
+  - [Source/Listener Placement](#sourcelistener-placement)
+  - [Room Properties](#room-properties)
 
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## How it works
 
-We propose a JavaScript API that ports a subset of the feature-set from Daydream Audio for the purpose of real-time spatial audio encoding for WebVR. A given audio stream would have additional parameters that control how the encoder processes the audio. The grouping of this audio stream and its associated parameters is known as a sound [source]. [Sources] are sent to a specified [Listener], which has information about relative position as well as a description of the room and reverberation to apply for that listener/source.
+Songbird is a JavaScript API that supports real-time spatial audio encoding for the Web using Higher-Order Ambisonics (HOA). This is accomplished by attached audio input to a `Source` which has associated spatial object parameters. `Source` objects are attached to a `Listener`, which models the listener as well as the room environment the listener and sources are in. Ambisonic output is generated, which can be passed on to a binaural renderer such as [Omnitone](https://github.com/GoogleChrome/omnitone).
 
 ## Installation
 
-Junco is designed to be used for the web front-end projects. So [NPM](https://www.npmjs.com/) is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.
+Songbird is designed to be used for web front-end projects. So [NPM](https://www.npmjs.com/) is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.
 
 ```bash
-npm install junco
+npm install songbird
 ```
-
 
 ## Usage
 
 The first step is to include the library file in an HTML document.
 
 ```html
-<!-- Use Omnitone from installed node_modules/ -->
-<script src="node_modules/omnitone/build/omnitone.min.js"></script>
+<!-- Use Songbird from installed node_modules/ -->
+<script src="node_modules/Songbird/build/songbird.min.js"></script>
 
 <!-- if you prefer to use CDN -->
-<script src="https://cdn.rawgit.com/GoogleChrome/omnitone/962089ca/build/omnitone.min.js"></script>
+<script src="THISISNOTAREALLINKBUTITWILLBESOON.js"></script>
 ```
 
-There are two different ways of rendering the ambisonic input stream with Omnitone.
+Spatial encoding is done by creating a `Listener` using an associted `AudioContext` and then creating any number of associated `Source` objects. The `Listener` object models a physical listener while adding room reflections and reverberation. The `Source` object models a physical sound source and can be easily integrated into an existing WebAudio audio graph.
 
-- [FOARenderer (Optimized)](#foarenderer-optimized)
-- [FOADeocoder (Fully-configurable)](#foadeocoder-fully-configurable)
-
-### FOARenderer (Optimized)
-
-Newly introduced with the version 0.2.0, `FOARenderer` is a highly optimized ambisonic renderer that outperforms the original renderer by __~100%__. The renderer instance also behaves like an AudioNode, so it can be integrated to the existing WebAudio audio graph easily.
+### "Hello World" Example
 
 ```js
-// Set up an audio element to feed the ambisonic source audio feed.
-var audioElement = document.createElement('audio');
-audioElement.src = 'audio-file-foa-acn.wav';
-
-// Create AudioContext, MediaElementSourceNode and FOARenderer.
+// Create an AudioContext.
 var audioContext = new AudioContext();
-var audioElementSource =
-    audioContext.createMediaElementSource(audioElement);
-var foaRenderer = Omnitone.createFOARenderer(audioContext, {
-    HRIRUrl: 'https://cdn.rawgit.com/GoogleChrome/omnitone/962089ca/build/resources/sh_hrir_o_1.wav'
-  });
 
-// Make connection and start play.
-foaRenderer.initialize().then(function () {
-    audioElementSource.connect(foaRenderer.input);
-    foaRenderer.output.connect(audioContext.destination);
-    audioElement.play();
-  });
-}
-```
-
-Currently the HRIR for `FOARenderer` is available on Omnitone's repository. If you do not need a configurable audio path for ambisonic rendering, `FOARenderer` is strongly recommended. See the example [here](https://cdn.rawgit.com/GoogleChrome/omnitone/0.2.2/examples/foa-renderer.html).
-
-### FOADeocoder (Fully-configurable)
-
-The `FOADecoder` directly takes `<audio>` or `<video>` element along with the associated `AudioContext`. This object is a thin wrapper of building blocks described in the [advanced usage](#advanced-usage).
-
-```js
 // Prepare audio element to feed the ambisonic source audio feed.
 var audioElement = document.createElement('audio');
-audioElement.src = 'resources/4ch-spatial-audio-file.wav';
+audioElement.src = 'resources/mono-audio-file.wav';
 
-// Create an AudioContext and an Omnitone decoder.
-var audioContext = new AudioContext();
-var decoder = Omnitone.createFOADecoder(audioContext, audioElement);
+// Create media element source to connect to WebAudio audio graph.
+var audioElementSource = audioContext.createMediaElementSource(audioElement);
 
-// Initialize and then start playing the audio element.
-decoder.initialize().then(function () {
+// Create a 1st-order Ambisonics Songbird Listener.
+var listener = Songbird.createListener(audioContext);
+
+// Create a Songbird Source.
+var source = Songbird.createSource(listener, audioElementSource);
+
+// Connect audio element source to Songbird source.
+audioElementSource.connect(source.input);
+
+// Position source to the front-left (-45 degrees) of the listener.
+source.setAngleFromListener(-45);
+
+// Create an Omnitone FOA renderer.
+var renderer = Omnitone.createFOARenderer(audioContext);
+
+// Initialize Omnitone, connect elements and then start playing the audio element.
+renderer.initialize().then(function () {
+  listener.output.connect(renderer.input);
+  renderer.output.connect(audioContext.destination);
   audioElement.play();
 }, function (onInitializationError) {
   console.error(onInitializationError);
 });
 ```
 
-The decoder constructor accepts the context and the element as arguments. `FOADecoder` uses [HRIRs](https://github.com/google/spatial-media/tree/master/spatial-audio) from Google spatial media repository, but you can use a custom set of HRIR files as well. The initialization of a decoder instance returns a promise which resolves when the resources (i.e. impulse responses) are fully loaded. See the example [here](https://cdn.rawgit.com/GoogleChrome/omnitone/0.2.2/examples/foa-decoder.html).
+### Source/Listener Placement
 
-### Basic Features: Rotation, ChannelMap, Rendering Mode
-
-The rotation matrix (3x3, row-major) in the decoder can be updated inside of the graphics render loop. This operation rotates the entire sound field. The rotation matrix is commonly derived from the quaternion of the orientation sensor on the VR headset or the smartphone. Also Omnitone converts the coordinate system from the WebGL space to the audio space internally, so you need not to transform the matrix manually.
+`Source` objects can be placed relative to a `Listener` or using absolute coordinates. Songbird uses a right-handed coordinate system, similarly to OpenGL and three.js.
 
 ```js
-// Sound field rotation with 3x3 matrix.
-foaRenderer.setRotationMatrix(rotationMatrix);
-foaDecoder.setRotationMatrix(rotationMatrix);
+// Set source's position relative to the listener.
+source.setAngleFromListener(azimuth, elevation, distance);
+
+// Set Source's and Listener's positions directly.
+source.setPosition(x, y, z);
+listener.setPosition(x, y, z);
 ```
 
-If you prefer to work with 4x4 rotation matrix (e.g. Three.js camera), you can use the following method instead.
+The `Source` and `Listener` velocity, which controls doppler shift.
 
 ```js
-// Rotate the sound field by passing Three.js camera object. (4x4 matrix)
-foaRenderer.setRotationMatrixFromCamera(camera.matrix);
-foaDecoder.setRotationMatrixFromCamera(camera.matrix);
+// Set Source and Listener velocity.
+source.setVelocity(x, y, z);
+listener.setVelocity(x, y, z);
 ```
 
-Use `setRenderingMode` or `setMode` method to change the setting of the decoder. This is useful when the media source does not have spatially encoded (e.g. stereo or mono) or when you want to reduce the CPU usage or the power consumption by disabling the decoder.
+The `Source` and `Listener` orientations can also be set, which control directivity and head orientation respectively.
 
 ```js
-// Mono or regular multi-channel layouts.
-foaRenderer.setRenderingMode('bypass');
-foaDecoder.setMode('bypass');
+// Set Source and Listener orientation.
+source.setOrientation(roll, pitch, yaw);
+listener.setOrientation(roll, pitch, yaw);
+```
 
-// Use ambisonic rendering.
-foaRenderer.setRenderingMode('ambisonic');
-foaDecoder.setMode('ambisonic');
+### Room Properties
 
-// Disable encoding completely. (audio processing disabled)
-foaRenderer.setRenderingMode('off');
-foaDecoder.setMode('off');
+Room properties can be set to control the characteristics of spatial reflections and reverberation. A list of materials can be found in the documentation.
+
+```js
+// Set room properties.
+var dimensions = {
+  'width' : width_m,
+  'height' : height_m,
+  'depth' : depth_m
+};
+var materials = {
+  'left' : 'BrickBare',
+  'right' : 'CurtainHeavy',
+  'front' : 'Marble',
+  'back' : 'GlassThin',
+  'floor' : 'Grass',
+  'ceiling' : 'Transparent'
+};
+listener.setRoomProperties(dimensions, materials);
 ```
 
 
-## Advanced Usage
+<!-- ## Advanced Usage
 
 Omnitone also provides various building blocks for the first-order-ambisonic decoding and the binaural rendering. The `FOADecoder` is just a ready-made object built with those components. You can create them and connect together build your own decoding mechanism.
 
@@ -328,5 +322,5 @@ Licensed under the Apache License, Version 2.0 (the "License"); you may not use 
 
 http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License. -->
 

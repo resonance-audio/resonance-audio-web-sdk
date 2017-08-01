@@ -18,7 +18,7 @@
   <meta charset="utf-8">
   <title>Example: Basic panning (one source).</title>
   <script src="resources/omnitone.js"></script>
-  <script src="../build/junco.js"></script>
+  <script src="../build/songbird.js"></script>
 </head>
 <body>
   <p>Basic panning example using a single source.</p>
@@ -42,7 +42,7 @@
   <button id="eButtonPlayback" disabled>Play</button>
   <br/>
   <script>
-    var audioSource = 'female.wav';
+    var audioSource = 'resources/CubeSound.wav';
     var juncoSource;
 
     function updatePositions() {
@@ -67,11 +67,11 @@
       var audioElementSource =
           audioContext.createMediaElementSource(audioElement);
 
-      // Initialize Junco, create listener and source.
+      // Initialize Songbird, create listener and source.
       var juncoOptions = {};
-      juncoOptions.ambisonicOrder = 3;
-      juncoListener = Junco.createListener(audioContext, juncoOptions);
-      juncoSource = Junco.createSource(juncoListener, juncoOptions);
+      juncoOptions.ambisonicOrder = 1;
+      juncoListener = Songbird.createListener(audioContext, juncoOptions);
+      juncoSource = Songbird.createSource(juncoListener, juncoOptions);
 
       // Initialize play button functionality.
       buttonPlayback = document.getElementById('eButtonPlayback');
@@ -85,7 +85,11 @@
         }
       };
 
-      // Initialize Omnitone, connect audio source to junco to omnitone.
+      // Initialize Omnitone, connect audio source to Songbird to omnitone.
+      // var omnitoneOptions = {
+      //   ambisonicOrder: 1,
+      //   HRIRUrl: ['resources/sh_hrir_o_1.wav']
+      // };
       var omnitoneOptions = {
         ambisonicOrder: 3,
         HRIRUrl: ['resources/sh_hrir_o_3_ch0-ch7.wav',
