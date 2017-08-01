@@ -9349,7 +9349,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	Globals.DefaultMaxDistance = 1000;
 	Globals.DefaultGainLinear = 1;
 	Globals.DefaultPosition = [0, 0, 0];
-	Globals.DefaultOrientation = [0, 0, -1];
+	Globals.DefaultVelocity = [0, 0, 0];
+	Globals.DefaultOrientation = [0, 0, 0];
 
 	// Listener defaults.
 	Globals.DefaultAmbisonicOrder = 1;
@@ -9654,11 +9655,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._listener = listener;
 	  this._position = new Float32Array(3);
 	  this._velocity = new Float32Array(3);
-	  this._orientation = new Float32Array(3);
+	  this._orientation_q = new Float32Array(4);
+	  this._forward = new Float32Array(3);
+	  this._directivity_alpha = 0;
+	  this._directivity_order = listener._ambisonicOrder;
 
 	  // Create nodes.
 	  var context = listener._context;
 	  this.input = context.createGain();
+	  this._directivity = context.createGain();
 	  this._attenuation =
 	    new Attenuation(context, options);
 	  this._encoder =
@@ -9667,14 +9672,18 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Connect nodes.
 	  this.input.connect(this._attenuation.input);
 	  this.input.connect(listener._reverb.input);
-	  this._attenuation.output.connect(this._encoder.input);
+	  this._attenuation.output.connect(this._directivity);
 	  this._attenuation.output.connect(listener._reflections.input);
+	  this._directivity.connect(this._encoder.input);
 	  this._encoder.output.connect(listener.output);
 
 	  // Assign initial conditions.
-	  this.setPosition(options.position);
-	  this.setVelocity(options.velocity);
-	  this.setOrientation(options.orientation);
+	  this.setPosition(options.position[0], options.position[1],
+	    options.position[2]);
+	  this.setVelocity(options.velocity[0], options.velocity[1],
+	    options.velocity[2]);
+	  this.setOrientation(options.orientation[0], options.orientation[1],
+	    options.orientation[2]);
 	  this.input.gain.value = options.gain;
 	}
 
@@ -9703,6 +9712,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	  dx[1] /= distance;
 	  dx[2] /= distance;
 
+	  // Compute directivity pattern.
+	  this._directivity.gain.value = computeDirectivity(this._forward, dx,
+	    this._directivity_alpha, this._directivity_order);
+
 	  // Compuete angle of direction vector.
 	  var azimuth = Math.atan2(-dx[0], dx[2]) * Globals.OneEightyByPi;
 	  var elevation = Math.atan2(dx[1],
@@ -9729,10 +9742,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var theta = azimuth * Globals.PiByOneEighty;
 	  var phi = elevation * Globals.PiByOneEighty;
 
-	  // Polar -> Cartesian.
+	  // Polar -> Cartesian (direction from listener).
 	  var x = -Math.sin(theta) * Math.cos(phi);
 	  var y = Math.sin(theta);
 	  var z = -Math.cos(theta) * Math.cos(phi);
+
+	  // Compute directivity pattern.
+	  this._directivity.gain.value = computeDirectivity(this._forward, [x, y, z],
+	    this._directivity_alpha, this._directivity_order);
 
 	  // Assign new position based on relationship to listener.
 	  this._position[0] = this._listener._position[0] + x;
@@ -9746,15 +9763,19 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	/**
 	 * Set source's forward orientation.
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
+	 * @param {Number} roll
+	 * @param {Number} pitch
+	 * @param {Number} yaw
 	 */
-	Source.prototype.setOrientation = function(x, y, z) {
-	  var radius = Math.sqrt(x * x + y * y + z * z);
-	  this._orientation[0] = x / radius;
-	  this._orientation[1] = y / radius;
-	  this._orientation[2] = z / radius;
+	Source.prototype.setOrientation = function(roll, pitch, yaw) {
+	  this._orientation_q = toQuaternion(roll, pitch, yaw);
+
+	  // Compute forward vector.
+	  var forward = hamiltonProduct(
+	    hamiltonProduct(this._orientation_q, [0, 0, 0, 1]),
+	    [this._orientation_q[0], -this._orientation_q[1],
+	    -this._orientation_q[2], -this._orientation_q[3]]);
+	  this._forward = [forward[1], forward[2], forward[3]];
 	}
 
 	/**
@@ -9765,6 +9786,61 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 	Source.prototype.setVelocity = function(x, y, z) {
 	  //TODO(bitllama) Make velocity/doppler thing here.
+	}
+
+	/**
+	 * Set source's directivity (rolloff factor based on angle).
+	 * @param {Number} alpha
+	 * Determines directivity pattern (0 to 1), where 0 is an omnidirectional
+	 * pattern, 1 is a bidirectional pattern, 0.5 is a cardiod pattern.
+	 * @param {Number} order
+	 * Determines the steepness of the directivity pattern (1 to Inf).
+	 */
+	Source.prototype.setDirectivity = function(alpha, order) {
+	  // Clamp between 0 and 1.
+	  this._directivity_alpha = Math.min(1, Math.max(0, alpha));
+
+	  // Clamp between 1 and Inf.
+	  this._directivity_order = Math.min(1, order);
+	}
+
+	// Convert roll/pitch/yaw (in radians) to quaternion.
+	function toQuaternion(roll, pitch, yaw) {
+	  var t0 = Math.cos(yaw * 0.5);
+	  var t1 = Math.sin(yaw * 0.5);
+	  var t2 = Math.cos(roll * 0.5);
+	  var t3 = Math.sin(roll * 0.5);
+	  var t4 = Math.cos(pitch * 0.5);
+	  var t5 = Math.sin(pitch * 0.5);
+	  return [
+	    t0 * t2 * t4 + t1 * t3 * t5,
+	    t0 * t3 * t4 - t1 * t2 * t5,
+	    t0 * t2 * t5 + t1 * t3 * t4,
+	    t1 * t2 * t4 - t0 * t3 * t5
+	  ];
+	}
+
+	// Compute Hamilton product of two quaternions.
+	function hamiltonProduct(q1, q2) {
+	  return [
+	    q1[0] * q2[0] - q1[1] * q2[1] - q1[2] * q2[2] - q1[3] * q2[3],
+	    q1[0] * q2[1] + q1[1] * q2[0] + q1[2] * q2[3] - q1[3] * q2[2],
+	    q1[0] * q2[2] - q1[1] * q2[3] + q1[2] * q2[0] + q1[3] * q2[1],
+	    q1[0] * q2[3] + q1[1] * q2[2] - q1[2] * q2[1] + q1[3] * q2[0]
+	  ];
+	}
+
+	function computeDirectivity(forward, direction_to_listener, alpha, order) {
+	  if (alpha < Globals.EpsilonFloat) {
+	    return 1.0;
+	  }
+	  var cosTheta = forward[0] * direction_to_listener[0] +
+	    forward[1] * direction_to_listener[1] +
+	    forward[2] * direction_to_listener[2];
+	  var gain = (1 - alpha) + alpha * cosTheta;
+
+	  //TODO(bitllama): This ignores phase. Consider re-introducing.
+	  return Math.pow(Math.abs(gain), order);
 	}
 
 	module.exports = Source;

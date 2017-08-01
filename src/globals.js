@@ -47,7 +47,8 @@ Globals.DefaultMinDistance = 1;
 Globals.DefaultMaxDistance = 1000;
 Globals.DefaultGainLinear = 1;
 Globals.DefaultPosition = [0, 0, 0];
-Globals.DefaultOrientation = [0, 0, -1];
+Globals.DefaultVelocity = [0, 0, 0];
+Globals.DefaultOrientation = [0, 0, 0];
 
 // Listener defaults.
 Globals.DefaultAmbisonicOrder = 1;

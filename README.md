@@ -1,8 +1,9 @@
 # Songbird: Spatial Audio Encoding on the Web
 
+<!-- NOTE: To generate this documentation, run "doctoc README.md && jsdoc src/*.js -R README.md -d doc" -->
 <!-- [![Travis](https://img.shields.io/travis/GoogleChrome/omnitone.svg)](https://travis-ci.org/GoogleChrome/omnitone) [![npm](https://img.shields.io/npm/v/omnitone.svg?colorB=4bc51d)](https://www.npmjs.com/package/omnitone) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/GoogleChrome/omnitone/master/LICENSE) -->
 
-Songbird is a real-time spatial audio encoding library written in Web Audio API. It allows web developers to dynamically spatially-encode streaming audio content into scalable [ambisonics](https://en.wikipedia.org/wiki/Ambisonics) signal, which can be rendered using a binaural renderer such as [Omnitone](https://github.com/GoogleChrome/omnitone) for realistic and quality-scalable 3D audio.
+Songbird is a real-time spatial audio encoding JavaScript library for WebAudio applications. It allows web developers to dynamically spatially-encode streaming audio content into scalable [ambisonics](https://en.wikipedia.org/wiki/Ambisonics) signal, which can be rendered using a binaural renderer such as [Omnitone](https://github.com/GoogleChrome/omnitone) for realistic and quality-scalable 3D audio.
 
 The implementation of Songbird is based on the [Google spatial media](https://github.com/google/spatial-media) specification. It expects mono sources and outputs ACN channel layout with SN3D normalization.
 
