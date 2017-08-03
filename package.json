@@ -8,7 +8,8 @@
     "ambisonic",
     "VR audio",
     "360 audio",
-    "Web Audio API"
+    "Web Audio API",
+    "interactive audio"
   ],
   "devDependencies": {
     "chai": "^3.5.0",
@@ -19,18 +20,24 @@
     "karma-mocha": "^1.3.0",
     "karma-mocha-reporter": "^2.2.3",
     "mocha": "^3.0.0",
-    "webpack": "^1.13.0"
+    "webpack": "^1.13.0",
+    "doctoc": "^1.3.0"
   },
   "scripts": {
     "build": "webpack --progress --color",
     "watch": "webpack --progress --color --watch",
     "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
-    "test": "node_modules/karma/bin/karma start"
+    "test": "node_modules/karma/bin/karma start",
+    "doc": "doctoc README.md && jsdoc src/*.js -R README.md -d doc"
   },
-  "homepage": "https://github.com/GoogleChrome/Songbird",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Google/Songbird"
+  },
+  "homepage": "https://github.com/Google/Songbird",
   "bugs": {
-    "url": "https://github.com/GoogleChrome/Songbird/issues"
+    "url": "https://github.com/Google/Songbird/issues"
   },
-  "author": "The Chromium Authors",
+  "author": "Andrew Allen",
   "license": "Apache-2.0"
 }

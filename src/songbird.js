@@ -27,6 +27,8 @@
 var Songbird = {};
 
 // Internal dependencies.
+var AmbisonicEncoder = require('./ambisonic-encoder.js');
+var Attenuation = require('./attenuation.js');
 var Listener = require('./listener.js');
 var Source = require('./source.js');
 
@@ -46,6 +48,7 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * {@link Room.DefaultMaterials Room.DefaultMaterials}
  * @param {Number} options.speedOfSound
  * (in meters / second).
+ * @returns {Listener}
  */
 Songbird.createListener = function (context, options) {
   return new Listener(context, options);
@@ -61,9 +64,41 @@ Songbird.createListener = function (context, options) {
  * @param {Float32Array} options.position Position [x,y,z] (in meters).
  * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
  * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
+ * @returns {Source}
  */
 Songbird.createSource = function(listener, options) {
   return new Source(listener, options);
+}
+
+/**
+ * Create {@link AmbisonicEncoder AmbisonicEncoder} to spatially encodes input
+ * using spherical harmonics.
+ * @param {AudioContext} context
+ * Associated {@link
+https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+ * @param {Number} ambisonicOrder
+ * Desired ambisonic Order.
+ * @returns {AmbisonicEncoder}
+ */
+Songbird.createAmbisonicEncoder = function(context, ambisonicOrder) {
+  return new AmbisonicEncoder(context, ambisonicOrder);
+}
+
+/**
+ * Create {@link Attenuation Attenuation} to apply distance attenuation.
+ * @param {AudioContext} context
+ * Associated {@link
+https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+ * @param {Object} options
+ * @param {Number} options.minDistance Min. distance (in meters).
+ * @param {Number} options.maxDistance Max. distance (in meters).
+ * @param {string} options.rolloffModel
+ * Rolloff model to use, chosen from options in
+ * {@link Globals.RolloffModels Global.RolloffModels}.
+ * @return {Attenuation}
+ */
+Songbird.createAttenuation = function(context, options) {
+  return new Attenuation(context, options);
 }
 
 module.exports = Songbird;

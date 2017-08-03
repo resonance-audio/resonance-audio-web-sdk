@@ -36,3 +36,55 @@ exports.log = function () {
     'color: #AAA'
   ]);
 };
+
+/**
+ * Quaternion constructor.
+ * @type {Function}
+ * @param {Number} roll (in radians).
+ * @param {Number} pitch (in radians).
+ * @param {Number} yaw (in radians).
+ * @returns {Float32Array} 4-element vector.
+ */
+exports.toQuaternion = function (roll, pitch, yaw) {
+  var t0 = Math.cos(yaw * 0.5);
+  var t1 = Math.sin(yaw * 0.5);
+  var t2 = Math.cos(roll * 0.5);
+  var t3 = Math.sin(roll * 0.5);
+  var t4 = Math.cos(pitch * 0.5);
+  var t5 = Math.sin(pitch * 0.5);
+  return [
+    t0 * t2 * t4 + t1 * t3 * t5,
+    t0 * t3 * t4 - t1 * t2 * t5,
+    t0 * t2 * t5 + t1 * t3 * t4,
+    t1 * t2 * t4 - t0 * t3 * t5
+  ];
+}
+
+/**
+ * Hamilton product of two quaternions.
+ * @param {Float32Array} q1 4-element vector.
+ * @param {Float32Array} q2 4-element vector.
+ * @returns {Float32Array} 4-element vector.
+ */
+exports.hamiltonProduct = function (q1, q2) {
+  return [
+    q1[0] * q2[0] - q1[1] * q2[1] - q1[2] * q2[2] - q1[3] * q2[3],
+    q1[0] * q2[1] + q1[1] * q2[0] + q1[2] * q2[3] - q1[3] * q2[2],
+    q1[0] * q2[2] - q1[1] * q2[3] + q1[2] * q2[0] + q1[3] * q2[1],
+    q1[0] * q2[3] + q1[1] * q2[2] - q1[2] * q2[1] + q1[3] * q2[0]
+  ];
+}
+
+/**
+ * Rotate a 3-d vector using a quaternion.
+ * @param {Float32Array} p 3-element vector.
+ * @param {Float32Array} q 4-element vector.
+ * @returns {Float32Array} 3-element vector.
+ */
+exports.rotateVector = function (p, q) {
+  var p_n = exports.hamiltonProduct(
+    exports.hamiltonProduct(q, [0, p[0], p[1], p[2]]),
+      [q[0], -q[1], -q[2], -q[3]]
+  );
+  return [p_n[1], p_n[2], p_n[3]];
+}

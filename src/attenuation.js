@@ -131,11 +131,12 @@ Attenuation.prototype.setDistance = function(distance) {
  * {@link Globals.RolloffModels Global.RolloffModels}.
  */
 Attenuation.prototype.setRolloffModel = function (rolloffModel) {
+  rolloffModel = rolloffModel.toString().toLowerCase();
   var isValidModel = ~Globals.RolloffModels.indexOf(rolloffModel);
   if (rolloffModel == undefined || !isValidModel) {
     if (!isValidModel) {
-      Utils.log('Invalid rolloff model. Using default: \"' +
-        Globals.DefaultRolloffModel + '\".');
+      Utils.log('Invalid rolloff model (\"' + rolloffModel +
+        '\"). Using default: \"' + Globals.DefaultRolloffModel + '\".');
     }
     rolloffModel = Globals.DefaultRolloffModel;
   }

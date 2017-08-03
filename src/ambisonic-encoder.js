@@ -88,7 +88,7 @@ AmbisonicEncoder.prototype.setDirection = function(azimuth, elevation) {
   if (azimuth < 0) {
     azimuth += 360;
   }
-  elevation = Math.round(elevation) + 90;
+  elevation = Math.round(Math.min(90, Math.max(-90, elevation))) + 90;
 
   // Assign gains to each output.
   for (var i = 1; i <= this._ambisonicOrder; i++) {

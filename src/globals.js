@@ -49,6 +49,9 @@ Globals.DefaultGainLinear = 1;
 Globals.DefaultPosition = [0, 0, 0];
 Globals.DefaultVelocity = [0, 0, 0];
 Globals.DefaultOrientation = [0, 0, 0];
+Globals.DefaultForward = [0, 0, 1];
+Globals.DefaultUp = [0, 1, 0];
+Globals.DefaultRight = [1, 0, 0];
 
 // Listener defaults.
 Globals.DefaultAmbisonicOrder = 1;

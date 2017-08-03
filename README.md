@@ -1,6 +1,5 @@
 # Songbird: Spatial Audio Encoding on the Web
 
-<!-- NOTE: To generate this documentation, run "doctoc README.md && jsdoc src/*.js -R README.md -d doc" -->
 <!-- [![Travis](https://img.shields.io/travis/GoogleChrome/omnitone.svg)](https://travis-ci.org/GoogleChrome/omnitone) [![npm](https://img.shields.io/npm/v/omnitone.svg?colorB=4bc51d)](https://www.npmjs.com/package/omnitone) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/GoogleChrome/omnitone/master/LICENSE) -->
 
 Songbird is a real-time spatial audio encoding JavaScript library for WebAudio applications. It allows web developers to dynamically spatially-encode streaming audio content into scalable [ambisonics](https://en.wikipedia.org/wiki/Ambisonics) signal, which can be rendered using a binaural renderer such as [Omnitone](https://github.com/GoogleChrome/omnitone) for realistic and quality-scalable 3D audio.
@@ -24,9 +23,14 @@ The implementation of Songbird is based on the [Google spatial media](https://gi
 
 Songbird is a JavaScript API that supports real-time spatial audio encoding for the Web using Higher-Order Ambisonics (HOA). This is accomplished by attached audio input to a `Source` which has associated spatial object parameters. `Source` objects are attached to a `Listener`, which models the listener as well as the room environment the listener and sources are in. Ambisonic output is generated, which can be passed on to a binaural renderer such as [Omnitone](https://github.com/GoogleChrome/omnitone).
 
+<p align="center">
+  <img src="../diagram-songbird.png" alt="Songbird Diagram">
+</p>
+
 ## Installation
 
 Songbird is designed to be used for web front-end projects. So [NPM](https://www.npmjs.com/) is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.
+<!-- TODO(bitllama): Actually put Songbird on NPM -->
 
 ```bash
 npm install songbird
@@ -68,8 +72,8 @@ var source = Songbird.createSource(listener, audioElementSource);
 // Connect audio element source to Songbird source.
 audioElementSource.connect(source.input);
 
-// Position source to the front-left (-45 degrees) of the listener.
-source.setAngleFromListener(-45);
+// Position source to the front-left (45 degrees) of the listener.
+source.setAngleFromListener(45);
 
 // Create an Omnitone FOA renderer.
 var renderer = Omnitone.createFOARenderer(audioContext);

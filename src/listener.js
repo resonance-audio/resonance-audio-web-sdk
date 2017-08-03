@@ -26,6 +26,7 @@ var Reflections = require('./reflections.js');
 var Reverb = require('./reverb.js');
 var Room = require('./room.js');
 var Globals = require('./globals.js');
+var Utils = require('./utils.js');
 
 /**
  * @class Listener
@@ -80,6 +81,10 @@ function Listener (context, options) {
   this._context = context;
   this._ambisonicOrder = options.ambisonicOrder;
   this._position = new Float32Array(3);
+  this._velocity = new Float32Array(3);
+  this._forward = new Float32Array(3);
+  this._up = new Float32Array(3);
+  this._right = new Float32Array(3);
 
   // Create nodes.
   this._reflections = new Reflections(context, options);
@@ -93,6 +98,7 @@ function Listener (context, options) {
   // Assign initial conditions.
   this.setPosition(0, 0, 0);
   this.setVelocity(0, 0, 0);
+  this.setOrientation(0, 0, 0);
   this.setRoomProperties(options.dimensions, options.materials);
 }
 
@@ -116,6 +122,19 @@ Listener.prototype.setPosition = function(x, y, z) {
  */
 Listener.prototype.setVelocity = function(x, y, z) {
   //TODO(bitllama): Doppler!
+}
+
+/**
+ * Set the listener's orientation (in radians).
+ * @param {Number} roll
+ * @param {Number} pitch
+ * @param {Number} yaw
+ */
+Listener.prototype.setOrientation = function(roll, pitch, yaw) {
+  var q = Utils.toQuaternion(roll, pitch, yaw);
+  this._forward = Utils.rotateVector(Globals.DefaultForward, q);
+  this._up = Utils.rotateVector(Globals.DefaultUp, q);
+  this._right = Utils.rotateVector(Globals.DefaultRight, q);
 }
 
 /**

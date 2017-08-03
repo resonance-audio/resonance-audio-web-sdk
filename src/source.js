@@ -25,6 +25,7 @@
 var Attenuation = require('./attenuation.js');
 var AmbisonicEncoder = require('./ambisonic-encoder.js');
 var Globals = require('./globals.js');
+var Utils = require('./utils.js');
 
 /**
  * @class Source
@@ -66,8 +67,9 @@ function Source (listener, options) {
   this._listener = listener;
   this._position = new Float32Array(3);
   this._velocity = new Float32Array(3);
-  this._orientation_q = new Float32Array(4);
   this._forward = new Float32Array(3);
+  this._up = new Float32Array(3);
+  this._right = new Float32Array(3);
   this._directivity_alpha = 0;
   this._directivity_order = listener._ambisonicOrder;
 
@@ -139,9 +141,10 @@ Source.prototype.setPosition = function(x, y, z) {
 
 /**
  * Set source's angle relative to the listener's position.
+ * Azimuth is counterclockwise (0-360). Elevation range is 90 to -90.
  * @param {Number} azimuth (in degrees).
- * @param {Number} elevation (in degrees).
- * @param {Number} distance (in meters).
+ * @param {Number} elevation (in degrees) [defaults to 0].
+ * @param {Number} distance (in meters) [defaults to 1].
  */
 Source.prototype.setAngleFromListener = function(azimuth, elevation, distance) {
   if (elevation == undefined) {
@@ -154,8 +157,8 @@ Source.prototype.setAngleFromListener = function(azimuth, elevation, distance) {
   var phi = elevation * Globals.PiByOneEighty;
 
   // Polar -> Cartesian (direction from listener).
-  var x = -Math.sin(theta) * Math.cos(phi);
-  var y = Math.sin(theta);
+  var x = Math.sin(theta) * Math.cos(phi);
+  var y = Math.sin(phi);
   var z = -Math.cos(theta) * Math.cos(phi);
 
   // Compute directivity pattern.
@@ -169,24 +172,20 @@ Source.prototype.setAngleFromListener = function(azimuth, elevation, distance) {
 
   // Set distance/direction values.
   this._attenuation.setDistance(distance);
-  this._encoder.setDirection(-azimuth, elevation);
+  this._encoder.setDirection(azimuth, elevation);
 }
 
 /**
- * Set source's forward orientation.
+ * Set source's orientation (in radians).
  * @param {Number} roll
  * @param {Number} pitch
  * @param {Number} yaw
  */
 Source.prototype.setOrientation = function(roll, pitch, yaw) {
-  this._orientation_q = toQuaternion(roll, pitch, yaw);
-
-  // Compute forward vector.
-  var forward = hamiltonProduct(
-    hamiltonProduct(this._orientation_q, [0, 0, 0, 1]),
-    [this._orientation_q[0], -this._orientation_q[1],
-    -this._orientation_q[2], -this._orientation_q[3]]);
-  this._forward = [forward[1], forward[2], forward[3]];
+  var q = Utils.toQuaternion(roll, pitch, yaw);
+  this._forward = Utils.rotateVector(Globals.DefaultForward, q);
+  this._up = Utils.rotateVector(Globals.DefaultUp, q);
+  this._right = Utils.rotateVector(Globals.DefaultRight, q);
 }
 
 /**
@@ -200,10 +199,11 @@ Source.prototype.setVelocity = function(x, y, z) {
 }
 
 /**
- * Set source's directivity (rolloff factor based on angle).
+ * Set source's directivity pattern (defined by alpha), where 0 is an
+ * omnidirectional pattern, 1 is a bidirectional pattern, 0.5 is a cardiod
+ * pattern. The sharpness of the pattern is increased with order.
  * @param {Number} alpha
- * Determines directivity pattern (0 to 1), where 0 is an omnidirectional
- * pattern, 1 is a bidirectional pattern, 0.5 is a cardiod pattern.
+ * Determines directivity pattern (0 to 1).
  * @param {Number} order
  * Determines the steepness of the directivity pattern (1 to Inf).
  */
@@ -211,34 +211,10 @@ Source.prototype.setDirectivity = function(alpha, order) {
   // Clamp between 0 and 1.
   this._directivity_alpha = Math.min(1, Math.max(0, alpha));
 
-  // Clamp between 1 and Inf.
-  this._directivity_order = Math.min(1, order);
-}
-
-// Convert roll/pitch/yaw (in radians) to quaternion.
-function toQuaternion(roll, pitch, yaw) {
-  var t0 = Math.cos(yaw * 0.5);
-  var t1 = Math.sin(yaw * 0.5);
-  var t2 = Math.cos(roll * 0.5);
-  var t3 = Math.sin(roll * 0.5);
-  var t4 = Math.cos(pitch * 0.5);
-  var t5 = Math.sin(pitch * 0.5);
-  return [
-    t0 * t2 * t4 + t1 * t3 * t5,
-    t0 * t3 * t4 - t1 * t2 * t5,
-    t0 * t2 * t5 + t1 * t3 * t4,
-    t1 * t2 * t4 - t0 * t3 * t5
-  ];
-}
-
-// Compute Hamilton product of two quaternions.
-function hamiltonProduct(q1, q2) {
-  return [
-    q1[0] * q2[0] - q1[1] * q2[1] - q1[2] * q2[2] - q1[3] * q2[3],
-    q1[0] * q2[1] + q1[1] * q2[0] + q1[2] * q2[3] - q1[3] * q2[2],
-    q1[0] * q2[2] - q1[1] * q2[3] + q1[2] * q2[0] + q1[3] * q2[1],
-    q1[0] * q2[3] + q1[1] * q2[2] - q1[2] * q2[1] + q1[3] * q2[0]
-  ];
+  if (order !== undefined) {
+    // Clamp between 1 and Inf.
+    this._directivity_order = Math.min(1, order);
+  }
 }
 
 function computeDirectivity(forward, direction_to_listener, alpha, order) {
