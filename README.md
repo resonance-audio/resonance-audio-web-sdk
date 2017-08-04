@@ -16,8 +16,17 @@ The implementation of Songbird is based on the [Google spatial media](https://gi
   - ["Hello World" Example](#hello-world-example)
   - [Source/Listener Placement](#sourcelistener-placement)
   - [Room Properties](#room-properties)
+- [Building](#building)
+- [Test](#test)
+  - [Testing Songbird Locally](#testing-songbird-locally)
+- [Audio Codec Compatibility](#audio-codec-compatibility)
+- [Related Resources](#related-resources)
+- [Acknowledgments](#acknowledgments)
+- [Support](#support)
+- [License](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 
 ## How it works
 
@@ -26,6 +35,7 @@ Songbird is a JavaScript API that supports real-time spatial audio encoding for 
 <p align="center">
   <img src="../diagram-songbird.png" alt="Songbird Diagram">
 </p>
+
 
 ## Installation
 
@@ -36,6 +46,7 @@ Songbird is designed to be used for web front-end projects. So [NPM](https://www
 npm install songbird
 ```
 
+
 ## Usage
 
 The first step is to include the library file in an HTML document.
@@ -44,11 +55,13 @@ The first step is to include the library file in an HTML document.
 <!-- Use Songbird from installed node_modules/ -->
 <script src="node_modules/Songbird/build/songbird.min.js"></script>
 
+<!-- TODO(bitllama): rawgit/CDN -->
 <!-- if you prefer to use CDN -->
 <script src="THISISNOTAREALLINKBUTITWILLBESOON.js"></script>
 ```
 
 Spatial encoding is done by creating a `Listener` using an associted `AudioContext` and then creating any number of associated `Source` objects. The `Listener` object models a physical listener while adding room reflections and reverberation. The `Source` object models a physical sound source and can be easily integrated into an existing WebAudio audio graph.
+
 
 ### "Hello World" Example
 
@@ -72,7 +85,7 @@ var source = Songbird.createSource(listener, audioElementSource);
 // Connect audio element source to Songbird source.
 audioElementSource.connect(source.input);
 
-// Position source to the front-left (45 degrees) of the listener.
+// Pan an audio source 45 degrees to the left (counter-clockwise).
 source.setAngleFromListener(45);
 
 // Create an Omnitone FOA renderer.
@@ -88,6 +101,7 @@ renderer.initialize().then(function () {
 });
 ```
 
+
 ### Source/Listener Placement
 
 `Source` objects can be placed relative to a `Listener` or using absolute coordinates. Songbird uses a right-handed coordinate system, similarly to OpenGL and three.js.
@@ -101,14 +115,6 @@ source.setPosition(x, y, z);
 listener.setPosition(x, y, z);
 ```
 
-The `Source` and `Listener` velocity, which controls doppler shift.
-
-```js
-// Set Source and Listener velocity.
-source.setVelocity(x, y, z);
-listener.setVelocity(x, y, z);
-```
-
 The `Source` and `Listener` orientations can also be set, which control directivity and head orientation respectively.
 
 ```js
@@ -116,6 +122,7 @@ The `Source` and `Listener` orientations can also be set, which control directiv
 source.setOrientation(roll, pitch, yaw);
 listener.setOrientation(roll, pitch, yaw);
 ```
+
 
 ### Room Properties
 
@@ -259,30 +266,35 @@ speaker.disable();  // deactivate the speaker.
 
 Deactivating a virtual speaker can save CPU powers. Running multiple HRTF convolution can be computationally expensive, so disabling a speaker might be helpful when the binaural rendering is not necessary.
 
+-->
+
 
 ## Building
 
-Omnitone uses [WebPack](https://webpack.github.io/) to build the minified library and to manage dependencies.
+Songbird uses [WebPack](https://webpack.github.io/) to build the minified library and to manage dependencies.
 
 ```bash
 npm install         # install dependencies.
 npm run build       # build a non-minified library.
 npm run watch       # recompile whenever any source file changes.
 npm run build-all   # build a minified library and copy static resources.
+npm run doc         # generate documentation.
 ```
 
 
 ## Test
 
-Omnitone uses [Travis](https://travis-ci.org/) and [Karma](https://karma-runner.github.io/1.0/index.html) test runner for continuous integration. (The index HTML page for the local testing is deprecated in v0.2.1.) To run the test suite locally, you have to clone the repository, install dependencies and launch the test runner:
+<!-- TODO(bitllama): Actually setup Travis -->
+Songbird uses [Travis](https://travis-ci.org/) and [Karma](https://karma-runner.github.io/1.0/index.html) test runner for continuous integration. (The index HTML page for the local testing is deprecated in v0.2.1.) To run the test suite locally, you have to clone the repository, install dependencies and launch the test runner:
 
 ```bash
 npm test
 ```
 
-Note that unit tests require the promisified version of `OfflineAudioContext`, so they might not run on non-spec-compliant browsers. Omnitone's Travis CI is using the latest stable version of Chrome.
+Note that unit tests require the promisified version of `OfflineAudioContext`, so they might not run on non-spec-compliant browsers. Songbird's Travis CI is using the latest stable version of Chrome.
 
-### Testing Omnitone Locally
+
+### Testing Songbird Locally
 
 For the local testing with Karma test runner, Chrome/Chromium-based browser is required. For Linux distros without Chrome browser, the following set up might be necessary for Karma to run properly:
 
@@ -297,11 +309,12 @@ Windows platform has not been tested for local testing.
 
 ## Audio Codec Compatibility
 
-Omnitone is designed to run any browser that supports Web Audio API, however, it does not address the incompatibility issue around various media codecs in the browsers. At the time of writing, the decoding of compressed multichannel audio via `<video>` or `<audio>` elements is not fully supported by the majority of mobile browsers.
+Songbird is designed to run any browser that supports Web Audio API, however, it does not address the incompatibility issue around various media codecs in the browsers. At the time of writing, the decoding of compressed multichannel audio via `<video>` or `<audio>` elements is not fully supported by the majority of mobile browsers.
 
 
 ## Related Resources
 
+* [Omnitone](https://github.com/googlechrome/omnitone)
 * [Google Spatial Media](https://github.com/google/spatial-media)
 * [Web Audio API](https://webaudio.github.io/web-audio-api/)
 * [WebVR](https://webvr.info/)
@@ -309,12 +322,12 @@ Omnitone is designed to run any browser that supports Web Audio API, however, it
 
 ## Acknowledgments
 
-Special thanks to Boris Smus, Brandon Jones, Dillon Cower, Drew Allen, Julius Kammerl and Marcin Gorzel for their help on this project. We are also grateful to Tim Fain and Jaunt VR for their permission to use beautiful VR contents in the demo.
+Special thanks to Alper Gungormusler, Hongchan Choi, Julius Kammerl and Marcin Gorzel for their help on this project.
 
 
 ## Support
 
-If you have found an error in this library, please file an issue at: https://github.com/GoogleChrome/omnitone/issues.
+If you have found an error in this library, please file an issue at: https://github.com/Google/songbird/issues.
 
 Patches are encouraged, and may be submitted by forking this project and submitting a pull request through GitHub. See CONTRIBUTING for more detail.
 
