@@ -140,8 +140,8 @@ var materials = {
   'right' : 'CurtainHeavy',
   'front' : 'Marble',
   'back' : 'GlassThin',
-  'floor' : 'Grass',
-  'ceiling' : 'Transparent'
+  'down' : 'Grass',
+  'up' : 'Transparent'
 };
 listener.setRoomProperties(dimensions, materials);
 ```

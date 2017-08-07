@@ -15,70 +15,81 @@
  */
 
 /**
- * @file Distance attenuation filter.
+ * @file Distance-based attenuation filter.
  * @author Andrew Allen <bitllama@google.com>
  */
 
 'use strict';
 
 // Internal dependencies.
-var Globals = require('./globals.js');
+var Global = require('./global.js');
 var Utils = require('./utils.js');
 
 /**
  * @class Attenuation
- * @description Distance attenuation filter.
+ * @description Distance-based attenuation filter.
  * @param {AudioContext} context
  * Associated {@link
 https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Object} options
- * @param {Number} options.minDistance Min. distance (in meters).
- * @param {Number} options.maxDistance Max. distance (in meters).
- * @param {string} options.rolloffModel
+ * @param {Number} options.minDistance
+ * Min. distance (in meters). Defaults to
+ * {@link Attenuation.MIN_DISTANCE MIN_DISTANCE}.
+ * @param {Number} options.maxDistance
+ * Max. distance (in meters). Defaults to
+ * {@link Attenuation.MAX_DISTANCE MAX_DISTANCE}.
+ * @param {string} options.rolloff
  * Rolloff model to use, chosen from options in
- * {@link Globals.RolloffModels Global.RolloffModels}.
+ * {@link Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+ * {@link Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
  */
 function Attenuation (context, options) {
   // Public variables.
   /**
-   * Minimum distance from the listener (in meters).
+   * Min. distance (in meters).
    * @member {Number} minDistance
    * @memberof Attenuation
+   * @instance
    */
   /**
-   * Maximum distance from the listener (in meters).
+   * Max. distance (in meters).
    * @member {Number} maxDistance
    * @memberof Attenuation
+   * @instance
    */
   /**
-   * Input to .connect() input AudioNodes to.
+   * Input {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} input
    * @memberof Attenuation
+   * @instance
    */
   /**
-   * Outuput to .connect() object from.
+   * Output {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} output
    * @memberof Attenuation
+   * @instance
    */
 
-  // Use defaults for undefined arguments
+   // Use defaults for undefined arguments
   if (options == undefined) {
     options = new Object();
   }
   if (options.minDistance == undefined) {
-    options.minDistance = Globals.DefaultMinDistance;
+    options.minDistance = Attenuation.MIN_DISTANCE;
   }
   if (options.maxDistance == undefined) {
-    options.maxDistance = Globals.DefaultMaxDistance;
+    options.maxDistance = Attenuation.MAX_DISTANCE;
   }
-  if (options.rollofModel == undefined) {
-    options.rolloffModel = Globals.DefaultRolloffModel;
+  if (options.rolloff == undefined) {
+    options.rolloff = Attenuation.DEFAULT_ROLLOFF;
   }
 
   // Assign values.
   this.minDistance = options.minDistance;
   this.maxDistance = options.maxDistance;
-  this.setRolloffModel(options.rolloffModel);
+  this.setRolloff(options.rolloff);
 
   // Create node.
   this._gainNode = context.createGain();
@@ -95,14 +106,14 @@ function Attenuation (context, options) {
  * Set distance from the listener.
  * @param {Number} distance Distance (in meters).
  */
-Attenuation.prototype.setDistance = function(distance) {
+Attenuation.prototype.setDistance = function (distance) {
   var gain = 1;
-  if (this._rolloffModel == 'logarithmic') {
+  if (this._rolloff == 'logarithmic') {
     if (distance > this.maxDistance) {
       gain = 0;
     } else if (distance > this.minDistance) {
       var range = this.maxDistance - this.minDistance;
-      if (range > Globals.EpsilonFloat) {
+      if (range > Global.EPSILON_FLOAT) {
         // Compute the distance attenuation value by the logarithmic curve
         // "1 / (d + 1)" with an offset of |minDistance|.
         var relativeDistance = distance - this.minDistance;
@@ -111,12 +122,12 @@ Attenuation.prototype.setDistance = function(distance) {
         gain = (attenuation - attenuationMax) / (1 - attenuationMax);
       }
     }
-  } else if (this._rolloffModel == 'linear') {
+  } else if (this._rolloff == 'linear') {
     if (distance > this.maxDistance) {
       gain = 0;
     } else if (distance > this.minDistance) {
       var range = this.maxDistance - this.minDistance;
-      if (range > Globals.EpsilonFloat) {
+      if (range > Global.EPSILON_FLOAT) {
         gain = (this.maxDistance - distance) / range;
       }
     }
@@ -125,22 +136,38 @@ Attenuation.prototype.setDistance = function(distance) {
 }
 
 /**
- * Set rolloff model.
- * @param {string} rolloffModel
+ * Set rolloff.
+ * @param {string} rolloff
  * Rolloff model to use, chosen from options in
- * {@link Globals.RolloffModels Global.RolloffModels}.
+ * {@link Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+ * {@link Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
  */
-Attenuation.prototype.setRolloffModel = function (rolloffModel) {
-  rolloffModel = rolloffModel.toString().toLowerCase();
-  var isValidModel = ~Globals.RolloffModels.indexOf(rolloffModel);
-  if (rolloffModel == undefined || !isValidModel) {
+Attenuation.prototype.setRolloff = function (rolloff) {
+  var isValidModel = ~Attenuation.ROLLOFFS.indexOf(rolloff);
+  if (rolloff == undefined || !isValidModel) {
     if (!isValidModel) {
-      Utils.log('Invalid rolloff model (\"' + rolloffModel +
-        '\"). Using default: \"' + Globals.DefaultRolloffModel + '\".');
+      Utils.log('Invalid rolloff model (\"' + rolloff +
+        '\"). Using default: \"' + Attenuation.DEFAULT_ROLLOFF + '\".');
     }
-    rolloffModel = Globals.DefaultRolloffModel;
+    rolloff = Attenuation.DEFAULT_ROLLOFF;
+  } else {
+    rolloff = rolloff.toString().toLowerCase();
   }
-  this._rolloffModel = rolloffModel;
+  this._rolloff = rolloff;
 }
+
+/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none').
+ * @type {Array}
+ */
+Attenuation.ROLLOFFS = ['logarithmic', 'linear', 'none'];
+/** Default rolloff model ('logarithmic').
+ * @type {string}
+ */
+Attenuation.DEFAULT_ROLLOFF = 'logarithmic';
+/** @type {Number} */
+Attenuation.MIN_DISTANCE = 1;
+/** @type {Number} */
+Attenuation.MAX_DISTANCE = 1000;
+
 
 module.exports = Attenuation;

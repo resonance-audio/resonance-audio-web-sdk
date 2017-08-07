@@ -22,37 +22,48 @@
 'use strict';
 
 // Internal dependencies.
-var AmbisonicEncoderTable = require('./ambisonic-encoder-table.js');
-var AmbisonicEncoderTableMaxOrder = AmbisonicEncoderTable[0][0].length / 2;
+var Tables = require('./tables.js');
 var Utils = require('./utils.js');
 
 /**
- * @class AmbisonicEncoder
- * @description Spatially encodes input using spherical harmonics.
+ * @class Encoder
+ * @description Spatially encodes input using weighted spherical harmonics.
  * @param {AudioContext} context
  * Associated {@link
 https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
- * @param {Number} ambisonicOrder
- * Desired ambisonic Order.
+ * @param {Object} options
+ * @param {Number} options.ambisonicOrder
+ * Desired ambisonic Order. Defaults to
+ * {@link DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
+ * @param {Number} options.azimuth
+ * Azimuth (in degrees). Defaults to
+ * {@link Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+ * @param {Number} options.elevation
+ * Elevation (in degrees). Defaults to
+ * {@link Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
  */
-function AmbisonicEncoder (context, ambisonicOrder) {
+function Encoder (context, ambisonicOrder) {
   // Public variables.
   /**
-   * Input to .connect() input AudioNodes to.
+   * Input {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} input
-   * @memberof AmbisonicEncoder
+   * @memberof Encoder
+   * @instance
    */
   /**
-   * Outuput to .connect() object from.
+   * Output {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} output
-   * @memberof AmbisonicEncoder
+   * @memberof Encoder
+   * @instance
    */
   this._ambisonicOrder = ambisonicOrder;
-  if (this._ambisonicOrder > AmbisonicEncoderTableMaxOrder) {
+  if (this._ambisonicOrder > Encoder.MAX_ORDER) {
     Utils.log('(Error):\nUnable to render ambisonic order',
-      ambisonic_order, '(Max order is', AmbisonicEncoderTableMaxOrder,
+      ambisonic_order, '(Max order is', Encoder.MAX_ORDER,
       ')\nUsing max order instead.');
-    this._ambisonicOrder = AmbisonicEncoderTableMaxOrder;
+    this._ambisonicOrder = Encoder.MAX_ORDER;
   }
 
   var num_channels = (this._ambisonicOrder + 1) * (this._ambisonicOrder + 1);
@@ -72,16 +83,20 @@ function AmbisonicEncoder (context, ambisonicOrder) {
 
 /**
  * Set the direction of the encoded source signal.
- * @param {Number} azimuth Azimuth (in degrees).
- * @param {Number} elevation Elevation (in degrees).
+ * @param {Number} azimuth
+ * Azimuth (in degrees). Defaults to
+ * {@link Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+ * @param {Number} elevation
+ * Elevation (in degrees). Defaults to
+ * {@link Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
  */
-AmbisonicEncoder.prototype.setDirection = function(azimuth, elevation) {
+Encoder.prototype.setDirection = function (azimuth, elevation) {
   // Format input direction to nearest indices.
-  if (isNaN(azimuth)) {
-    azimuth = 0;
+  if (azimuth == undefined || isNaN(azimuth)) {
+    azimuth = Encoder.DEFAULT_AZIMUTH;
   }
-  if (isNaN(elevation)) {
-    elevation = 0;
+  if (elevation == undefined || isNaN(elevation)) {
+    elevation = Encoder.DEFAULT_ELEVATION;
   }
 
   azimuth = Math.round(azimuth % 360);
@@ -95,17 +110,32 @@ AmbisonicEncoder.prototype.setDirection = function(azimuth, elevation) {
     for (var j = -i; j <= i; j++) {
       var acnChannel = (i * i) + i + j;
       var elevationIndex = i * (i + 1) / 2 + Math.abs(j) - 1;
-      var val = AmbisonicEncoderTable[1][elevation][elevationIndex];
+      var val = Tables.SPHERICAL_HARMONICS[1][elevation][elevationIndex];
       if (j != 0) {
-        var azimuthIndex = AmbisonicEncoderTableMaxOrder + j - 1;
+        var azimuthIndex = Encoder.MAX_ORDER + j - 1;
         if (j < 0) {
-          azimuthIndex = AmbisonicEncoderTableMaxOrder + j;
+          azimuthIndex = Encoder.MAX_ORDER + j;
         }
-        val *= AmbisonicEncoderTable[0][azimuth][azimuthIndex];
+        val *= Tables.SPHERICAL_HARMONICS[0][azimuth][azimuthIndex];
       }
       this._channelGain[acnChannel].gain.value = val;
     }
   }
 }
 
-module.exports = AmbisonicEncoder;
+//TODO(bitllama): finish spread function!!!
+Encoder.prototype.setSpread = function (spread) {
+  spread = Math.min(360, Math.max(0, spread));
+  if (spread > Globals.MinSpreadPerAmbisonicOrder[this._ambisonicOrder]) {
+
+  }
+}
+
+/** @type {Number} */
+Encoder.DEFAULT_AZIMUTH = 0;
+/** @type {Number} */
+Encoder.DEFAULT_ELEVATION = 0;
+/** @type {Number} */
+Encoder.MAX_ORDER = Tables.SPHERICAL_HARMONICS[0][0].length / 2;
+
+module.exports = Encoder;

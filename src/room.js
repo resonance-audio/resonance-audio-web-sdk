@@ -15,268 +15,354 @@
  */
 
 /**
- * @file Pre-defined wall materials and mathematical constants.
+ * @file Pre-defined wall materials, mathematical constants and utility
+ * functions for computing room acoustics.
  * @author Andrew Allen <bitllama@google.com>
  */
 
 'use strict';
 
 // Internal dependencies.
-var Globals = require('./globals.js');
+var Global = require('./global.js');
 var Utils = require('./utils.js');
+var LateReflections = require('./late-reflections.js');
+var EarlyReflections = require('./early-reflections.js');
 
 /**
  * @class Room
+ * @description Model that manages early and late reflections using acoustic
+ * properties and listener position relative to a rectangular room.
+ * @param {AudioContext} context
+ * Associated {@link
+https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+ * @param {Object} options
+ * @param {Number} options.speedOfSound
+ * (in meters/second). Defaults to
+ * {@link SPEED_OF_SOUND SPEED_OF_SOUND}.
+ * @param {Object} options.dimensions (in meters). Defaults to
+ * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+ * @param {Object} options.materials Named acoustic materials per wall.
+ * Defaults to {@link Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+ * @param {Float32Array} options.listenerPosition
+ * The initial listener position (in meters). Defaults to
+ * {@link DEFAULT_POSITION DEFAULT_POSITION}.
  */
-var Room = {};
+function Room (context, options) {
+  /**
+   * EarlyReflections {@link EarlyReflections EarlyReflections} submodule.
+   * @member {AudioNode} early
+   * @memberof Room
+   * @instance
+   */
+  /**
+   * LateReflections {@link LateReflections LateReflections} submodule.
+   * @member {AudioNode} late
+   * @memberof Room
+   * @instance
+   */
+  /**
+   * Output {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+   * @member {AudioNode} output
+   * @memberof Room
+   * @instance
+   */
 
-// Reverb/reflections constants.
-Room.MinVolume = 1e-4;
-Room.AirAbsorbtionCoefficients =
-  [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
-Room.EyringCorrection = 1.38;
+  // Sanitize inputs.
+  if (options == undefined) {
+    options = {};
+  }
+  if (options.speedOfSound == undefined) {
+    options.speedOfSound = Global.SPEED_OF_SOUND;
+  }
+  this.speedOfSound = options.speedOfSound;
+  options.dimensions = _sanitizeDimensions(options.dimensions);
+  var absorptionCoefficients = _getCoefficientsFromMaterials(options.materials);
+  var durations = _getDurationsFromProperties(options.dimensions,
+    absorptionCoefficients, options.speedOfSound);
+  var reflectionCoefficients =
+    _computeReflectionCoefficients(absorptionCoefficients);
 
-/** Wall types are 'left', 'right', 'front', 'back', 'ceiling', and 'floor'. */
-Room.WallTypes = ['left', 'right', 'front', 'back', 'ceiling', 'floor'];
-Room.NumWalls = Room.WallTypes.length;
+  // Construct submodules for early and late reflections.
+  this.early = new EarlyReflections(context, {
+    dimensions : options.dimensions,
+    coefficients : reflectionCoefficients,
+    speedOfSound : options.speedOfSound,
+    listenerPosition : options.listenerPosition
+  });
+  this.late = new LateReflections(context, {
+    durations : durations
+  });
 
-Room.DimensionTypes = ['width', 'height', 'depth'];
-Room.NumDimensions = Room.DimensionTypes.length;
+  // Construct auxillary audio nodes.
+  this.output = context.createGain();
+  this._merger = context.createChannelMerger(4);
+
+  this.early.output.connect(this.output);
+  this.late.output.connect(this._merger, 0, 0);
+  this._merger.connect(this.output);
+}
 
 /**
- * Default dimensions use scalars assigned to
- * keys 'width', 'height', and 'depth'.
- * @type {Map}
+ * Set the room's dimensions and wall materials.
+ * @param {Object} dimensions (in meters). Defaults to
+ * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+ * @param {Object} materials Named acoustic materials per wall. Defaults to
+ * {@link Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
  */
-Room.DefaultDimensions = {'width' : 0, 'height' : 0, 'depth' : 0};
+Room.prototype.setProperties = function (dimensions, materials) {
+  // Compute late response.
+  absorptionCoefficients = _getCoefficientsFromMaterials(materials);
+  durations = _getDurationsFromProperties(dimensions, absorptionCoefficients,
+    this.speedOfSound);
+  this.late.setDurations(durations);
+
+  // Compute early response.
+  this.early.speedOfSound = this.speedOfSound;
+  var reflectionCoefficients =
+    _computeReflectionCoefficients(absorptionCoefficients);
+  this.early.setRoomProperties(dimensions, reflectionCoefficients);
+}
+
+/**
+ * Set the listener's position (in meters),
+ * where [0,0,0] is the center of the room.
+ * @param {Number} x
+ * @param {Number} y
+ * @param {Number} z
+ */
+Room.prototype.setListenerPosition = function (x, y, z) {
+  //TODO(bitllama): Check distance and zero-out if outside of room.
+  this.early.speedOfSound = this.speedOfSound;
+  this.early.setListenerPosition(x, y, z);
+}
+
+/** @type {Number} */
+Room.MIN_VOLUME = 1e-4;
+/** @type {Float32Array} */
+Room.AIR_ABSORPTION_COEFFICIENTS =
+  [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
+/** @type {Number} */
+Room.EYRING_CORRECTION = 1.38;
+
 /**
  * Default materials use strings from
- * {@link Room.MaterialCoefficients Room.MaterialCoefficients}
- * assigned to keys 'left', 'right', 'front', 'back', 'floor', and 'ceiling'.
- * @type {Map}
+ * {@link MATERIAL_COEFFICIENTS MATERIAL_COEFFICIENTS}
+ * @type {Object}
  */
-Room.DefaultMaterials = { 'left' : 'Transparent', 'right' : 'Transparent',
-  'front' : 'Transparent', 'back' : 'Transparent', 'floor' : 'Transparent',
-  'ceiling' : 'Transparent'}
+Room.DEFAULT_MATERIALS = {
+  left : 'transparent', right : 'transparent', front : 'transparent',
+  back : 'transparent', down : 'transparent', up : 'transparent'
+};
 
 /**
  * Pre-defined frequency-dependent absorption coefficients for listed materials.
  * Currently supported materials are:
- * 'Transparent',
- * 'AcousticCeilingTiles',
- * 'BrickBare',
- * 'BrickPainted',
- * 'ConcreteBlockCoarse',
- * 'ConcreteBlockPainted',
- * 'CurtainHeavy',
- * 'FiberGlassInsulation',
- * 'GlassThin',
- * 'GlassThick',
- * 'Grass',
- * 'LinoleumOnConcrete',
- * 'Marble',
- * 'Metal',
- * 'ParquetOnConcrete',
- * 'PlasterSmooth',
- * 'PlywoodPanel',
- * 'PolishedConcreteOrTile',
- * 'Sheetrock',
- * 'WaterOrIceSurface',
- * 'WoodCeiling',
- * 'WoodPanel',
- * 'Uniform'
- * @type {Map}
+ * 'transparent',
+ * 'acoustic-ceiling-tiles',
+ * 'brick-bare',
+ * 'brick-painted',
+ * 'concrete-block-coarse',
+ * 'concrete-block-painted',
+ * 'curtain-heavy',
+ * 'fiber-glass-insulation',
+ * 'glass-thin',
+ * 'glass-thick',
+ * 'grass',
+ * 'linoleum-on-concrete',
+ * 'marble',
+ * 'metal',
+ * 'parquet-on-concrete',
+ * 'plaster-smooth',
+ * 'plywood-panel',
+ * 'polished-concrete-or-tile',
+ * 'sheetrock',
+ * 'water-or-ice-surface',
+ * 'wood-ceiling',
+ * 'wood-panel',
+ * 'uniform'
+ * @type {Object}
  */
-Room.MaterialCoefficients = {
-  'Transparent' :
+Room.MATERIAL_COEFFICIENTS = {
+  'transparent' :
   [1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000],
-  'AcousticCeilingTiles' :
+  'acoustic-ceiling-tiles' :
   [0.672, 0.675, 0.700, 0.660, 0.720, 0.920, 0.880, 0.750, 1.000],
-  'BrickBare' :
+  'brick-bare' :
   [0.030, 0.030, 0.030, 0.030, 0.030, 0.040, 0.050, 0.070, 0.140],
-  'BrickPainted' :
+  'brick-painted' :
   [0.006, 0.007, 0.010, 0.010, 0.020, 0.020, 0.020, 0.030, 0.060],
-  'ConcreteBlockCoarse' :
+  'concrete-block-coarse' :
   [0.360, 0.360, 0.360, 0.440, 0.310, 0.290, 0.390, 0.250, 0.500],
-  'ConcreteBlockPainted' :
+  'concrete-block-painted' :
   [0.092, 0.090, 0.100, 0.050, 0.060, 0.070, 0.090, 0.080, 0.160],
-  'CurtainHeavy' :
+  'curtain-heavy' :
   [0.073, 0.106, 0.140, 0.350, 0.550, 0.720, 0.700, 0.650, 1.000],
-  'FiberGlassInsulation' :
+  'fiber-glass-insulation' :
   [0.193, 0.220, 0.220, 0.820, 0.990, 0.990, 0.990, 0.990, 1.000],
-  'GlassThin' :
+  'glass-thin' :
   [0.180, 0.169, 0.180, 0.060, 0.040, 0.030, 0.020, 0.020, 0.040],
-  'GlassThick' :
+  'glass-thick' :
   [0.350, 0.350, 0.350, 0.250, 0.180, 0.120, 0.070, 0.040, 0.080],
-  'Grass' :
+  'grass' :
   [0.050, 0.050, 0.150, 0.250, 0.400, 0.550, 0.600, 0.600, 0.600],
-  'LinoleumOnConcrete' :
+  'linoleum-on-concrete' :
   [0.020, 0.020, 0.020, 0.030, 0.030, 0.030, 0.030, 0.020, 0.040],
-  'Marble' :
+  'marble' :
   [0.010, 0.010, 0.010, 0.010, 0.010, 0.010, 0.020, 0.020, 0.0400],
-  'Metal' :
+  'metal' :
   [0.030, 0.035, 0.040, 0.040, 0.050, 0.050, 0.050, 0.070, 0.090],
-  'ParquetOnConcrete' :
+  'parquet-on-concrete' :
   [0.028, 0.030, 0.040, 0.040, 0.070, 0.060, 0.060, 0.070, 0.140],
-  'PlasterRough' :
+  'plaster-rough' :
   [0.017, 0.018, 0.020, 0.030, 0.040, 0.050, 0.040, 0.030, 0.060],
-  'PlasterSmooth' :
+  'plaster-smooth' :
   [0.011, 0.012, 0.013, 0.015, 0.020, 0.030, 0.040, 0.050, 0.100],
-  'PlywoodPanel' :
+  'plywood-panel' :
   [0.400, 0.340, 0.280, 0.220, 0.170, 0.090, 0.100, 0.110, 0.220],
-  'PolishedConcreteOrTile' :
+  'polished-concrete-or-tile' :
   [0.008, 0.008, 0.010, 0.010, 0.015, 0.020, 0.020, 0.020, 0.040],
-  'Sheetrock' :
+  'sheet-rock' :
   [0.290, 0.279, 0.290, 0.100, 0.050, 0.040, 0.070, 0.090, 0.180],
-  'WaterOrIceSurface' :
+  'water-or-ice-surface' :
   [0.006, 0.006, 0.008, 0.008, 0.013, 0.015, 0.020, 0.025, 0.050],
-  'WoodCeiling' :
+  'wood-ceiling' :
   [0.150, 0.147, 0.150, 0.110, 0.100, 0.070, 0.060, 0.070, 0.140],
-  'WoodPanel' :
+  'wood-panel' :
   [0.280, 0.280, 0.280, 0.220, 0.170, 0.090, 0.100, 0.110, 0.220],
-  'Uniform' :
+  'uniform' :
   [0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500]
 }
 
-Room.getCoefficientsFromMaterials = function(materials) {
-  // Initialize coefficients to use default coefficients.
+/** @type {Number} */
+Room.STARTING_BAND = 4;
+/** @type {Number} */
+Room.NUMBER_AVERAGING_BANDS = 3;
+
+function _getCoefficientsFromMaterials (materials) {
+  // Initialize coefficients to use defaults.
   var coefficients = {};
-  for (var i = 0; i < Room.NumWalls; i++) {
-    var key = Room.WallTypes[i];
-    var defaultMaterialForWall = Room.DefaultMaterials[key];
-    coefficients[key] = Room.MaterialCoefficients[defaultMaterialForWall];
+  for (var property in Room.DEFAULT_MATERIALS) {
+    coefficients[property] =
+      Room.MATERIAL_COEFFICIENTS[Room.DEFAULT_MATERIALS[property]];
   }
 
   // Sanitize materials.
   if (materials == undefined) {
-    materials = Room.DefaultMaterials;
-  }
-
-  // Default to using 'Walls' for all walls if present (not ceiling/floor).
-  if ('walls' in materials) {
-    for (var i = 0; i < Room.NumWalls; i++) {
-      var key = Room.WallTypes[i];
-      if (key !== 'ceiling' && key !== 'floor') {
-        materials[key] = materials['walls'];
-      }
-    }
+    materials = Room.DEFAULT_MATERIALS;
   }
 
   // Assign coefficients using provided materials.
-  for (var i = 0; i < Room.NumWalls; i++) {
-    var key = Room.WallTypes[i];
-    if (key in materials) {
-      var defaultMaterialForWall = Room.DefaultMaterials[key];
-      if (materials[key] in Room.MaterialCoefficients) {
-        coefficients[key] = Room.MaterialCoefficients[materials[key]];
+  for (var property in Room.DEFAULT_MATERIALS) {
+    if (materials.hasOwnProperty(property)) {
+      if (materials[property] in Room.MATERIAL_COEFFICIENTS) {
+        coefficients[property] =
+          Room.MATERIAL_COEFFICIENTS[materials[property]];
       } else {
-        Utils.log('Material \"' + materials[key] + '\" on Wall \"' + key +
-          '\" not found. Using \"' + defaultMaterialForWall + '\".');
+        Utils.log('Material \"' + materials[property] + '\" on wall \"' +
+          property + '\" not found. Using \"' +
+          Room.DEFAULT_MATERIALS[property] + '\".');
       }
     } else {
-      Utils.log('Wall \"' + key + '\" is not defined and will be ignored.');
+      Utils.log('Wall \"' + property + '\" is not defined. Default used.');
     }
   }
   return coefficients;
 }
 
-Room.sanitizeCoefficients = function(coefficients) {
+function _sanitizeCoefficients (coefficients) {
   if (coefficients == undefined) {
     coefficients = {};
   }
-  for (var i = 0; i < Room.NumWalls; i++) {
-    var key = Room.WallTypes[i];
-    if (!(key in coefficients)) {
+  for (var property in Room.DEFAULT_MATERIALS) {
+    if (!(coefficients.hasOwnProperty(property))) {
       // If element is not present, use default coefficients.
-      var defaultMaterialForWall = Room.DefaultMaterials[key];
-      coefficients[key] = Room.MaterialCoefficients[defaultMaterialForWall];
+      coefficients[property] =
+        Room.MATERIAL_COEFFICIENTS[Room.DEFAULT_MATERIALS[property]];
     }
   }
   return coefficients;
 }
 
-Room.sanitizeDimensions = function(dimensions) {
+function _sanitizeDimensions (dimensions) {
   if (dimensions == undefined) {
     dimensions = {};
   }
-  for (var i = 0; i < Room.NumDimensions; i++) {
-    var key = Room.DimensionTypes[i];
-    if (!(key in dimensions)) {
-      dimensions[key] = Room.DefaultDimensions[key];
+  for (var property in EarlyReflections.DEFAULT_DIMENSIONS) {
+    if (!(dimensions.hasOwnProperty(property))) {
+      dimensions[property] = EarlyReflections.DEFAULT_DIMENSIONS[property];
     }
   }
   return dimensions;
 }
 
-Room.computeReflectionCoefficients = function(coefficients) {
-  var reflectionCoefficients = {'left' : 0, 'right' : 0, 'front' : 0,
-    'back' : 0, 'floor' : 0, 'ceiling' : 0};
+function _getDurationsFromProperties (dimensions, coefficients, speedOfSound) {
+  var durations = new Float32Array(Global.NUMBER_REVERB_BANDS);
 
   // Sanitize inputs.
-  coefficients = Room.sanitizeCoefficients(coefficients);
-
-  // Compute average reflection coefficient per wall.
-  for (var i = 0; i < Room.NumWalls; i++) {
-    var key = Room.WallTypes[i];
-    for (var j = 0; j < Globals.DefaultReflectionsNumAveragingBands; j++) {
-      var bandIndex = j + Globals.DefaultReflectionsStartingBand;
-      reflectionCoefficients[key] += coefficients[key][bandIndex];
-    }
-    reflectionCoefficients[key] /= Globals.DefaultReflectionsNumAveragingBands;
-    reflectionCoefficients[key] = Math.sqrt(1 - reflectionCoefficients[key]);
-  }
-  return reflectionCoefficients;
-}
-
-Room.computeRT60Secs = function(dimensions, coefficients, speedOfSound) {
-  var RT60Secs = new Float32Array(Globals.NumReverbBands);
-
-  // Sanitize inputs.
-  dimensions = Room.sanitizeDimensions(dimensions);
-  coefficients = Room.sanitizeCoefficients(coefficients);
+  dimensions = _sanitizeDimensions(dimensions);
+  coefficients = _sanitizeCoefficients(coefficients);
   if (speedOfSound == undefined) {
-    speedOfSound = Globals.DefaultSpeedOfSound;
+    speedOfSound = Globals.SPEED_OF_SOUND;
   }
 
   // Acoustic constant.
-  var k = Globals.TwentyFourLog10 / speedOfSound;
+  var k = Global.TWENTY_FOUR_LOG10 / speedOfSound;
 
   // Compute volume, skip if room is not present.
-  var volume = dimensions['width'] * dimensions['height'] * dimensions['depth'];
-  if (volume < Room.MinVolume) {
-    return RT60Secs;
+  var volume = dimensions.width * dimensions.height * dimensions.depth;
+  if (volume < Room.MIN_VOLUME) {
+    return durations;
   }
 
   // Room surface area.
-  var leftRightArea = dimensions['width'] * dimensions['height'];
-  var floorCeilingArea = dimensions['width'] * dimensions['depth'];
-  var frontBackArea = dimensions['depth'] * dimensions['height'];
+  var leftRightArea = dimensions.width * dimensions.height;
+  var floorCeilingArea = dimensions.width * dimensions.depth;
+  var frontBackArea = dimensions.depth * dimensions.height;
   var totalArea = 2 * (leftRightArea + floorCeilingArea + frontBackArea);
-  for (var i = 0; i < Globals.NumReverbBands; i++) {
+  for (var i = 0; i < Global.NUMBER_REVERB_BANDS; i++) {
     // Effective absorptive area.
     var absorbtionArea =
-      (coefficients['left'][i] + coefficients['right'][i]) *
-      leftRightArea +
-      (coefficients['floor'][i] + coefficients['ceiling'][i]) *
-      floorCeilingArea +
-      (coefficients['front'][i] + coefficients['back'][i]) *
-      frontBackArea;
+      (coefficients.left[i] + coefficients.right[i]) * leftRightArea +
+      (coefficients.down[i] + coefficients.up[i]) * floorCeilingArea +
+      (coefficients.front[i] + coefficients.back[i]) * frontBackArea;
     var meanAbsorbtionArea = absorbtionArea / totalArea;
 
-    // Compute reverberation using one of two algorithms, depending on area.
-    //TODO(bitllama): Point to references for these equations.
+    // Compute reverberation using one of two algorithms, depending on area [1].
+    // [1] Beranek, Leo L. "Analysis of Sabine and Eyring equations and their
+    //     application to concert hall audience and chair absorption." The
+    //     Journal of the Acoustical Society of America, Vol. 120, No. 3.
+    //     (2006), pp. 1399-1399.
     if (meanAbsorbtionArea <= 0.5) {
       // Sabine equation.
-      RT60Secs[i] = k * volume / (absorbtionArea + 4 *
-        Room.AirAbsorbtionCoefficients[i] * volume);
+      durations[i] = k * volume / (absorbtionArea + 4 *
+        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
     } else {
       // Eyring equation.
-      RT60Secs[i] = Room.EyringCorrection * k * volume / (-totalArea *
+      durations[i] = Room.EYRING_CORRECTION * k * volume / (-totalArea *
         Math.log(1 - meanAbsorbtionArea) + 4 *
-        Room.AirAbsorbtionCoefficients[i] * volume);
+        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
     }
   }
-  return RT60Secs;
+  return durations;
+}
+
+function _computeReflectionCoefficients (absorptionCoefficients) {
+  var reflectionCoefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+    // Compute average absorption coefficient (per wall).
+    for (var j = 0; j < Room.NUMBER_AVERAGING_BANDS; j++) {
+      var bandIndex = j + Room.STARTING_BAND;
+      reflectionCoefficients[property] +=
+        absorptionCoefficients[property][bandIndex];
+    }
+    reflectionCoefficients[property] /= Room.NUMBER_AVERAGING_BANDS;
+
+    // Convert absorption coefficient to reflection coefficient.
+    reflectionCoefficients[property] =
+      Math.sqrt(1 - reflectionCoefficients[property]);
+  }
+  return reflectionCoefficients;
 }
 
 module.exports = Room;

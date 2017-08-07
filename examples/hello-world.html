@@ -1,0 +1,60 @@
+<!--
+  Copyright 2017 Google Inc. All Rights Reserved.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>"Hello World" example.</title>
+  <script src="resources/omnitone.min.js"></script>
+  <script src="../build/songbird.js"></script>
+</head>
+<body>
+  <h1>"Hello World" example.</h1>
+  <p>Pan an audio source 45 degrees to the left (counter-clockwise).</p>
+  <script>
+    // Create an AudioContext.
+    var context = new AudioContext();
+
+    // Prepare audio element to feed the ambisonic source audio feed.
+    var audioElement = document.createElement('audio');
+    audioElement.src = 'resources/SpeechSample.wav';
+
+    // Create media element source to connect to WebAudio audio graph.
+    var audioElementSource = context.createMediaElementSource(audioElement);
+
+    // Create a 1st-order Ambisonics Songbird Listener.
+    var engine = new Songbird(context);
+
+    // Create a Songbird Source.
+    var source = engine.createSource(audioElementSource);
+    var source2 = engine.createSource(audioElementSource);
+    engine.removeSource(source2);
+
+    // Pan an audio source 45 degrees to the left (counter-clockwise).
+    source.setAngleFromListener(45);
+
+    // Create an Omnitone FOA renderer.
+    var renderer = Omnitone.createFOARenderer(context);
+
+    // Initialize Omnitone, connect elements and then start playing the audio element.
+    renderer.initialize().then(function () {
+      engine.output.connect(renderer.input);
+      renderer.output.connect(context.destination);
+      audioElement.play();
+    }, function (onInitializationError) {
+      console.error(onInitializationError);
+    });
+  </script>
+</body>

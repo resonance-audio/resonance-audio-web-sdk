@@ -16,13 +16,14 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Example: Room model (two sources).</title>
+  <title>Room model example.</title>
   <script src="resources/omnitone.min.js"></script>
   <script src="../build/songbird.js"></script>
 </head>
 <body>
+  <h1>Room Model example.</h1>
   <p>Room model example using two sources.</p>
-  <p><b>Room dimensions</b><br/>
+  <p><b>Room dimensions (in meters)</b><br/>
   <label for="eWidthNumber" id="eWidthLabel">width</label>
   <input id="eWidthNumber" type="number" min="0" max="100" value="8.7"
     onchange="updateDimensions(this);"/>
@@ -271,8 +272,8 @@
       'right' : document.getElementById('eRightMaterial').value,
       'front' : document.getElementById('eFrontMaterial').value,
       'back' : document.getElementById('eBackMaterial').value,
-      'floor' : document.getElementById('eFloorMaterial').value,
-      'ceiling' : document.getElementById('eCeilingMaterial').value,
+      'down' : document.getElementById('eFloorMaterial').value,
+      'up' : document.getElementById('eCeilingMaterial').value,
     };
     var sourceAParams = {
       'x' : Number(document.getElementById('eSourceAXRange').value),
@@ -399,7 +400,7 @@
 
       // Initialize Omnitone.
       var omnitoneOptions = {
-        ambisonicOrder : 3,
+        ambisonicOrder : juncoOptions.ambisonicOrder,
         HRIRUrl: ['resources/sh_hrir_o_3_ch0-ch7.wav',
                   'resources/sh_hrir_o_3_ch8-ch15.wav'],
       };

@@ -103,85 +103,165 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
-	/**
-	 * @class Songbird main namespace.
-	 */
-	var Songbird = {};
-
 	// Internal dependencies.
-	var AmbisonicEncoder = __webpack_require__(2);
-	var Attenuation = __webpack_require__(5);
-	var Listener = __webpack_require__(7);
-	var Source = __webpack_require__(11);
+	//var AmbisonicEncoder = require('./ambisonic-encoder.js');
+	//var Attenuation = require('./attenuation.js');
+	//var Listener = require('./listener.js');
+	var Source = __webpack_require__(7);
+	var Room = __webpack_require__(2);
+	var LateReflections = __webpack_require__(5);
+	var EarlyReflections = __webpack_require__(6);
+	var Global = __webpack_require__(3);
 
 	/**
-	 * Create {@link Listener Listener} to listen to
-	 * sources in a configurable environment.
+	 * @class Songbird spatial audio.
+	 * @description Main class for managing sources, room and listener models.
 	 * @param {AudioContext} context
 	 * Associated {@link
 	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Number} options.ambisonicOrder
-	 * Desired ambisonic order.
-	 * @param {Map} options.dimensions
-	 * Dimensions map which should conform to the layout of
-	 * {@link Room.DefaultDimensions Room.DefaultDimensions}
-	 * @param {Map} options.materials
-	 * Materials map which should conform to the layout of
-	 * {@link Room.DefaultMaterials Room.DefaultMaterials}
-	 * @param {Number} options.speedOfSound
-	 * (in meters / second).
-	 * @returns {Listener}
-	 */
-	Songbird.createListener = function (context, options) {
-	  return new Listener(context, options);
-	}
-
-	/**
-	 * Create {@link Source Source} to spatialize an audio buffer.
-	 * @param {Listener} listener Associated Listener.
 	 * @param {Object} options
-	 * @param {Number} options.minDistance Min. distance (in meters).
-	 * @param {Number} options.maxDistance Max. distance (in meters).
-	 * @param {Number} options.gain Gain (linear).
-	 * @param {Float32Array} options.position Position [x,y,z] (in meters).
-	 * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
-	 * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
-	 * @returns {Source}
-	 */
-	Songbird.createSource = function(listener, options) {
-	  return new Source(listener, options);
-	}
-
-	/**
-	 * Create {@link AmbisonicEncoder AmbisonicEncoder} to spatially encodes input
-	 * using spherical harmonics.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
 	 * @param {Number} ambisonicOrder
-	 * Desired ambisonic Order.
-	 * @returns {AmbisonicEncoder}
+	 * @param {Float32Array} listenerPosition
 	 */
-	Songbird.createAmbisonicEncoder = function(context, ambisonicOrder) {
-	  return new AmbisonicEncoder(context, ambisonicOrder);
+	function Songbird (context, options) {
+	  this._context = context;
+	  if (options == undefined) {
+	    options = new Object();
+	  }
+	  if (options.ambisonicOrder == undefined) {
+	    options.ambisonicOrder = Global.DEFAULT_AMBISONIC_ORDER;
+	  }
+	  this._ambisonicOrder = options.ambisonicOrder;
+
+	  // Member submodules.
+	  this._sources = [];
+	  this._room = new Room(context);
+
+	  // Member variables.
+	  this._position = new Float32Array(3);
+
+	  // Create auxillary audio nodes.
+	  this.output = context.createGain();
+
+	  // Connect audio graph.
+	  this._room.output.connect(this.output);
 	}
 
-	/**
-	 * Create {@link Attenuation Attenuation} to apply distance attenuation.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Object} options
-	 * @param {Number} options.minDistance Min. distance (in meters).
-	 * @param {Number} options.maxDistance Max. distance (in meters).
-	 * @param {string} options.rolloffModel
-	 * Rolloff model to use, chosen from options in
-	 * {@link Globals.RolloffModels Global.RolloffModels}.
-	 * @return {Attenuation}
-	 */
-	Songbird.createAttenuation = function(context, options) {
-	  return new Attenuation(context, options);
+	Songbird.prototype.createSource = function (audioNode, options) {
+	  this._sources.push(new Source(this, options));
+	  audioNode.connect(this._sources[this._sources.length - 1].input);
+	  return this._sources[this._sources.length - 1];
 	}
+
+	Songbird.prototype.removeSource = function (source) {
+	  var index = this._sources.indexOf(source);
+	  if (index > -1) {
+	    this._sources.splice(index, 1);
+	  } else {
+	    Utils.log("Error: Source not found, not removed!");
+	  }
+	}
+
+	Songbird.prototype.setRoomProperties = function (dimensions, materials) {
+	  this._room.setProperties(dimensions, materials);
+	}
+
+	Songbird.prototype.setListenerPosition = function (x, y, z) {
+	  this._position[0] = x;
+	  this._position[1] = y;
+	  this._position[2] = z;
+	  this._room.setListenerPosition(x, y, z);
+	  for (var i = 0; i < this._sources.length; i++) {
+	    this._sources[i].setPosition(this._sources[i]._position[0],
+	      this._sources[i]._position[1], this._sources[i]._position[2]);
+	  }
+	}
+
+	Songbird.prototype.setListenerOrientation = function (roll, pitch, yaw) {
+	  //TODO(bitllama): Omnitone stuff here...
+	}
+
+	Songbird.createRoom = function (context, options) {
+	  return new Room(context, options);
+	}
+	Songbird.createLateReflections = function (context, options) {
+	  return new LateReflections(context, options);
+	}
+	Songbird.createEarlyReflections = function (context, options) {
+	  return new EarlyReflections(context, options);
+	}
+
+	// var Songbird = {};
+
+	// /**
+	//  * Create {@link Listener Listener} to listen to
+	//  * sources in a configurable environment.
+	//  * @param {AudioContext} context
+	//  * Associated {@link
+	// https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	//  * @param {Number} options.ambisonicOrder
+	//  * Desired ambisonic order.
+	//  * @param {Map} options.dimensions
+	//  * Dimensions map which should conform to the layout of
+	//  * {@link Room.DefaultDimensions Room.DefaultDimensions}
+	//  * @param {Map} options.materials
+	//  * Materials map which should conform to the layout of
+	//  * {@link Room.DefaultMaterials Room.DefaultMaterials}
+	//  * @param {Number} options.speedOfSound
+	//  * (in meters / second).
+	//  * @returns {Listener}
+	//  */
+	// Songbird.createListener = function (context, options) {
+	//   return new Listener(context, options);
+	// }
+
+	// /**
+	//  * Create {@link Source Source} to spatialize an audio buffer.
+	//  * @param {Listener} listener Associated Listener.
+	//  * @param {Object} options
+	//  * @param {Number} options.minDistance Min. distance (in meters).
+	//  * @param {Number} options.maxDistance Max. distance (in meters).
+	//  * @param {Number} options.gain Gain (linear).
+	//  * @param {Float32Array} options.position Position [x,y,z] (in meters).
+	//  * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
+	//  * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
+	//  * @returns {Source}
+	//  */
+	// Songbird.createSource = function (listener, options) {
+	//   return new Source(listener, options);
+	// }
+
+	// /**
+	//  * Create {@link Encoder Encoder} to spatially encodes input
+	//  * using spherical harmonics.
+	//  * @param {AudioContext} context
+	//  * Associated {@link
+	// https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	//  * @param {Number} ambisonicOrder
+	//  * Desired ambisonic Order. Defaults to
+	//  * {@link Globals.DEFAULT_AMBISONIC_ORDER Globals.DEFAULT_AMBISONIC_ORDER}.
+	//  * @returns {Encoder}
+	//  */
+	// Songbird.createEncoder = function (context, ambisonicOrder) {
+	//   return new Encoder(context, ambisonicOrder);
+	// }
+
+	// /**
+	//  * Create {@link Attenuation Attenuation} to apply distance attenuation.
+	//  * @param {AudioContext} context
+	//  * Associated {@link
+	// https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	//  * @param {Object} options
+	//  * @param {Number} options.minDistance Min. distance (in meters).
+	//  * @param {Number} options.maxDistance Max. distance (in meters).
+	//  * @param {string} options.rolloffModel
+	//  * Rolloff model to use, chosen from options in
+	//  * {@link Globals.ROLLOFF_MODELS Globals.ROLLOFF_MODELS}.
+	//  * @return {Attenuation}
+	//  */
+	// Songbird.createAttenuation = function (context, options) {
+	//   return new Attenuation(context, options);
+	// }
 
 	module.exports = Songbird;
 
@@ -191,121 +271,6 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	/**
 	 * @license
-	 * Copyright 2016 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
-	 * @file Spatially encodes input using spherical harmonics.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	// Internal dependencies.
-	var AmbisonicEncoderTable = __webpack_require__(3);
-	var AmbisonicEncoderTableMaxOrder = AmbisonicEncoderTable[0][0].length / 2;
-	var Utils = __webpack_require__(4);
-
-	/**
-	 * @class AmbisonicEncoder
-	 * @description Spatially encodes input using spherical harmonics.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Number} ambisonicOrder
-	 * Desired ambisonic Order.
-	 */
-	function AmbisonicEncoder (context, ambisonicOrder) {
-	  // Public variables.
-	  /**
-	   * Input to .connect() input AudioNodes to.
-	   * @member {AudioNode} input
-	   * @memberof AmbisonicEncoder
-	   */
-	  /**
-	   * Outuput to .connect() object from.
-	   * @member {AudioNode} output
-	   * @memberof AmbisonicEncoder
-	   */
-	  this._ambisonicOrder = ambisonicOrder;
-	  if (this._ambisonicOrder > AmbisonicEncoderTableMaxOrder) {
-	    Utils.log('(Error):\nUnable to render ambisonic order',
-	      ambisonic_order, '(Max order is', AmbisonicEncoderTableMaxOrder,
-	      ')\nUsing max order instead.');
-	    this._ambisonicOrder = AmbisonicEncoderTableMaxOrder;
-	  }
-
-	  var num_channels = (this._ambisonicOrder + 1) * (this._ambisonicOrder + 1);
-	  this._merger = context.createChannelMerger(num_channels);
-	  this._masterGain = context.createGain();
-	  this._channelGain = new Array(num_channels);
-	  for (var i = 0; i < num_channels; i++) {
-	    this._channelGain[i] = context.createGain();
-	    this._masterGain.connect(this._channelGain[i]);
-	    this._channelGain[i].connect(this._merger, 0, i);
-	  }
-
-	  // Input/Output proxy.
-	  this.input = this._masterGain;
-	  this.output = this._merger;
-	}
-
-	/**
-	 * Set the direction of the encoded source signal.
-	 * @param {Number} azimuth Azimuth (in degrees).
-	 * @param {Number} elevation Elevation (in degrees).
-	 */
-	AmbisonicEncoder.prototype.setDirection = function(azimuth, elevation) {
-	  // Format input direction to nearest indices.
-	  if (isNaN(azimuth)) {
-	    azimuth = 0;
-	  }
-	  if (isNaN(elevation)) {
-	    elevation = 0;
-	  }
-
-	  azimuth = Math.round(azimuth % 360);
-	  if (azimuth < 0) {
-	    azimuth += 360;
-	  }
-	  elevation = Math.round(Math.min(90, Math.max(-90, elevation))) + 90;
-
-	  // Assign gains to each output.
-	  for (var i = 1; i <= this._ambisonicOrder; i++) {
-	    for (var j = -i; j <= i; j++) {
-	      var acnChannel = (i * i) + i + j;
-	      var elevationIndex = i * (i + 1) / 2 + Math.abs(j) - 1;
-	      var val = AmbisonicEncoderTable[1][elevation][elevationIndex];
-	      if (j != 0) {
-	        var azimuthIndex = AmbisonicEncoderTableMaxOrder + j - 1;
-	        if (j < 0) {
-	          azimuthIndex = AmbisonicEncoderTableMaxOrder + j;
-	        }
-	        val *= AmbisonicEncoderTable[0][azimuth][azimuthIndex];
-	      }
-	      this._channelGain[acnChannel].gain.value = val;
-	    }
-	  }
-	}
-
-	module.exports = AmbisonicEncoder;
-
-/***/ }),
-/* 3 */
-/***/ (function(module, exports) {
-
-	/**
 	 * Copyright 2017 Google Inc. All Rights Reserved.
 	 * Licensed under the Apache License, Version 2.0 (the "License");
 	 * you may not use this file except in compliance with the License.
@@ -321,8335 +286,423 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @file Pre-computed lookup tables of spherical harmonics.
+	 * @file Pre-defined wall materials, mathematical constants and utility
+	 * functions for computing room acoustics.
 	 * @author Andrew Allen <bitllama@google.com>
 	 */
 
 	'use strict';
 
-	/**
-	 * Pre-computed Spherical Harmonics Coefficients.
-	 *
-	 * This function generates an efficient lookup table of SH coefficients. It
-	 * exploits the way SHs are generated (i.e. Ylm = Nlm * Plm * Em). Since Nlm
-	 * & Plm coefficients only depend on theta, and Em only depends on phi, we
-	 * can separate the equation along these lines. Em does not depend on
-	 * degree, so we only need to compute (2 * l) per azimuth Em total and
-	 * Nlm * Plm is symmetrical across indexes, so only positive indexes are
-	 * computed (l * (l + 1) / 2) per elevation.
-	 * @type {Float32Array}
-	 */
-	var AmbisonicEncoderTable =
-	[
-	  [
-	    [
-	      0,
-	      0,
-	      0,
-	      0,
-	      0,
-	      1,
-	      1,
-	      1,
-	      1,
-	      1
-	    ],
-	    [
-	      0.0871557444,
-	      0.0697564706,
-	      0.0523359552,
-	      0.0348994955,
-	      0.0174524058,
-	      0.99984771,
-	      0.999390841,
-	      0.99862951,
-	      0.997564077,
-	      0.99619472
-	    ],
-	    [
-	      0.173648179,
-	      0.139173105,
-	      0.104528464,
-	      0.0697564706,
-	      0.0348994955,
-	      0.999390841,
-	      0.997564077,
-	      0.994521916,
-	      0.990268052,
-	      0.98480773
-	    ],
-	    [
-	      0.258819044,
-	      0.207911685,
-	      0.156434461,
-	      0.104528464,
-	      0.0523359552,
-	      0.99862951,
-	      0.994521916,
-	      0.987688363,
-	      0.978147626,
-	      0.965925813
-	    ],
-	    [
-	      0.342020154,
-	      0.275637358,
-	      0.207911685,
-	      0.139173105,
-	      0.0697564706,
-	      0.997564077,
-	      0.990268052,
-	      0.978147626,
-	      0.96126169,
-	      0.939692616
-	    ],
-	    [
-	      0.42261827,
-	      0.342020154,
-	      0.258819044,
-	      0.173648179,
-	      0.0871557444,
-	      0.99619472,
-	      0.98480773,
-	      0.965925813,
-	      0.939692616,
-	      0.906307817
-	    ],
-	    [
-	      0.5,
-	      0.406736642,
-	      0.309017,
-	      0.207911685,
-	      0.104528464,
-	      0.994521916,
-	      0.978147626,
-	      0.95105654,
-	      0.91354543,
-	      0.866025388
-	    ],
-	    [
-	      0.57357645,
-	      0.469471574,
-	      0.35836795,
-	      0.241921902,
-	      0.121869341,
-	      0.992546141,
-	      0.970295727,
-	      0.933580399,
-	      0.882947564,
-	      0.819152057
-	    ],
-	    [
-	      0.642787635,
-	      0.529919267,
-	      0.406736642,
-	      0.275637358,
-	      0.139173105,
-	      0.990268052,
-	      0.96126169,
-	      0.91354543,
-	      0.848048091,
-	      0.766044438
-	    ],
-	    [
-	      0.707106769,
-	      0.587785244,
-	      0.453990489,
-	      0.309017,
-	      0.156434461,
-	      0.987688363,
-	      0.95105654,
-	      0.891006529,
-	      0.809017,
-	      0.707106769
-	    ],
-	    [
-	      0.766044438,
-	      0.642787635,
-	      0.5,
-	      0.342020154,
-	      0.173648179,
-	      0.98480773,
-	      0.939692616,
-	      0.866025388,
-	      0.766044438,
-	      0.642787635
-	    ],
-	    [
-	      0.819152057,
-	      0.694658399,
-	      0.544639051,
-	      0.37460658,
-	      0.190809,
-	      0.981627166,
-	      0.927183867,
-	      0.838670552,
-	      0.719339788,
-	      0.57357645
-	    ],
-	    [
-	      0.866025388,
-	      0.74314481,
-	      0.587785244,
-	      0.406736642,
-	      0.207911685,
-	      0.978147626,
-	      0.91354543,
-	      0.809017,
-	      0.669130623,
-	      0.5
-	    ],
-	    [
-	      0.906307817,
-	      0.788010776,
-	      0.629320383,
-	      0.438371152,
-	      0.224951059,
-	      0.974370062,
-	      0.898794055,
-	      0.777146,
-	      0.615661502,
-	      0.42261827
-	    ],
-	    [
-	      0.939692616,
-	      0.829037547,
-	      0.669130623,
-	      0.469471574,
-	      0.241921902,
-	      0.970295727,
-	      0.882947564,
-	      0.74314481,
-	      0.559192896,
-	      0.342020154
-	    ],
-	    [
-	      0.965925813,
-	      0.866025388,
-	      0.707106769,
-	      0.5,
-	      0.258819044,
-	      0.965925813,
-	      0.866025388,
-	      0.707106769,
-	      0.5,
-	      0.258819044
-	    ],
-	    [
-	      0.98480773,
-	      0.898794055,
-	      0.74314481,
-	      0.529919267,
-	      0.275637358,
-	      0.96126169,
-	      0.848048091,
-	      0.669130623,
-	      0.438371152,
-	      0.173648179
-	    ],
-	    [
-	      0.99619472,
-	      0.927183867,
-	      0.777146,
-	      0.559192896,
-	      0.29237169,
-	      0.956304729,
-	      0.829037547,
-	      0.629320383,
-	      0.37460658,
-	      0.0871557444
-	    ],
-	    [
-	      1,
-	      0.95105654,
-	      0.809017,
-	      0.587785244,
-	      0.309017,
-	      0.95105654,
-	      0.809017,
-	      0.587785244,
-	      0.309017,
-	      6.12323426e-17
-	    ],
-	    [
-	      0.99619472,
-	      0.970295727,
-	      0.838670552,
-	      0.615661502,
-	      0.325568169,
-	      0.945518553,
-	      0.788010776,
-	      0.544639051,
-	      0.241921902,
-	      -0.0871557444
-	    ],
-	    [
-	      0.98480773,
-	      0.98480773,
-	      0.866025388,
-	      0.642787635,
-	      0.342020154,
-	      0.939692616,
-	      0.766044438,
-	      0.5,
-	      0.173648179,
-	      -0.173648179
-	    ],
-	    [
-	      0.965925813,
-	      0.994521916,
-	      0.891006529,
-	      0.669130623,
-	      0.35836795,
-	      0.933580399,
-	      0.74314481,
-	      0.453990489,
-	      0.104528464,
-	      -0.258819044
-	    ],
-	    [
-	      0.939692616,
-	      0.999390841,
-	      0.91354543,
-	      0.694658399,
-	      0.37460658,
-	      0.927183867,
-	      0.719339788,
-	      0.406736642,
-	      0.0348994955,
-	      -0.342020154
-	    ],
-	    [
-	      0.906307817,
-	      0.999390841,
-	      0.933580399,
-	      0.719339788,
-	      0.390731126,
-	      0.920504868,
-	      0.694658399,
-	      0.35836795,
-	      -0.0348994955,
-	      -0.42261827
-	    ],
-	    [
-	      0.866025388,
-	      0.994521916,
-	      0.95105654,
-	      0.74314481,
-	      0.406736642,
-	      0.91354543,
-	      0.669130623,
-	      0.309017,
-	      -0.104528464,
-	      -0.5
-	    ],
-	    [
-	      0.819152057,
-	      0.98480773,
-	      0.965925813,
-	      0.766044438,
-	      0.42261827,
-	      0.906307817,
-	      0.642787635,
-	      0.258819044,
-	      -0.173648179,
-	      -0.57357645
-	    ],
-	    [
-	      0.766044438,
-	      0.970295727,
-	      0.978147626,
-	      0.788010776,
-	      0.438371152,
-	      0.898794055,
-	      0.615661502,
-	      0.207911685,
-	      -0.241921902,
-	      -0.642787635
-	    ],
-	    [
-	      0.707106769,
-	      0.95105654,
-	      0.987688363,
-	      0.809017,
-	      0.453990489,
-	      0.891006529,
-	      0.587785244,
-	      0.156434461,
-	      -0.309017,
-	      -0.707106769
-	    ],
-	    [
-	      0.642787635,
-	      0.927183867,
-	      0.994521916,
-	      0.829037547,
-	      0.469471574,
-	      0.882947564,
-	      0.559192896,
-	      0.104528464,
-	      -0.37460658,
-	      -0.766044438
-	    ],
-	    [
-	      0.57357645,
-	      0.898794055,
-	      0.99862951,
-	      0.848048091,
-	      0.484809607,
-	      0.874619722,
-	      0.529919267,
-	      0.0523359552,
-	      -0.438371152,
-	      -0.819152057
-	    ],
-	    [
-	      0.5,
-	      0.866025388,
-	      1,
-	      0.866025388,
-	      0.5,
-	      0.866025388,
-	      0.5,
-	      6.12323426e-17,
-	      -0.5,
-	      -0.866025388
-	    ],
-	    [
-	      0.42261827,
-	      0.829037547,
-	      0.99862951,
-	      0.882947564,
-	      0.515038073,
-	      0.857167304,
-	      0.469471574,
-	      -0.0523359552,
-	      -0.559192896,
-	      -0.906307817
-	    ],
-	    [
-	      0.342020154,
-	      0.788010776,
-	      0.994521916,
-	      0.898794055,
-	      0.529919267,
-	      0.848048091,
-	      0.438371152,
-	      -0.104528464,
-	      -0.615661502,
-	      -0.939692616
-	    ],
-	    [
-	      0.258819044,
-	      0.74314481,
-	      0.987688363,
-	      0.91354543,
-	      0.544639051,
-	      0.838670552,
-	      0.406736642,
-	      -0.156434461,
-	      -0.669130623,
-	      -0.965925813
-	    ],
-	    [
-	      0.173648179,
-	      0.694658399,
-	      0.978147626,
-	      0.927183867,
-	      0.559192896,
-	      0.829037547,
-	      0.37460658,
-	      -0.207911685,
-	      -0.719339788,
-	      -0.98480773
-	    ],
-	    [
-	      0.0871557444,
-	      0.642787635,
-	      0.965925813,
-	      0.939692616,
-	      0.57357645,
-	      0.819152057,
-	      0.342020154,
-	      -0.258819044,
-	      -0.766044438,
-	      -0.99619472
-	    ],
-	    [
-	      1.22464685e-16,
-	      0.587785244,
-	      0.95105654,
-	      0.95105654,
-	      0.587785244,
-	      0.809017,
-	      0.309017,
-	      -0.309017,
-	      -0.809017,
-	      -1
-	    ],
-	    [
-	      -0.0871557444,
-	      0.529919267,
-	      0.933580399,
-	      0.96126169,
-	      0.601815045,
-	      0.798635483,
-	      0.275637358,
-	      -0.35836795,
-	      -0.848048091,
-	      -0.99619472
-	    ],
-	    [
-	      -0.173648179,
-	      0.469471574,
-	      0.91354543,
-	      0.970295727,
-	      0.615661502,
-	      0.788010776,
-	      0.241921902,
-	      -0.406736642,
-	      -0.882947564,
-	      -0.98480773
-	    ],
-	    [
-	      -0.258819044,
-	      0.406736642,
-	      0.891006529,
-	      0.978147626,
-	      0.629320383,
-	      0.777146,
-	      0.207911685,
-	      -0.453990489,
-	      -0.91354543,
-	      -0.965925813
-	    ],
-	    [
-	      -0.342020154,
-	      0.342020154,
-	      0.866025388,
-	      0.98480773,
-	      0.642787635,
-	      0.766044438,
-	      0.173648179,
-	      -0.5,
-	      -0.939692616,
-	      -0.939692616
-	    ],
-	    [
-	      -0.42261827,
-	      0.275637358,
-	      0.838670552,
-	      0.990268052,
-	      0.656059,
-	      0.754709601,
-	      0.139173105,
-	      -0.544639051,
-	      -0.96126169,
-	      -0.906307817
-	    ],
-	    [
-	      -0.5,
-	      0.207911685,
-	      0.809017,
-	      0.994521916,
-	      0.669130623,
-	      0.74314481,
-	      0.104528464,
-	      -0.587785244,
-	      -0.978147626,
-	      -0.866025388
-	    ],
-	    [
-	      -0.57357645,
-	      0.139173105,
-	      0.777146,
-	      0.997564077,
-	      0.681998372,
-	      0.7313537,
-	      0.0697564706,
-	      -0.629320383,
-	      -0.990268052,
-	      -0.819152057
-	    ],
-	    [
-	      -0.642787635,
-	      0.0697564706,
-	      0.74314481,
-	      0.999390841,
-	      0.694658399,
-	      0.719339788,
-	      0.0348994955,
-	      -0.669130623,
-	      -0.997564077,
-	      -0.766044438
-	    ],
-	    [
-	      -0.707106769,
-	      1.22464685e-16,
-	      0.707106769,
-	      1,
-	      0.707106769,
-	      0.707106769,
-	      6.12323426e-17,
-	      -0.707106769,
-	      -1,
-	      -0.707106769
-	    ],
-	    [
-	      -0.766044438,
-	      -0.0697564706,
-	      0.669130623,
-	      0.999390841,
-	      0.719339788,
-	      0.694658399,
-	      -0.0348994955,
-	      -0.74314481,
-	      -0.997564077,
-	      -0.642787635
-	    ],
-	    [
-	      -0.819152057,
-	      -0.139173105,
-	      0.629320383,
-	      0.997564077,
-	      0.7313537,
-	      0.681998372,
-	      -0.0697564706,
-	      -0.777146,
-	      -0.990268052,
-	      -0.57357645
-	    ],
-	    [
-	      -0.866025388,
-	      -0.207911685,
-	      0.587785244,
-	      0.994521916,
-	      0.74314481,
-	      0.669130623,
-	      -0.104528464,
-	      -0.809017,
-	      -0.978147626,
-	      -0.5
-	    ],
-	    [
-	      -0.906307817,
-	      -0.275637358,
-	      0.544639051,
-	      0.990268052,
-	      0.754709601,
-	      0.656059,
-	      -0.139173105,
-	      -0.838670552,
-	      -0.96126169,
-	      -0.42261827
-	    ],
-	    [
-	      -0.939692616,
-	      -0.342020154,
-	      0.5,
-	      0.98480773,
-	      0.766044438,
-	      0.642787635,
-	      -0.173648179,
-	      -0.866025388,
-	      -0.939692616,
-	      -0.342020154
-	    ],
-	    [
-	      -0.965925813,
-	      -0.406736642,
-	      0.453990489,
-	      0.978147626,
-	      0.777146,
-	      0.629320383,
-	      -0.207911685,
-	      -0.891006529,
-	      -0.91354543,
-	      -0.258819044
-	    ],
-	    [
-	      -0.98480773,
-	      -0.469471574,
-	      0.406736642,
-	      0.970295727,
-	      0.788010776,
-	      0.615661502,
-	      -0.241921902,
-	      -0.91354543,
-	      -0.882947564,
-	      -0.173648179
-	    ],
-	    [
-	      -0.99619472,
-	      -0.529919267,
-	      0.35836795,
-	      0.96126169,
-	      0.798635483,
-	      0.601815045,
-	      -0.275637358,
-	      -0.933580399,
-	      -0.848048091,
-	      -0.0871557444
-	    ],
-	    [
-	      -1,
-	      -0.587785244,
-	      0.309017,
-	      0.95105654,
-	      0.809017,
-	      0.587785244,
-	      -0.309017,
-	      -0.95105654,
-	      -0.809017,
-	      -1.83697015e-16
-	    ],
-	    [
-	      -0.99619472,
-	      -0.642787635,
-	      0.258819044,
-	      0.939692616,
-	      0.819152057,
-	      0.57357645,
-	      -0.342020154,
-	      -0.965925813,
-	      -0.766044438,
-	      0.0871557444
-	    ],
-	    [
-	      -0.98480773,
-	      -0.694658399,
-	      0.207911685,
-	      0.927183867,
-	      0.829037547,
-	      0.559192896,
-	      -0.37460658,
-	      -0.978147626,
-	      -0.719339788,
-	      0.173648179
-	    ],
-	    [
-	      -0.965925813,
-	      -0.74314481,
-	      0.156434461,
-	      0.91354543,
-	      0.838670552,
-	      0.544639051,
-	      -0.406736642,
-	      -0.987688363,
-	      -0.669130623,
-	      0.258819044
-	    ],
-	    [
-	      -0.939692616,
-	      -0.788010776,
-	      0.104528464,
-	      0.898794055,
-	      0.848048091,
-	      0.529919267,
-	      -0.438371152,
-	      -0.994521916,
-	      -0.615661502,
-	      0.342020154
-	    ],
-	    [
-	      -0.906307817,
-	      -0.829037547,
-	      0.0523359552,
-	      0.882947564,
-	      0.857167304,
-	      0.515038073,
-	      -0.469471574,
-	      -0.99862951,
-	      -0.559192896,
-	      0.42261827
-	    ],
-	    [
-	      -0.866025388,
-	      -0.866025388,
-	      1.22464685e-16,
-	      0.866025388,
-	      0.866025388,
-	      0.5,
-	      -0.5,
-	      -1,
-	      -0.5,
-	      0.5
-	    ],
-	    [
-	      -0.819152057,
-	      -0.898794055,
-	      -0.0523359552,
-	      0.848048091,
-	      0.874619722,
-	      0.484809607,
-	      -0.529919267,
-	      -0.99862951,
-	      -0.438371152,
-	      0.57357645
-	    ],
-	    [
-	      -0.766044438,
-	      -0.927183867,
-	      -0.104528464,
-	      0.829037547,
-	      0.882947564,
-	      0.469471574,
-	      -0.559192896,
-	      -0.994521916,
-	      -0.37460658,
-	      0.642787635
-	    ],
-	    [
-	      -0.707106769,
-	      -0.95105654,
-	      -0.156434461,
-	      0.809017,
-	      0.891006529,
-	      0.453990489,
-	      -0.587785244,
-	      -0.987688363,
-	      -0.309017,
-	      0.707106769
-	    ],
-	    [
-	      -0.642787635,
-	      -0.970295727,
-	      -0.207911685,
-	      0.788010776,
-	      0.898794055,
-	      0.438371152,
-	      -0.615661502,
-	      -0.978147626,
-	      -0.241921902,
-	      0.766044438
-	    ],
-	    [
-	      -0.57357645,
-	      -0.98480773,
-	      -0.258819044,
-	      0.766044438,
-	      0.906307817,
-	      0.42261827,
-	      -0.642787635,
-	      -0.965925813,
-	      -0.173648179,
-	      0.819152057
-	    ],
-	    [
-	      -0.5,
-	      -0.994521916,
-	      -0.309017,
-	      0.74314481,
-	      0.91354543,
-	      0.406736642,
-	      -0.669130623,
-	      -0.95105654,
-	      -0.104528464,
-	      0.866025388
-	    ],
-	    [
-	      -0.42261827,
-	      -0.999390841,
-	      -0.35836795,
-	      0.719339788,
-	      0.920504868,
-	      0.390731126,
-	      -0.694658399,
-	      -0.933580399,
-	      -0.0348994955,
-	      0.906307817
-	    ],
-	    [
-	      -0.342020154,
-	      -0.999390841,
-	      -0.406736642,
-	      0.694658399,
-	      0.927183867,
-	      0.37460658,
-	      -0.719339788,
-	      -0.91354543,
-	      0.0348994955,
-	      0.939692616
-	    ],
-	    [
-	      -0.258819044,
-	      -0.994521916,
-	      -0.453990489,
-	      0.669130623,
-	      0.933580399,
-	      0.35836795,
-	      -0.74314481,
-	      -0.891006529,
-	      0.104528464,
-	      0.965925813
-	    ],
-	    [
-	      -0.173648179,
-	      -0.98480773,
-	      -0.5,
-	      0.642787635,
-	      0.939692616,
-	      0.342020154,
-	      -0.766044438,
-	      -0.866025388,
-	      0.173648179,
-	      0.98480773
-	    ],
-	    [
-	      -0.0871557444,
-	      -0.970295727,
-	      -0.544639051,
-	      0.615661502,
-	      0.945518553,
-	      0.325568169,
-	      -0.788010776,
-	      -0.838670552,
-	      0.241921902,
-	      0.99619472
-	    ],
-	    [
-	      -2.44929371e-16,
-	      -0.95105654,
-	      -0.587785244,
-	      0.587785244,
-	      0.95105654,
-	      0.309017,
-	      -0.809017,
-	      -0.809017,
-	      0.309017,
-	      1
-	    ],
-	    [
-	      0.0871557444,
-	      -0.927183867,
-	      -0.629320383,
-	      0.559192896,
-	      0.956304729,
-	      0.29237169,
-	      -0.829037547,
-	      -0.777146,
-	      0.37460658,
-	      0.99619472
-	    ],
-	    [
-	      0.173648179,
-	      -0.898794055,
-	      -0.669130623,
-	      0.529919267,
-	      0.96126169,
-	      0.275637358,
-	      -0.848048091,
-	      -0.74314481,
-	      0.438371152,
-	      0.98480773
-	    ],
-	    [
-	      0.258819044,
-	      -0.866025388,
-	      -0.707106769,
-	      0.5,
-	      0.965925813,
-	      0.258819044,
-	      -0.866025388,
-	      -0.707106769,
-	      0.5,
-	      0.965925813
-	    ],
-	    [
-	      0.342020154,
-	      -0.829037547,
-	      -0.74314481,
-	      0.469471574,
-	      0.970295727,
-	      0.241921902,
-	      -0.882947564,
-	      -0.669130623,
-	      0.559192896,
-	      0.939692616
-	    ],
-	    [
-	      0.42261827,
-	      -0.788010776,
-	      -0.777146,
-	      0.438371152,
-	      0.974370062,
-	      0.224951059,
-	      -0.898794055,
-	      -0.629320383,
-	      0.615661502,
-	      0.906307817
-	    ],
-	    [
-	      0.5,
-	      -0.74314481,
-	      -0.809017,
-	      0.406736642,
-	      0.978147626,
-	      0.207911685,
-	      -0.91354543,
-	      -0.587785244,
-	      0.669130623,
-	      0.866025388
-	    ],
-	    [
-	      0.57357645,
-	      -0.694658399,
-	      -0.838670552,
-	      0.37460658,
-	      0.981627166,
-	      0.190809,
-	      -0.927183867,
-	      -0.544639051,
-	      0.719339788,
-	      0.819152057
-	    ],
-	    [
-	      0.642787635,
-	      -0.642787635,
-	      -0.866025388,
-	      0.342020154,
-	      0.98480773,
-	      0.173648179,
-	      -0.939692616,
-	      -0.5,
-	      0.766044438,
-	      0.766044438
-	    ],
-	    [
-	      0.707106769,
-	      -0.587785244,
-	      -0.891006529,
-	      0.309017,
-	      0.987688363,
-	      0.156434461,
-	      -0.95105654,
-	      -0.453990489,
-	      0.809017,
-	      0.707106769
-	    ],
-	    [
-	      0.766044438,
-	      -0.529919267,
-	      -0.91354543,
-	      0.275637358,
-	      0.990268052,
-	      0.139173105,
-	      -0.96126169,
-	      -0.406736642,
-	      0.848048091,
-	      0.642787635
-	    ],
-	    [
-	      0.819152057,
-	      -0.469471574,
-	      -0.933580399,
-	      0.241921902,
-	      0.992546141,
-	      0.121869341,
-	      -0.970295727,
-	      -0.35836795,
-	      0.882947564,
-	      0.57357645
-	    ],
-	    [
-	      0.866025388,
-	      -0.406736642,
-	      -0.95105654,
-	      0.207911685,
-	      0.994521916,
-	      0.104528464,
-	      -0.978147626,
-	      -0.309017,
-	      0.91354543,
-	      0.5
-	    ],
-	    [
-	      0.906307817,
-	      -0.342020154,
-	      -0.965925813,
-	      0.173648179,
-	      0.99619472,
-	      0.0871557444,
-	      -0.98480773,
-	      -0.258819044,
-	      0.939692616,
-	      0.42261827
-	    ],
-	    [
-	      0.939692616,
-	      -0.275637358,
-	      -0.978147626,
-	      0.139173105,
-	      0.997564077,
-	      0.0697564706,
-	      -0.990268052,
-	      -0.207911685,
-	      0.96126169,
-	      0.342020154
-	    ],
-	    [
-	      0.965925813,
-	      -0.207911685,
-	      -0.987688363,
-	      0.104528464,
-	      0.99862951,
-	      0.0523359552,
-	      -0.994521916,
-	      -0.156434461,
-	      0.978147626,
-	      0.258819044
-	    ],
-	    [
-	      0.98480773,
-	      -0.139173105,
-	      -0.994521916,
-	      0.0697564706,
-	      0.999390841,
-	      0.0348994955,
-	      -0.997564077,
-	      -0.104528464,
-	      0.990268052,
-	      0.173648179
-	    ],
-	    [
-	      0.99619472,
-	      -0.0697564706,
-	      -0.99862951,
-	      0.0348994955,
-	      0.99984771,
-	      0.0174524058,
-	      -0.999390841,
-	      -0.0523359552,
-	      0.997564077,
-	      0.0871557444
-	    ],
-	    [
-	      1,
-	      -2.44929371e-16,
-	      -1,
-	      1.22464685e-16,
-	      1,
-	      6.12323426e-17,
-	      -1,
-	      -1.83697015e-16,
-	      1,
-	      3.061617e-16
-	    ],
-	    [
-	      0.99619472,
-	      0.0697564706,
-	      -0.99862951,
-	      -0.0348994955,
-	      0.99984771,
-	      -0.0174524058,
-	      -0.999390841,
-	      0.0523359552,
-	      0.997564077,
-	      -0.0871557444
-	    ],
-	    [
-	      0.98480773,
-	      0.139173105,
-	      -0.994521916,
-	      -0.0697564706,
-	      0.999390841,
-	      -0.0348994955,
-	      -0.997564077,
-	      0.104528464,
-	      0.990268052,
-	      -0.173648179
-	    ],
-	    [
-	      0.965925813,
-	      0.207911685,
-	      -0.987688363,
-	      -0.104528464,
-	      0.99862951,
-	      -0.0523359552,
-	      -0.994521916,
-	      0.156434461,
-	      0.978147626,
-	      -0.258819044
-	    ],
-	    [
-	      0.939692616,
-	      0.275637358,
-	      -0.978147626,
-	      -0.139173105,
-	      0.997564077,
-	      -0.0697564706,
-	      -0.990268052,
-	      0.207911685,
-	      0.96126169,
-	      -0.342020154
-	    ],
-	    [
-	      0.906307817,
-	      0.342020154,
-	      -0.965925813,
-	      -0.173648179,
-	      0.99619472,
-	      -0.0871557444,
-	      -0.98480773,
-	      0.258819044,
-	      0.939692616,
-	      -0.42261827
-	    ],
-	    [
-	      0.866025388,
-	      0.406736642,
-	      -0.95105654,
-	      -0.207911685,
-	      0.994521916,
-	      -0.104528464,
-	      -0.978147626,
-	      0.309017,
-	      0.91354543,
-	      -0.5
-	    ],
-	    [
-	      0.819152057,
-	      0.469471574,
-	      -0.933580399,
-	      -0.241921902,
-	      0.992546141,
-	      -0.121869341,
-	      -0.970295727,
-	      0.35836795,
-	      0.882947564,
-	      -0.57357645
-	    ],
-	    [
-	      0.766044438,
-	      0.529919267,
-	      -0.91354543,
-	      -0.275637358,
-	      0.990268052,
-	      -0.139173105,
-	      -0.96126169,
-	      0.406736642,
-	      0.848048091,
-	      -0.642787635
-	    ],
-	    [
-	      0.707106769,
-	      0.587785244,
-	      -0.891006529,
-	      -0.309017,
-	      0.987688363,
-	      -0.156434461,
-	      -0.95105654,
-	      0.453990489,
-	      0.809017,
-	      -0.707106769
-	    ],
-	    [
-	      0.642787635,
-	      0.642787635,
-	      -0.866025388,
-	      -0.342020154,
-	      0.98480773,
-	      -0.173648179,
-	      -0.939692616,
-	      0.5,
-	      0.766044438,
-	      -0.766044438
-	    ],
-	    [
-	      0.57357645,
-	      0.694658399,
-	      -0.838670552,
-	      -0.37460658,
-	      0.981627166,
-	      -0.190809,
-	      -0.927183867,
-	      0.544639051,
-	      0.719339788,
-	      -0.819152057
-	    ],
-	    [
-	      0.5,
-	      0.74314481,
-	      -0.809017,
-	      -0.406736642,
-	      0.978147626,
-	      -0.207911685,
-	      -0.91354543,
-	      0.587785244,
-	      0.669130623,
-	      -0.866025388
-	    ],
-	    [
-	      0.42261827,
-	      0.788010776,
-	      -0.777146,
-	      -0.438371152,
-	      0.974370062,
-	      -0.224951059,
-	      -0.898794055,
-	      0.629320383,
-	      0.615661502,
-	      -0.906307817
-	    ],
-	    [
-	      0.342020154,
-	      0.829037547,
-	      -0.74314481,
-	      -0.469471574,
-	      0.970295727,
-	      -0.241921902,
-	      -0.882947564,
-	      0.669130623,
-	      0.559192896,
-	      -0.939692616
-	    ],
-	    [
-	      0.258819044,
-	      0.866025388,
-	      -0.707106769,
-	      -0.5,
-	      0.965925813,
-	      -0.258819044,
-	      -0.866025388,
-	      0.707106769,
-	      0.5,
-	      -0.965925813
-	    ],
-	    [
-	      0.173648179,
-	      0.898794055,
-	      -0.669130623,
-	      -0.529919267,
-	      0.96126169,
-	      -0.275637358,
-	      -0.848048091,
-	      0.74314481,
-	      0.438371152,
-	      -0.98480773
-	    ],
-	    [
-	      0.0871557444,
-	      0.927183867,
-	      -0.629320383,
-	      -0.559192896,
-	      0.956304729,
-	      -0.29237169,
-	      -0.829037547,
-	      0.777146,
-	      0.37460658,
-	      -0.99619472
-	    ],
-	    [
-	      3.67394029e-16,
-	      0.95105654,
-	      -0.587785244,
-	      -0.587785244,
-	      0.95105654,
-	      -0.309017,
-	      -0.809017,
-	      0.809017,
-	      0.309017,
-	      -1
-	    ],
-	    [
-	      -0.0871557444,
-	      0.970295727,
-	      -0.544639051,
-	      -0.615661502,
-	      0.945518553,
-	      -0.325568169,
-	      -0.788010776,
-	      0.838670552,
-	      0.241921902,
-	      -0.99619472
-	    ],
-	    [
-	      -0.173648179,
-	      0.98480773,
-	      -0.5,
-	      -0.642787635,
-	      0.939692616,
-	      -0.342020154,
-	      -0.766044438,
-	      0.866025388,
-	      0.173648179,
-	      -0.98480773
-	    ],
-	    [
-	      -0.258819044,
-	      0.994521916,
-	      -0.453990489,
-	      -0.669130623,
-	      0.933580399,
-	      -0.35836795,
-	      -0.74314481,
-	      0.891006529,
-	      0.104528464,
-	      -0.965925813
-	    ],
-	    [
-	      -0.342020154,
-	      0.999390841,
-	      -0.406736642,
-	      -0.694658399,
-	      0.927183867,
-	      -0.37460658,
-	      -0.719339788,
-	      0.91354543,
-	      0.0348994955,
-	      -0.939692616
-	    ],
-	    [
-	      -0.42261827,
-	      0.999390841,
-	      -0.35836795,
-	      -0.719339788,
-	      0.920504868,
-	      -0.390731126,
-	      -0.694658399,
-	      0.933580399,
-	      -0.0348994955,
-	      -0.906307817
-	    ],
-	    [
-	      -0.5,
-	      0.994521916,
-	      -0.309017,
-	      -0.74314481,
-	      0.91354543,
-	      -0.406736642,
-	      -0.669130623,
-	      0.95105654,
-	      -0.104528464,
-	      -0.866025388
-	    ],
-	    [
-	      -0.57357645,
-	      0.98480773,
-	      -0.258819044,
-	      -0.766044438,
-	      0.906307817,
-	      -0.42261827,
-	      -0.642787635,
-	      0.965925813,
-	      -0.173648179,
-	      -0.819152057
-	    ],
-	    [
-	      -0.642787635,
-	      0.970295727,
-	      -0.207911685,
-	      -0.788010776,
-	      0.898794055,
-	      -0.438371152,
-	      -0.615661502,
-	      0.978147626,
-	      -0.241921902,
-	      -0.766044438
-	    ],
-	    [
-	      -0.707106769,
-	      0.95105654,
-	      -0.156434461,
-	      -0.809017,
-	      0.891006529,
-	      -0.453990489,
-	      -0.587785244,
-	      0.987688363,
-	      -0.309017,
-	      -0.707106769
-	    ],
-	    [
-	      -0.766044438,
-	      0.927183867,
-	      -0.104528464,
-	      -0.829037547,
-	      0.882947564,
-	      -0.469471574,
-	      -0.559192896,
-	      0.994521916,
-	      -0.37460658,
-	      -0.642787635
-	    ],
-	    [
-	      -0.819152057,
-	      0.898794055,
-	      -0.0523359552,
-	      -0.848048091,
-	      0.874619722,
-	      -0.484809607,
-	      -0.529919267,
-	      0.99862951,
-	      -0.438371152,
-	      -0.57357645
-	    ],
-	    [
-	      -0.866025388,
-	      0.866025388,
-	      -2.44929371e-16,
-	      -0.866025388,
-	      0.866025388,
-	      -0.5,
-	      -0.5,
-	      1,
-	      -0.5,
-	      -0.5
-	    ],
-	    [
-	      -0.906307817,
-	      0.829037547,
-	      0.0523359552,
-	      -0.882947564,
-	      0.857167304,
-	      -0.515038073,
-	      -0.469471574,
-	      0.99862951,
-	      -0.559192896,
-	      -0.42261827
-	    ],
-	    [
-	      -0.939692616,
-	      0.788010776,
-	      0.104528464,
-	      -0.898794055,
-	      0.848048091,
-	      -0.529919267,
-	      -0.438371152,
-	      0.994521916,
-	      -0.615661502,
-	      -0.342020154
-	    ],
-	    [
-	      -0.965925813,
-	      0.74314481,
-	      0.156434461,
-	      -0.91354543,
-	      0.838670552,
-	      -0.544639051,
-	      -0.406736642,
-	      0.987688363,
-	      -0.669130623,
-	      -0.258819044
-	    ],
-	    [
-	      -0.98480773,
-	      0.694658399,
-	      0.207911685,
-	      -0.927183867,
-	      0.829037547,
-	      -0.559192896,
-	      -0.37460658,
-	      0.978147626,
-	      -0.719339788,
-	      -0.173648179
-	    ],
-	    [
-	      -0.99619472,
-	      0.642787635,
-	      0.258819044,
-	      -0.939692616,
-	      0.819152057,
-	      -0.57357645,
-	      -0.342020154,
-	      0.965925813,
-	      -0.766044438,
-	      -0.0871557444
-	    ],
-	    [
-	      -1,
-	      0.587785244,
-	      0.309017,
-	      -0.95105654,
-	      0.809017,
-	      -0.587785244,
-	      -0.309017,
-	      0.95105654,
-	      -0.809017,
-	      -4.28626385e-16
-	    ],
-	    [
-	      -0.99619472,
-	      0.529919267,
-	      0.35836795,
-	      -0.96126169,
-	      0.798635483,
-	      -0.601815045,
-	      -0.275637358,
-	      0.933580399,
-	      -0.848048091,
-	      0.0871557444
-	    ],
-	    [
-	      -0.98480773,
-	      0.469471574,
-	      0.406736642,
-	      -0.970295727,
-	      0.788010776,
-	      -0.615661502,
-	      -0.241921902,
-	      0.91354543,
-	      -0.882947564,
-	      0.173648179
-	    ],
-	    [
-	      -0.965925813,
-	      0.406736642,
-	      0.453990489,
-	      -0.978147626,
-	      0.777146,
-	      -0.629320383,
-	      -0.207911685,
-	      0.891006529,
-	      -0.91354543,
-	      0.258819044
-	    ],
-	    [
-	      -0.939692616,
-	      0.342020154,
-	      0.5,
-	      -0.98480773,
-	      0.766044438,
-	      -0.642787635,
-	      -0.173648179,
-	      0.866025388,
-	      -0.939692616,
-	      0.342020154
-	    ],
-	    [
-	      -0.906307817,
-	      0.275637358,
-	      0.544639051,
-	      -0.990268052,
-	      0.754709601,
-	      -0.656059,
-	      -0.139173105,
-	      0.838670552,
-	      -0.96126169,
-	      0.42261827
-	    ],
-	    [
-	      -0.866025388,
-	      0.207911685,
-	      0.587785244,
-	      -0.994521916,
-	      0.74314481,
-	      -0.669130623,
-	      -0.104528464,
-	      0.809017,
-	      -0.978147626,
-	      0.5
-	    ],
-	    [
-	      -0.819152057,
-	      0.139173105,
-	      0.629320383,
-	      -0.997564077,
-	      0.7313537,
-	      -0.681998372,
-	      -0.0697564706,
-	      0.777146,
-	      -0.990268052,
-	      0.57357645
-	    ],
-	    [
-	      -0.766044438,
-	      0.0697564706,
-	      0.669130623,
-	      -0.999390841,
-	      0.719339788,
-	      -0.694658399,
-	      -0.0348994955,
-	      0.74314481,
-	      -0.997564077,
-	      0.642787635
-	    ],
-	    [
-	      -0.707106769,
-	      3.67394029e-16,
-	      0.707106769,
-	      -1,
-	      0.707106769,
-	      -0.707106769,
-	      -1.83697015e-16,
-	      0.707106769,
-	      -1,
-	      0.707106769
-	    ],
-	    [
-	      -0.642787635,
-	      -0.0697564706,
-	      0.74314481,
-	      -0.999390841,
-	      0.694658399,
-	      -0.719339788,
-	      0.0348994955,
-	      0.669130623,
-	      -0.997564077,
-	      0.766044438
-	    ],
-	    [
-	      -0.57357645,
-	      -0.139173105,
-	      0.777146,
-	      -0.997564077,
-	      0.681998372,
-	      -0.7313537,
-	      0.0697564706,
-	      0.629320383,
-	      -0.990268052,
-	      0.819152057
-	    ],
-	    [
-	      -0.5,
-	      -0.207911685,
-	      0.809017,
-	      -0.994521916,
-	      0.669130623,
-	      -0.74314481,
-	      0.104528464,
-	      0.587785244,
-	      -0.978147626,
-	      0.866025388
-	    ],
-	    [
-	      -0.42261827,
-	      -0.275637358,
-	      0.838670552,
-	      -0.990268052,
-	      0.656059,
-	      -0.754709601,
-	      0.139173105,
-	      0.544639051,
-	      -0.96126169,
-	      0.906307817
-	    ],
-	    [
-	      -0.342020154,
-	      -0.342020154,
-	      0.866025388,
-	      -0.98480773,
-	      0.642787635,
-	      -0.766044438,
-	      0.173648179,
-	      0.5,
-	      -0.939692616,
-	      0.939692616
-	    ],
-	    [
-	      -0.258819044,
-	      -0.406736642,
-	      0.891006529,
-	      -0.978147626,
-	      0.629320383,
-	      -0.777146,
-	      0.207911685,
-	      0.453990489,
-	      -0.91354543,
-	      0.965925813
-	    ],
-	    [
-	      -0.173648179,
-	      -0.469471574,
-	      0.91354543,
-	      -0.970295727,
-	      0.615661502,
-	      -0.788010776,
-	      0.241921902,
-	      0.406736642,
-	      -0.882947564,
-	      0.98480773
-	    ],
-	    [
-	      -0.0871557444,
-	      -0.529919267,
-	      0.933580399,
-	      -0.96126169,
-	      0.601815045,
-	      -0.798635483,
-	      0.275637358,
-	      0.35836795,
-	      -0.848048091,
-	      0.99619472
-	    ],
-	    [
-	      -4.89858741e-16,
-	      -0.587785244,
-	      0.95105654,
-	      -0.95105654,
-	      0.587785244,
-	      -0.809017,
-	      0.309017,
-	      0.309017,
-	      -0.809017,
-	      1
-	    ],
-	    [
-	      0.0871557444,
-	      -0.642787635,
-	      0.965925813,
-	      -0.939692616,
-	      0.57357645,
-	      -0.819152057,
-	      0.342020154,
-	      0.258819044,
-	      -0.766044438,
-	      0.99619472
-	    ],
-	    [
-	      0.173648179,
-	      -0.694658399,
-	      0.978147626,
-	      -0.927183867,
-	      0.559192896,
-	      -0.829037547,
-	      0.37460658,
-	      0.207911685,
-	      -0.719339788,
-	      0.98480773
-	    ],
-	    [
-	      0.258819044,
-	      -0.74314481,
-	      0.987688363,
-	      -0.91354543,
-	      0.544639051,
-	      -0.838670552,
-	      0.406736642,
-	      0.156434461,
-	      -0.669130623,
-	      0.965925813
-	    ],
-	    [
-	      0.342020154,
-	      -0.788010776,
-	      0.994521916,
-	      -0.898794055,
-	      0.529919267,
-	      -0.848048091,
-	      0.438371152,
-	      0.104528464,
-	      -0.615661502,
-	      0.939692616
-	    ],
-	    [
-	      0.42261827,
-	      -0.829037547,
-	      0.99862951,
-	      -0.882947564,
-	      0.515038073,
-	      -0.857167304,
-	      0.469471574,
-	      0.0523359552,
-	      -0.559192896,
-	      0.906307817
-	    ],
-	    [
-	      0.5,
-	      -0.866025388,
-	      1,
-	      -0.866025388,
-	      0.5,
-	      -0.866025388,
-	      0.5,
-	      3.061617e-16,
-	      -0.5,
-	      0.866025388
-	    ],
-	    [
-	      0.57357645,
-	      -0.898794055,
-	      0.99862951,
-	      -0.848048091,
-	      0.484809607,
-	      -0.874619722,
-	      0.529919267,
-	      -0.0523359552,
-	      -0.438371152,
-	      0.819152057
-	    ],
-	    [
-	      0.642787635,
-	      -0.927183867,
-	      0.994521916,
-	      -0.829037547,
-	      0.469471574,
-	      -0.882947564,
-	      0.559192896,
-	      -0.104528464,
-	      -0.37460658,
-	      0.766044438
-	    ],
-	    [
-	      0.707106769,
-	      -0.95105654,
-	      0.987688363,
-	      -0.809017,
-	      0.453990489,
-	      -0.891006529,
-	      0.587785244,
-	      -0.156434461,
-	      -0.309017,
-	      0.707106769
-	    ],
-	    [
-	      0.766044438,
-	      -0.970295727,
-	      0.978147626,
-	      -0.788010776,
-	      0.438371152,
-	      -0.898794055,
-	      0.615661502,
-	      -0.207911685,
-	      -0.241921902,
-	      0.642787635
-	    ],
-	    [
-	      0.819152057,
-	      -0.98480773,
-	      0.965925813,
-	      -0.766044438,
-	      0.42261827,
-	      -0.906307817,
-	      0.642787635,
-	      -0.258819044,
-	      -0.173648179,
-	      0.57357645
-	    ],
-	    [
-	      0.866025388,
-	      -0.994521916,
-	      0.95105654,
-	      -0.74314481,
-	      0.406736642,
-	      -0.91354543,
-	      0.669130623,
-	      -0.309017,
-	      -0.104528464,
-	      0.5
-	    ],
-	    [
-	      0.906307817,
-	      -0.999390841,
-	      0.933580399,
-	      -0.719339788,
-	      0.390731126,
-	      -0.920504868,
-	      0.694658399,
-	      -0.35836795,
-	      -0.0348994955,
-	      0.42261827
-	    ],
-	    [
-	      0.939692616,
-	      -0.999390841,
-	      0.91354543,
-	      -0.694658399,
-	      0.37460658,
-	      -0.927183867,
-	      0.719339788,
-	      -0.406736642,
-	      0.0348994955,
-	      0.342020154
-	    ],
-	    [
-	      0.965925813,
-	      -0.994521916,
-	      0.891006529,
-	      -0.669130623,
-	      0.35836795,
-	      -0.933580399,
-	      0.74314481,
-	      -0.453990489,
-	      0.104528464,
-	      0.258819044
-	    ],
-	    [
-	      0.98480773,
-	      -0.98480773,
-	      0.866025388,
-	      -0.642787635,
-	      0.342020154,
-	      -0.939692616,
-	      0.766044438,
-	      -0.5,
-	      0.173648179,
-	      0.173648179
-	    ],
-	    [
-	      0.99619472,
-	      -0.970295727,
-	      0.838670552,
-	      -0.615661502,
-	      0.325568169,
-	      -0.945518553,
-	      0.788010776,
-	      -0.544639051,
-	      0.241921902,
-	      0.0871557444
-	    ],
-	    [
-	      1,
-	      -0.95105654,
-	      0.809017,
-	      -0.587785244,
-	      0.309017,
-	      -0.95105654,
-	      0.809017,
-	      -0.587785244,
-	      0.309017,
-	      5.5109107e-16
-	    ],
-	    [
-	      0.99619472,
-	      -0.927183867,
-	      0.777146,
-	      -0.559192896,
-	      0.29237169,
-	      -0.956304729,
-	      0.829037547,
-	      -0.629320383,
-	      0.37460658,
-	      -0.0871557444
-	    ],
-	    [
-	      0.98480773,
-	      -0.898794055,
-	      0.74314481,
-	      -0.529919267,
-	      0.275637358,
-	      -0.96126169,
-	      0.848048091,
-	      -0.669130623,
-	      0.438371152,
-	      -0.173648179
-	    ],
-	    [
-	      0.965925813,
-	      -0.866025388,
-	      0.707106769,
-	      -0.5,
-	      0.258819044,
-	      -0.965925813,
-	      0.866025388,
-	      -0.707106769,
-	      0.5,
-	      -0.258819044
-	    ],
-	    [
-	      0.939692616,
-	      -0.829037547,
-	      0.669130623,
-	      -0.469471574,
-	      0.241921902,
-	      -0.970295727,
-	      0.882947564,
-	      -0.74314481,
-	      0.559192896,
-	      -0.342020154
-	    ],
-	    [
-	      0.906307817,
-	      -0.788010776,
-	      0.629320383,
-	      -0.438371152,
-	      0.224951059,
-	      -0.974370062,
-	      0.898794055,
-	      -0.777146,
-	      0.615661502,
-	      -0.42261827
-	    ],
-	    [
-	      0.866025388,
-	      -0.74314481,
-	      0.587785244,
-	      -0.406736642,
-	      0.207911685,
-	      -0.978147626,
-	      0.91354543,
-	      -0.809017,
-	      0.669130623,
-	      -0.5
-	    ],
-	    [
-	      0.819152057,
-	      -0.694658399,
-	      0.544639051,
-	      -0.37460658,
-	      0.190809,
-	      -0.981627166,
-	      0.927183867,
-	      -0.838670552,
-	      0.719339788,
-	      -0.57357645
-	    ],
-	    [
-	      0.766044438,
-	      -0.642787635,
-	      0.5,
-	      -0.342020154,
-	      0.173648179,
-	      -0.98480773,
-	      0.939692616,
-	      -0.866025388,
-	      0.766044438,
-	      -0.642787635
-	    ],
-	    [
-	      0.707106769,
-	      -0.587785244,
-	      0.453990489,
-	      -0.309017,
-	      0.156434461,
-	      -0.987688363,
-	      0.95105654,
-	      -0.891006529,
-	      0.809017,
-	      -0.707106769
-	    ],
-	    [
-	      0.642787635,
-	      -0.529919267,
-	      0.406736642,
-	      -0.275637358,
-	      0.139173105,
-	      -0.990268052,
-	      0.96126169,
-	      -0.91354543,
-	      0.848048091,
-	      -0.766044438
-	    ],
-	    [
-	      0.57357645,
-	      -0.469471574,
-	      0.35836795,
-	      -0.241921902,
-	      0.121869341,
-	      -0.992546141,
-	      0.970295727,
-	      -0.933580399,
-	      0.882947564,
-	      -0.819152057
-	    ],
-	    [
-	      0.5,
-	      -0.406736642,
-	      0.309017,
-	      -0.207911685,
-	      0.104528464,
-	      -0.994521916,
-	      0.978147626,
-	      -0.95105654,
-	      0.91354543,
-	      -0.866025388
-	    ],
-	    [
-	      0.42261827,
-	      -0.342020154,
-	      0.258819044,
-	      -0.173648179,
-	      0.0871557444,
-	      -0.99619472,
-	      0.98480773,
-	      -0.965925813,
-	      0.939692616,
-	      -0.906307817
-	    ],
-	    [
-	      0.342020154,
-	      -0.275637358,
-	      0.207911685,
-	      -0.139173105,
-	      0.0697564706,
-	      -0.997564077,
-	      0.990268052,
-	      -0.978147626,
-	      0.96126169,
-	      -0.939692616
-	    ],
-	    [
-	      0.258819044,
-	      -0.207911685,
-	      0.156434461,
-	      -0.104528464,
-	      0.0523359552,
-	      -0.99862951,
-	      0.994521916,
-	      -0.987688363,
-	      0.978147626,
-	      -0.965925813
-	    ],
-	    [
-	      0.173648179,
-	      -0.139173105,
-	      0.104528464,
-	      -0.0697564706,
-	      0.0348994955,
-	      -0.999390841,
-	      0.997564077,
-	      -0.994521916,
-	      0.990268052,
-	      -0.98480773
-	    ],
-	    [
-	      0.0871557444,
-	      -0.0697564706,
-	      0.0523359552,
-	      -0.0348994955,
-	      0.0174524058,
-	      -0.99984771,
-	      0.999390841,
-	      -0.99862951,
-	      0.997564077,
-	      -0.99619472
-	    ],
-	    [
-	      6.123234e-16,
-	      -4.89858741e-16,
-	      3.67394029e-16,
-	      -2.44929371e-16,
-	      1.22464685e-16,
-	      -1,
-	      1,
-	      -1,
-	      1,
-	      -1
-	    ],
-	    [
-	      -0.0871557444,
-	      0.0697564706,
-	      -0.0523359552,
-	      0.0348994955,
-	      -0.0174524058,
-	      -0.99984771,
-	      0.999390841,
-	      -0.99862951,
-	      0.997564077,
-	      -0.99619472
-	    ],
-	    [
-	      -0.173648179,
-	      0.139173105,
-	      -0.104528464,
-	      0.0697564706,
-	      -0.0348994955,
-	      -0.999390841,
-	      0.997564077,
-	      -0.994521916,
-	      0.990268052,
-	      -0.98480773
-	    ],
-	    [
-	      -0.258819044,
-	      0.207911685,
-	      -0.156434461,
-	      0.104528464,
-	      -0.0523359552,
-	      -0.99862951,
-	      0.994521916,
-	      -0.987688363,
-	      0.978147626,
-	      -0.965925813
-	    ],
-	    [
-	      -0.342020154,
-	      0.275637358,
-	      -0.207911685,
-	      0.139173105,
-	      -0.0697564706,
-	      -0.997564077,
-	      0.990268052,
-	      -0.978147626,
-	      0.96126169,
-	      -0.939692616
-	    ],
-	    [
-	      -0.42261827,
-	      0.342020154,
-	      -0.258819044,
-	      0.173648179,
-	      -0.0871557444,
-	      -0.99619472,
-	      0.98480773,
-	      -0.965925813,
-	      0.939692616,
-	      -0.906307817
-	    ],
-	    [
-	      -0.5,
-	      0.406736642,
-	      -0.309017,
-	      0.207911685,
-	      -0.104528464,
-	      -0.994521916,
-	      0.978147626,
-	      -0.95105654,
-	      0.91354543,
-	      -0.866025388
-	    ],
-	    [
-	      -0.57357645,
-	      0.469471574,
-	      -0.35836795,
-	      0.241921902,
-	      -0.121869341,
-	      -0.992546141,
-	      0.970295727,
-	      -0.933580399,
-	      0.882947564,
-	      -0.819152057
-	    ],
-	    [
-	      -0.642787635,
-	      0.529919267,
-	      -0.406736642,
-	      0.275637358,
-	      -0.139173105,
-	      -0.990268052,
-	      0.96126169,
-	      -0.91354543,
-	      0.848048091,
-	      -0.766044438
-	    ],
-	    [
-	      -0.707106769,
-	      0.587785244,
-	      -0.453990489,
-	      0.309017,
-	      -0.156434461,
-	      -0.987688363,
-	      0.95105654,
-	      -0.891006529,
-	      0.809017,
-	      -0.707106769
-	    ],
-	    [
-	      -0.766044438,
-	      0.642787635,
-	      -0.5,
-	      0.342020154,
-	      -0.173648179,
-	      -0.98480773,
-	      0.939692616,
-	      -0.866025388,
-	      0.766044438,
-	      -0.642787635
-	    ],
-	    [
-	      -0.819152057,
-	      0.694658399,
-	      -0.544639051,
-	      0.37460658,
-	      -0.190809,
-	      -0.981627166,
-	      0.927183867,
-	      -0.838670552,
-	      0.719339788,
-	      -0.57357645
-	    ],
-	    [
-	      -0.866025388,
-	      0.74314481,
-	      -0.587785244,
-	      0.406736642,
-	      -0.207911685,
-	      -0.978147626,
-	      0.91354543,
-	      -0.809017,
-	      0.669130623,
-	      -0.5
-	    ],
-	    [
-	      -0.906307817,
-	      0.788010776,
-	      -0.629320383,
-	      0.438371152,
-	      -0.224951059,
-	      -0.974370062,
-	      0.898794055,
-	      -0.777146,
-	      0.615661502,
-	      -0.42261827
-	    ],
-	    [
-	      -0.939692616,
-	      0.829037547,
-	      -0.669130623,
-	      0.469471574,
-	      -0.241921902,
-	      -0.970295727,
-	      0.882947564,
-	      -0.74314481,
-	      0.559192896,
-	      -0.342020154
-	    ],
-	    [
-	      -0.965925813,
-	      0.866025388,
-	      -0.707106769,
-	      0.5,
-	      -0.258819044,
-	      -0.965925813,
-	      0.866025388,
-	      -0.707106769,
-	      0.5,
-	      -0.258819044
-	    ],
-	    [
-	      -0.98480773,
-	      0.898794055,
-	      -0.74314481,
-	      0.529919267,
-	      -0.275637358,
-	      -0.96126169,
-	      0.848048091,
-	      -0.669130623,
-	      0.438371152,
-	      -0.173648179
-	    ],
-	    [
-	      -0.99619472,
-	      0.927183867,
-	      -0.777146,
-	      0.559192896,
-	      -0.29237169,
-	      -0.956304729,
-	      0.829037547,
-	      -0.629320383,
-	      0.37460658,
-	      -0.0871557444
-	    ],
-	    [
-	      -1,
-	      0.95105654,
-	      -0.809017,
-	      0.587785244,
-	      -0.309017,
-	      -0.95105654,
-	      0.809017,
-	      -0.587785244,
-	      0.309017,
-	      1.10280111e-15
-	    ],
-	    [
-	      -0.99619472,
-	      0.970295727,
-	      -0.838670552,
-	      0.615661502,
-	      -0.325568169,
-	      -0.945518553,
-	      0.788010776,
-	      -0.544639051,
-	      0.241921902,
-	      0.0871557444
-	    ],
-	    [
-	      -0.98480773,
-	      0.98480773,
-	      -0.866025388,
-	      0.642787635,
-	      -0.342020154,
-	      -0.939692616,
-	      0.766044438,
-	      -0.5,
-	      0.173648179,
-	      0.173648179
-	    ],
-	    [
-	      -0.965925813,
-	      0.994521916,
-	      -0.891006529,
-	      0.669130623,
-	      -0.35836795,
-	      -0.933580399,
-	      0.74314481,
-	      -0.453990489,
-	      0.104528464,
-	      0.258819044
-	    ],
-	    [
-	      -0.939692616,
-	      0.999390841,
-	      -0.91354543,
-	      0.694658399,
-	      -0.37460658,
-	      -0.927183867,
-	      0.719339788,
-	      -0.406736642,
-	      0.0348994955,
-	      0.342020154
-	    ],
-	    [
-	      -0.906307817,
-	      0.999390841,
-	      -0.933580399,
-	      0.719339788,
-	      -0.390731126,
-	      -0.920504868,
-	      0.694658399,
-	      -0.35836795,
-	      -0.0348994955,
-	      0.42261827
-	    ],
-	    [
-	      -0.866025388,
-	      0.994521916,
-	      -0.95105654,
-	      0.74314481,
-	      -0.406736642,
-	      -0.91354543,
-	      0.669130623,
-	      -0.309017,
-	      -0.104528464,
-	      0.5
-	    ],
-	    [
-	      -0.819152057,
-	      0.98480773,
-	      -0.965925813,
-	      0.766044438,
-	      -0.42261827,
-	      -0.906307817,
-	      0.642787635,
-	      -0.258819044,
-	      -0.173648179,
-	      0.57357645
-	    ],
-	    [
-	      -0.766044438,
-	      0.970295727,
-	      -0.978147626,
-	      0.788010776,
-	      -0.438371152,
-	      -0.898794055,
-	      0.615661502,
-	      -0.207911685,
-	      -0.241921902,
-	      0.642787635
-	    ],
-	    [
-	      -0.707106769,
-	      0.95105654,
-	      -0.987688363,
-	      0.809017,
-	      -0.453990489,
-	      -0.891006529,
-	      0.587785244,
-	      -0.156434461,
-	      -0.309017,
-	      0.707106769
-	    ],
-	    [
-	      -0.642787635,
-	      0.927183867,
-	      -0.994521916,
-	      0.829037547,
-	      -0.469471574,
-	      -0.882947564,
-	      0.559192896,
-	      -0.104528464,
-	      -0.37460658,
-	      0.766044438
-	    ],
-	    [
-	      -0.57357645,
-	      0.898794055,
-	      -0.99862951,
-	      0.848048091,
-	      -0.484809607,
-	      -0.874619722,
-	      0.529919267,
-	      -0.0523359552,
-	      -0.438371152,
-	      0.819152057
-	    ],
-	    [
-	      -0.5,
-	      0.866025388,
-	      -1,
-	      0.866025388,
-	      -0.5,
-	      -0.866025388,
-	      0.5,
-	      1.34773043e-15,
-	      -0.5,
-	      0.866025388
-	    ],
-	    [
-	      -0.42261827,
-	      0.829037547,
-	      -0.99862951,
-	      0.882947564,
-	      -0.515038073,
-	      -0.857167304,
-	      0.469471574,
-	      0.0523359552,
-	      -0.559192896,
-	      0.906307817
-	    ],
-	    [
-	      -0.342020154,
-	      0.788010776,
-	      -0.994521916,
-	      0.898794055,
-	      -0.529919267,
-	      -0.848048091,
-	      0.438371152,
-	      0.104528464,
-	      -0.615661502,
-	      0.939692616
-	    ],
-	    [
-	      -0.258819044,
-	      0.74314481,
-	      -0.987688363,
-	      0.91354543,
-	      -0.544639051,
-	      -0.838670552,
-	      0.406736642,
-	      0.156434461,
-	      -0.669130623,
-	      0.965925813
-	    ],
-	    [
-	      -0.173648179,
-	      0.694658399,
-	      -0.978147626,
-	      0.927183867,
-	      -0.559192896,
-	      -0.829037547,
-	      0.37460658,
-	      0.207911685,
-	      -0.719339788,
-	      0.98480773
-	    ],
-	    [
-	      -0.0871557444,
-	      0.642787635,
-	      -0.965925813,
-	      0.939692616,
-	      -0.57357645,
-	      -0.819152057,
-	      0.342020154,
-	      0.258819044,
-	      -0.766044438,
-	      0.99619472
-	    ],
-	    [
-	      -7.34788059e-16,
-	      0.587785244,
-	      -0.95105654,
-	      0.95105654,
-	      -0.587785244,
-	      -0.809017,
-	      0.309017,
-	      0.309017,
-	      -0.809017,
-	      1
-	    ],
-	    [
-	      0.0871557444,
-	      0.529919267,
-	      -0.933580399,
-	      0.96126169,
-	      -0.601815045,
-	      -0.798635483,
-	      0.275637358,
-	      0.35836795,
-	      -0.848048091,
-	      0.99619472
-	    ],
-	    [
-	      0.173648179,
-	      0.469471574,
-	      -0.91354543,
-	      0.970295727,
-	      -0.615661502,
-	      -0.788010776,
-	      0.241921902,
-	      0.406736642,
-	      -0.882947564,
-	      0.98480773
-	    ],
-	    [
-	      0.258819044,
-	      0.406736642,
-	      -0.891006529,
-	      0.978147626,
-	      -0.629320383,
-	      -0.777146,
-	      0.207911685,
-	      0.453990489,
-	      -0.91354543,
-	      0.965925813
-	    ],
-	    [
-	      0.342020154,
-	      0.342020154,
-	      -0.866025388,
-	      0.98480773,
-	      -0.642787635,
-	      -0.766044438,
-	      0.173648179,
-	      0.5,
-	      -0.939692616,
-	      0.939692616
-	    ],
-	    [
-	      0.42261827,
-	      0.275637358,
-	      -0.838670552,
-	      0.990268052,
-	      -0.656059,
-	      -0.754709601,
-	      0.139173105,
-	      0.544639051,
-	      -0.96126169,
-	      0.906307817
-	    ],
-	    [
-	      0.5,
-	      0.207911685,
-	      -0.809017,
-	      0.994521916,
-	      -0.669130623,
-	      -0.74314481,
-	      0.104528464,
-	      0.587785244,
-	      -0.978147626,
-	      0.866025388
-	    ],
-	    [
-	      0.57357645,
-	      0.139173105,
-	      -0.777146,
-	      0.997564077,
-	      -0.681998372,
-	      -0.7313537,
-	      0.0697564706,
-	      0.629320383,
-	      -0.990268052,
-	      0.819152057
-	    ],
-	    [
-	      0.642787635,
-	      0.0697564706,
-	      -0.74314481,
-	      0.999390841,
-	      -0.694658399,
-	      -0.719339788,
-	      0.0348994955,
-	      0.669130623,
-	      -0.997564077,
-	      0.766044438
-	    ],
-	    [
-	      0.707106769,
-	      6.123234e-16,
-	      -0.707106769,
-	      1,
-	      -0.707106769,
-	      -0.707106769,
-	      3.061617e-16,
-	      0.707106769,
-	      -1,
-	      0.707106769
-	    ],
-	    [
-	      0.766044438,
-	      -0.0697564706,
-	      -0.669130623,
-	      0.999390841,
-	      -0.719339788,
-	      -0.694658399,
-	      -0.0348994955,
-	      0.74314481,
-	      -0.997564077,
-	      0.642787635
-	    ],
-	    [
-	      0.819152057,
-	      -0.139173105,
-	      -0.629320383,
-	      0.997564077,
-	      -0.7313537,
-	      -0.681998372,
-	      -0.0697564706,
-	      0.777146,
-	      -0.990268052,
-	      0.57357645
-	    ],
-	    [
-	      0.866025388,
-	      -0.207911685,
-	      -0.587785244,
-	      0.994521916,
-	      -0.74314481,
-	      -0.669130623,
-	      -0.104528464,
-	      0.809017,
-	      -0.978147626,
-	      0.5
-	    ],
-	    [
-	      0.906307817,
-	      -0.275637358,
-	      -0.544639051,
-	      0.990268052,
-	      -0.754709601,
-	      -0.656059,
-	      -0.139173105,
-	      0.838670552,
-	      -0.96126169,
-	      0.42261827
-	    ],
-	    [
-	      0.939692616,
-	      -0.342020154,
-	      -0.5,
-	      0.98480773,
-	      -0.766044438,
-	      -0.642787635,
-	      -0.173648179,
-	      0.866025388,
-	      -0.939692616,
-	      0.342020154
-	    ],
-	    [
-	      0.965925813,
-	      -0.406736642,
-	      -0.453990489,
-	      0.978147626,
-	      -0.777146,
-	      -0.629320383,
-	      -0.207911685,
-	      0.891006529,
-	      -0.91354543,
-	      0.258819044
-	    ],
-	    [
-	      0.98480773,
-	      -0.469471574,
-	      -0.406736642,
-	      0.970295727,
-	      -0.788010776,
-	      -0.615661502,
-	      -0.241921902,
-	      0.91354543,
-	      -0.882947564,
-	      0.173648179
-	    ],
-	    [
-	      0.99619472,
-	      -0.529919267,
-	      -0.35836795,
-	      0.96126169,
-	      -0.798635483,
-	      -0.601815045,
-	      -0.275637358,
-	      0.933580399,
-	      -0.848048091,
-	      0.0871557444
-	    ],
-	    [
-	      1,
-	      -0.587785244,
-	      -0.309017,
-	      0.95105654,
-	      -0.809017,
-	      -0.587785244,
-	      -0.309017,
-	      0.95105654,
-	      -0.809017,
-	      -9.80336451e-16
-	    ],
-	    [
-	      0.99619472,
-	      -0.642787635,
-	      -0.258819044,
-	      0.939692616,
-	      -0.819152057,
-	      -0.57357645,
-	      -0.342020154,
-	      0.965925813,
-	      -0.766044438,
-	      -0.0871557444
-	    ],
-	    [
-	      0.98480773,
-	      -0.694658399,
-	      -0.207911685,
-	      0.927183867,
-	      -0.829037547,
-	      -0.559192896,
-	      -0.37460658,
-	      0.978147626,
-	      -0.719339788,
-	      -0.173648179
-	    ],
-	    [
-	      0.965925813,
-	      -0.74314481,
-	      -0.156434461,
-	      0.91354543,
-	      -0.838670552,
-	      -0.544639051,
-	      -0.406736642,
-	      0.987688363,
-	      -0.669130623,
-	      -0.258819044
-	    ],
-	    [
-	      0.939692616,
-	      -0.788010776,
-	      -0.104528464,
-	      0.898794055,
-	      -0.848048091,
-	      -0.529919267,
-	      -0.438371152,
-	      0.994521916,
-	      -0.615661502,
-	      -0.342020154
-	    ],
-	    [
-	      0.906307817,
-	      -0.829037547,
-	      -0.0523359552,
-	      0.882947564,
-	      -0.857167304,
-	      -0.515038073,
-	      -0.469471574,
-	      0.99862951,
-	      -0.559192896,
-	      -0.42261827
-	    ],
-	    [
-	      0.866025388,
-	      -0.866025388,
-	      -4.89858741e-16,
-	      0.866025388,
-	      -0.866025388,
-	      -0.5,
-	      -0.5,
-	      1,
-	      -0.5,
-	      -0.5
-	    ],
-	    [
-	      0.819152057,
-	      -0.898794055,
-	      0.0523359552,
-	      0.848048091,
-	      -0.874619722,
-	      -0.484809607,
-	      -0.529919267,
-	      0.99862951,
-	      -0.438371152,
-	      -0.57357645
-	    ],
-	    [
-	      0.766044438,
-	      -0.927183867,
-	      0.104528464,
-	      0.829037547,
-	      -0.882947564,
-	      -0.469471574,
-	      -0.559192896,
-	      0.994521916,
-	      -0.37460658,
-	      -0.642787635
-	    ],
-	    [
-	      0.707106769,
-	      -0.95105654,
-	      0.156434461,
-	      0.809017,
-	      -0.891006529,
-	      -0.453990489,
-	      -0.587785244,
-	      0.987688363,
-	      -0.309017,
-	      -0.707106769
-	    ],
-	    [
-	      0.642787635,
-	      -0.970295727,
-	      0.207911685,
-	      0.788010776,
-	      -0.898794055,
-	      -0.438371152,
-	      -0.615661502,
-	      0.978147626,
-	      -0.241921902,
-	      -0.766044438
-	    ],
-	    [
-	      0.57357645,
-	      -0.98480773,
-	      0.258819044,
-	      0.766044438,
-	      -0.906307817,
-	      -0.42261827,
-	      -0.642787635,
-	      0.965925813,
-	      -0.173648179,
-	      -0.819152057
-	    ],
-	    [
-	      0.5,
-	      -0.994521916,
-	      0.309017,
-	      0.74314481,
-	      -0.91354543,
-	      -0.406736642,
-	      -0.669130623,
-	      0.95105654,
-	      -0.104528464,
-	      -0.866025388
-	    ],
-	    [
-	      0.42261827,
-	      -0.999390841,
-	      0.35836795,
-	      0.719339788,
-	      -0.920504868,
-	      -0.390731126,
-	      -0.694658399,
-	      0.933580399,
-	      -0.0348994955,
-	      -0.906307817
-	    ],
-	    [
-	      0.342020154,
-	      -0.999390841,
-	      0.406736642,
-	      0.694658399,
-	      -0.927183867,
-	      -0.37460658,
-	      -0.719339788,
-	      0.91354543,
-	      0.0348994955,
-	      -0.939692616
-	    ],
-	    [
-	      0.258819044,
-	      -0.994521916,
-	      0.453990489,
-	      0.669130623,
-	      -0.933580399,
-	      -0.35836795,
-	      -0.74314481,
-	      0.891006529,
-	      0.104528464,
-	      -0.965925813
-	    ],
-	    [
-	      0.173648179,
-	      -0.98480773,
-	      0.5,
-	      0.642787635,
-	      -0.939692616,
-	      -0.342020154,
-	      -0.766044438,
-	      0.866025388,
-	      0.173648179,
-	      -0.98480773
-	    ],
-	    [
-	      0.0871557444,
-	      -0.970295727,
-	      0.544639051,
-	      0.615661502,
-	      -0.945518553,
-	      -0.325568169,
-	      -0.788010776,
-	      0.838670552,
-	      0.241921902,
-	      -0.99619472
-	    ],
-	    [
-	      8.5725277e-16,
-	      -0.95105654,
-	      0.587785244,
-	      0.587785244,
-	      -0.95105654,
-	      -0.309017,
-	      -0.809017,
-	      0.809017,
-	      0.309017,
-	      -1
-	    ],
-	    [
-	      -0.0871557444,
-	      -0.927183867,
-	      0.629320383,
-	      0.559192896,
-	      -0.956304729,
-	      -0.29237169,
-	      -0.829037547,
-	      0.777146,
-	      0.37460658,
-	      -0.99619472
-	    ],
-	    [
-	      -0.173648179,
-	      -0.898794055,
-	      0.669130623,
-	      0.529919267,
-	      -0.96126169,
-	      -0.275637358,
-	      -0.848048091,
-	      0.74314481,
-	      0.438371152,
-	      -0.98480773
-	    ],
-	    [
-	      -0.258819044,
-	      -0.866025388,
-	      0.707106769,
-	      0.5,
-	      -0.965925813,
-	      -0.258819044,
-	      -0.866025388,
-	      0.707106769,
-	      0.5,
-	      -0.965925813
-	    ],
-	    [
-	      -0.342020154,
-	      -0.829037547,
-	      0.74314481,
-	      0.469471574,
-	      -0.970295727,
-	      -0.241921902,
-	      -0.882947564,
-	      0.669130623,
-	      0.559192896,
-	      -0.939692616
-	    ],
-	    [
-	      -0.42261827,
-	      -0.788010776,
-	      0.777146,
-	      0.438371152,
-	      -0.974370062,
-	      -0.224951059,
-	      -0.898794055,
-	      0.629320383,
-	      0.615661502,
-	      -0.906307817
-	    ],
-	    [
-	      -0.5,
-	      -0.74314481,
-	      0.809017,
-	      0.406736642,
-	      -0.978147626,
-	      -0.207911685,
-	      -0.91354543,
-	      0.587785244,
-	      0.669130623,
-	      -0.866025388
-	    ],
-	    [
-	      -0.57357645,
-	      -0.694658399,
-	      0.838670552,
-	      0.37460658,
-	      -0.981627166,
-	      -0.190809,
-	      -0.927183867,
-	      0.544639051,
-	      0.719339788,
-	      -0.819152057
-	    ],
-	    [
-	      -0.642787635,
-	      -0.642787635,
-	      0.866025388,
-	      0.342020154,
-	      -0.98480773,
-	      -0.173648179,
-	      -0.939692616,
-	      0.5,
-	      0.766044438,
-	      -0.766044438
-	    ],
-	    [
-	      -0.707106769,
-	      -0.587785244,
-	      0.891006529,
-	      0.309017,
-	      -0.987688363,
-	      -0.156434461,
-	      -0.95105654,
-	      0.453990489,
-	      0.809017,
-	      -0.707106769
-	    ],
-	    [
-	      -0.766044438,
-	      -0.529919267,
-	      0.91354543,
-	      0.275637358,
-	      -0.990268052,
-	      -0.139173105,
-	      -0.96126169,
-	      0.406736642,
-	      0.848048091,
-	      -0.642787635
-	    ],
-	    [
-	      -0.819152057,
-	      -0.469471574,
-	      0.933580399,
-	      0.241921902,
-	      -0.992546141,
-	      -0.121869341,
-	      -0.970295727,
-	      0.35836795,
-	      0.882947564,
-	      -0.57357645
-	    ],
-	    [
-	      -0.866025388,
-	      -0.406736642,
-	      0.95105654,
-	      0.207911685,
-	      -0.994521916,
-	      -0.104528464,
-	      -0.978147626,
-	      0.309017,
-	      0.91354543,
-	      -0.5
-	    ],
-	    [
-	      -0.906307817,
-	      -0.342020154,
-	      0.965925813,
-	      0.173648179,
-	      -0.99619472,
-	      -0.0871557444,
-	      -0.98480773,
-	      0.258819044,
-	      0.939692616,
-	      -0.42261827
-	    ],
-	    [
-	      -0.939692616,
-	      -0.275637358,
-	      0.978147626,
-	      0.139173105,
-	      -0.997564077,
-	      -0.0697564706,
-	      -0.990268052,
-	      0.207911685,
-	      0.96126169,
-	      -0.342020154
-	    ],
-	    [
-	      -0.965925813,
-	      -0.207911685,
-	      0.987688363,
-	      0.104528464,
-	      -0.99862951,
-	      -0.0523359552,
-	      -0.994521916,
-	      0.156434461,
-	      0.978147626,
-	      -0.258819044
-	    ],
-	    [
-	      -0.98480773,
-	      -0.139173105,
-	      0.994521916,
-	      0.0697564706,
-	      -0.999390841,
-	      -0.0348994955,
-	      -0.997564077,
-	      0.104528464,
-	      0.990268052,
-	      -0.173648179
-	    ],
-	    [
-	      -0.99619472,
-	      -0.0697564706,
-	      0.99862951,
-	      0.0348994955,
-	      -0.99984771,
-	      -0.0174524058,
-	      -0.999390841,
-	      0.0523359552,
-	      0.997564077,
-	      -0.0871557444
-	    ],
-	    [
-	      -1,
-	      -7.34788059e-16,
-	      1,
-	      3.67394029e-16,
-	      -1,
-	      -1.83697015e-16,
-	      -1,
-	      5.5109107e-16,
-	      1,
-	      -2.69484189e-15
-	    ],
-	    [
-	      -0.99619472,
-	      0.0697564706,
-	      0.99862951,
-	      -0.0348994955,
-	      -0.99984771,
-	      0.0174524058,
-	      -0.999390841,
-	      -0.0523359552,
-	      0.997564077,
-	      0.0871557444
-	    ],
-	    [
-	      -0.98480773,
-	      0.139173105,
-	      0.994521916,
-	      -0.0697564706,
-	      -0.999390841,
-	      0.0348994955,
-	      -0.997564077,
-	      -0.104528464,
-	      0.990268052,
-	      0.173648179
-	    ],
-	    [
-	      -0.965925813,
-	      0.207911685,
-	      0.987688363,
-	      -0.104528464,
-	      -0.99862951,
-	      0.0523359552,
-	      -0.994521916,
-	      -0.156434461,
-	      0.978147626,
-	      0.258819044
-	    ],
-	    [
-	      -0.939692616,
-	      0.275637358,
-	      0.978147626,
-	      -0.139173105,
-	      -0.997564077,
-	      0.0697564706,
-	      -0.990268052,
-	      -0.207911685,
-	      0.96126169,
-	      0.342020154
-	    ],
-	    [
-	      -0.906307817,
-	      0.342020154,
-	      0.965925813,
-	      -0.173648179,
-	      -0.99619472,
-	      0.0871557444,
-	      -0.98480773,
-	      -0.258819044,
-	      0.939692616,
-	      0.42261827
-	    ],
-	    [
-	      -0.866025388,
-	      0.406736642,
-	      0.95105654,
-	      -0.207911685,
-	      -0.994521916,
-	      0.104528464,
-	      -0.978147626,
-	      -0.309017,
-	      0.91354543,
-	      0.5
-	    ],
-	    [
-	      -0.819152057,
-	      0.469471574,
-	      0.933580399,
-	      -0.241921902,
-	      -0.992546141,
-	      0.121869341,
-	      -0.970295727,
-	      -0.35836795,
-	      0.882947564,
-	      0.57357645
-	    ],
-	    [
-	      -0.766044438,
-	      0.529919267,
-	      0.91354543,
-	      -0.275637358,
-	      -0.990268052,
-	      0.139173105,
-	      -0.96126169,
-	      -0.406736642,
-	      0.848048091,
-	      0.642787635
-	    ],
-	    [
-	      -0.707106769,
-	      0.587785244,
-	      0.891006529,
-	      -0.309017,
-	      -0.987688363,
-	      0.156434461,
-	      -0.95105654,
-	      -0.453990489,
-	      0.809017,
-	      0.707106769
-	    ],
-	    [
-	      -0.642787635,
-	      0.642787635,
-	      0.866025388,
-	      -0.342020154,
-	      -0.98480773,
-	      0.173648179,
-	      -0.939692616,
-	      -0.5,
-	      0.766044438,
-	      0.766044438
-	    ],
-	    [
-	      -0.57357645,
-	      0.694658399,
-	      0.838670552,
-	      -0.37460658,
-	      -0.981627166,
-	      0.190809,
-	      -0.927183867,
-	      -0.544639051,
-	      0.719339788,
-	      0.819152057
-	    ],
-	    [
-	      -0.5,
-	      0.74314481,
-	      0.809017,
-	      -0.406736642,
-	      -0.978147626,
-	      0.207911685,
-	      -0.91354543,
-	      -0.587785244,
-	      0.669130623,
-	      0.866025388
-	    ],
-	    [
-	      -0.42261827,
-	      0.788010776,
-	      0.777146,
-	      -0.438371152,
-	      -0.974370062,
-	      0.224951059,
-	      -0.898794055,
-	      -0.629320383,
-	      0.615661502,
-	      0.906307817
-	    ],
-	    [
-	      -0.342020154,
-	      0.829037547,
-	      0.74314481,
-	      -0.469471574,
-	      -0.970295727,
-	      0.241921902,
-	      -0.882947564,
-	      -0.669130623,
-	      0.559192896,
-	      0.939692616
-	    ],
-	    [
-	      -0.258819044,
-	      0.866025388,
-	      0.707106769,
-	      -0.5,
-	      -0.965925813,
-	      0.258819044,
-	      -0.866025388,
-	      -0.707106769,
-	      0.5,
-	      0.965925813
-	    ],
-	    [
-	      -0.173648179,
-	      0.898794055,
-	      0.669130623,
-	      -0.529919267,
-	      -0.96126169,
-	      0.275637358,
-	      -0.848048091,
-	      -0.74314481,
-	      0.438371152,
-	      0.98480773
-	    ],
-	    [
-	      -0.0871557444,
-	      0.927183867,
-	      0.629320383,
-	      -0.559192896,
-	      -0.956304729,
-	      0.29237169,
-	      -0.829037547,
-	      -0.777146,
-	      0.37460658,
-	      0.99619472
-	    ],
-	    [
-	      -9.79717482e-16,
-	      0.95105654,
-	      0.587785244,
-	      -0.587785244,
-	      -0.95105654,
-	      0.309017,
-	      -0.809017,
-	      -0.809017,
-	      0.309017,
-	      1
-	    ],
-	    [
-	      0.0871557444,
-	      0.970295727,
-	      0.544639051,
-	      -0.615661502,
-	      -0.945518553,
-	      0.325568169,
-	      -0.788010776,
-	      -0.838670552,
-	      0.241921902,
-	      0.99619472
-	    ],
-	    [
-	      0.173648179,
-	      0.98480773,
-	      0.5,
-	      -0.642787635,
-	      -0.939692616,
-	      0.342020154,
-	      -0.766044438,
-	      -0.866025388,
-	      0.173648179,
-	      0.98480773
-	    ],
-	    [
-	      0.258819044,
-	      0.994521916,
-	      0.453990489,
-	      -0.669130623,
-	      -0.933580399,
-	      0.35836795,
-	      -0.74314481,
-	      -0.891006529,
-	      0.104528464,
-	      0.965925813
-	    ],
-	    [
-	      0.342020154,
-	      0.999390841,
-	      0.406736642,
-	      -0.694658399,
-	      -0.927183867,
-	      0.37460658,
-	      -0.719339788,
-	      -0.91354543,
-	      0.0348994955,
-	      0.939692616
-	    ],
-	    [
-	      0.42261827,
-	      0.999390841,
-	      0.35836795,
-	      -0.719339788,
-	      -0.920504868,
-	      0.390731126,
-	      -0.694658399,
-	      -0.933580399,
-	      -0.0348994955,
-	      0.906307817
-	    ],
-	    [
-	      0.5,
-	      0.994521916,
-	      0.309017,
-	      -0.74314481,
-	      -0.91354543,
-	      0.406736642,
-	      -0.669130623,
-	      -0.95105654,
-	      -0.104528464,
-	      0.866025388
-	    ],
-	    [
-	      0.57357645,
-	      0.98480773,
-	      0.258819044,
-	      -0.766044438,
-	      -0.906307817,
-	      0.42261827,
-	      -0.642787635,
-	      -0.965925813,
-	      -0.173648179,
-	      0.819152057
-	    ],
-	    [
-	      0.642787635,
-	      0.970295727,
-	      0.207911685,
-	      -0.788010776,
-	      -0.898794055,
-	      0.438371152,
-	      -0.615661502,
-	      -0.978147626,
-	      -0.241921902,
-	      0.766044438
-	    ],
-	    [
-	      0.707106769,
-	      0.95105654,
-	      0.156434461,
-	      -0.809017,
-	      -0.891006529,
-	      0.453990489,
-	      -0.587785244,
-	      -0.987688363,
-	      -0.309017,
-	      0.707106769
-	    ],
-	    [
-	      0.766044438,
-	      0.927183867,
-	      0.104528464,
-	      -0.829037547,
-	      -0.882947564,
-	      0.469471574,
-	      -0.559192896,
-	      -0.994521916,
-	      -0.37460658,
-	      0.642787635
-	    ],
-	    [
-	      0.819152057,
-	      0.898794055,
-	      0.0523359552,
-	      -0.848048091,
-	      -0.874619722,
-	      0.484809607,
-	      -0.529919267,
-	      -0.99862951,
-	      -0.438371152,
-	      0.57357645
-	    ],
-	    [
-	      0.866025388,
-	      0.866025388,
-	      6.123234e-16,
-	      -0.866025388,
-	      -0.866025388,
-	      0.5,
-	      -0.5,
-	      -1,
-	      -0.5,
-	      0.5
-	    ],
-	    [
-	      0.906307817,
-	      0.829037547,
-	      -0.0523359552,
-	      -0.882947564,
-	      -0.857167304,
-	      0.515038073,
-	      -0.469471574,
-	      -0.99862951,
-	      -0.559192896,
-	      0.42261827
-	    ],
-	    [
-	      0.939692616,
-	      0.788010776,
-	      -0.104528464,
-	      -0.898794055,
-	      -0.848048091,
-	      0.529919267,
-	      -0.438371152,
-	      -0.994521916,
-	      -0.615661502,
-	      0.342020154
-	    ],
-	    [
-	      0.965925813,
-	      0.74314481,
-	      -0.156434461,
-	      -0.91354543,
-	      -0.838670552,
-	      0.544639051,
-	      -0.406736642,
-	      -0.987688363,
-	      -0.669130623,
-	      0.258819044
-	    ],
-	    [
-	      0.98480773,
-	      0.694658399,
-	      -0.207911685,
-	      -0.927183867,
-	      -0.829037547,
-	      0.559192896,
-	      -0.37460658,
-	      -0.978147626,
-	      -0.719339788,
-	      0.173648179
-	    ],
-	    [
-	      0.99619472,
-	      0.642787635,
-	      -0.258819044,
-	      -0.939692616,
-	      -0.819152057,
-	      0.57357645,
-	      -0.342020154,
-	      -0.965925813,
-	      -0.766044438,
-	      0.0871557444
-	    ],
-	    [
-	      1,
-	      0.587785244,
-	      -0.309017,
-	      -0.95105654,
-	      -0.809017,
-	      0.587785244,
-	      -0.309017,
-	      -0.95105654,
-	      -0.809017,
-	      -7.35407081e-16
-	    ],
-	    [
-	      0.99619472,
-	      0.529919267,
-	      -0.35836795,
-	      -0.96126169,
-	      -0.798635483,
-	      0.601815045,
-	      -0.275637358,
-	      -0.933580399,
-	      -0.848048091,
-	      -0.0871557444
-	    ],
-	    [
-	      0.98480773,
-	      0.469471574,
-	      -0.406736642,
-	      -0.970295727,
-	      -0.788010776,
-	      0.615661502,
-	      -0.241921902,
-	      -0.91354543,
-	      -0.882947564,
-	      -0.173648179
-	    ],
-	    [
-	      0.965925813,
-	      0.406736642,
-	      -0.453990489,
-	      -0.978147626,
-	      -0.777146,
-	      0.629320383,
-	      -0.207911685,
-	      -0.891006529,
-	      -0.91354543,
-	      -0.258819044
-	    ],
-	    [
-	      0.939692616,
-	      0.342020154,
-	      -0.5,
-	      -0.98480773,
-	      -0.766044438,
-	      0.642787635,
-	      -0.173648179,
-	      -0.866025388,
-	      -0.939692616,
-	      -0.342020154
-	    ],
-	    [
-	      0.906307817,
-	      0.275637358,
-	      -0.544639051,
-	      -0.990268052,
-	      -0.754709601,
-	      0.656059,
-	      -0.139173105,
-	      -0.838670552,
-	      -0.96126169,
-	      -0.42261827
-	    ],
-	    [
-	      0.866025388,
-	      0.207911685,
-	      -0.587785244,
-	      -0.994521916,
-	      -0.74314481,
-	      0.669130623,
-	      -0.104528464,
-	      -0.809017,
-	      -0.978147626,
-	      -0.5
-	    ],
-	    [
-	      0.819152057,
-	      0.139173105,
-	      -0.629320383,
-	      -0.997564077,
-	      -0.7313537,
-	      0.681998372,
-	      -0.0697564706,
-	      -0.777146,
-	      -0.990268052,
-	      -0.57357645
-	    ],
-	    [
-	      0.766044438,
-	      0.0697564706,
-	      -0.669130623,
-	      -0.999390841,
-	      -0.719339788,
-	      0.694658399,
-	      -0.0348994955,
-	      -0.74314481,
-	      -0.997564077,
-	      -0.642787635
-	    ],
-	    [
-	      0.707106769,
-	      8.5725277e-16,
-	      -0.707106769,
-	      -1,
-	      -0.707106769,
-	      0.707106769,
-	      -4.28626385e-16,
-	      -0.707106769,
-	      -1,
-	      -0.707106769
-	    ],
-	    [
-	      0.642787635,
-	      -0.0697564706,
-	      -0.74314481,
-	      -0.999390841,
-	      -0.694658399,
-	      0.719339788,
-	      0.0348994955,
-	      -0.669130623,
-	      -0.997564077,
-	      -0.766044438
-	    ],
-	    [
-	      0.57357645,
-	      -0.139173105,
-	      -0.777146,
-	      -0.997564077,
-	      -0.681998372,
-	      0.7313537,
-	      0.0697564706,
-	      -0.629320383,
-	      -0.990268052,
-	      -0.819152057
-	    ],
-	    [
-	      0.5,
-	      -0.207911685,
-	      -0.809017,
-	      -0.994521916,
-	      -0.669130623,
-	      0.74314481,
-	      0.104528464,
-	      -0.587785244,
-	      -0.978147626,
-	      -0.866025388
-	    ],
-	    [
-	      0.42261827,
-	      -0.275637358,
-	      -0.838670552,
-	      -0.990268052,
-	      -0.656059,
-	      0.754709601,
-	      0.139173105,
-	      -0.544639051,
-	      -0.96126169,
-	      -0.906307817
-	    ],
-	    [
-	      0.342020154,
-	      -0.342020154,
-	      -0.866025388,
-	      -0.98480773,
-	      -0.642787635,
-	      0.766044438,
-	      0.173648179,
-	      -0.5,
-	      -0.939692616,
-	      -0.939692616
-	    ],
-	    [
-	      0.258819044,
-	      -0.406736642,
-	      -0.891006529,
-	      -0.978147626,
-	      -0.629320383,
-	      0.777146,
-	      0.207911685,
-	      -0.453990489,
-	      -0.91354543,
-	      -0.965925813
-	    ],
-	    [
-	      0.173648179,
-	      -0.469471574,
-	      -0.91354543,
-	      -0.970295727,
-	      -0.615661502,
-	      0.788010776,
-	      0.241921902,
-	      -0.406736642,
-	      -0.882947564,
-	      -0.98480773
-	    ],
-	    [
-	      0.0871557444,
-	      -0.529919267,
-	      -0.933580399,
-	      -0.96126169,
-	      -0.601815045,
-	      0.798635483,
-	      0.275637358,
-	      -0.35836795,
-	      -0.848048091,
-	      -0.99619472
-	    ],
-	    [
-	      1.10218214e-15,
-	      -0.587785244,
-	      -0.95105654,
-	      -0.95105654,
-	      -0.587785244,
-	      0.809017,
-	      0.309017,
-	      -0.309017,
-	      -0.809017,
-	      -1
-	    ],
-	    [
-	      -0.0871557444,
-	      -0.642787635,
-	      -0.965925813,
-	      -0.939692616,
-	      -0.57357645,
-	      0.819152057,
-	      0.342020154,
-	      -0.258819044,
-	      -0.766044438,
-	      -0.99619472
-	    ],
-	    [
-	      -0.173648179,
-	      -0.694658399,
-	      -0.978147626,
-	      -0.927183867,
-	      -0.559192896,
-	      0.829037547,
-	      0.37460658,
-	      -0.207911685,
-	      -0.719339788,
-	      -0.98480773
-	    ],
-	    [
-	      -0.258819044,
-	      -0.74314481,
-	      -0.987688363,
-	      -0.91354543,
-	      -0.544639051,
-	      0.838670552,
-	      0.406736642,
-	      -0.156434461,
-	      -0.669130623,
-	      -0.965925813
-	    ],
-	    [
-	      -0.342020154,
-	      -0.788010776,
-	      -0.994521916,
-	      -0.898794055,
-	      -0.529919267,
-	      0.848048091,
-	      0.438371152,
-	      -0.104528464,
-	      -0.615661502,
-	      -0.939692616
-	    ],
-	    [
-	      -0.42261827,
-	      -0.829037547,
-	      -0.99862951,
-	      -0.882947564,
-	      -0.515038073,
-	      0.857167304,
-	      0.469471574,
-	      -0.0523359552,
-	      -0.559192896,
-	      -0.906307817
-	    ],
-	    [
-	      -0.5,
-	      -0.866025388,
-	      -1,
-	      -0.866025388,
-	      -0.5,
-	      0.866025388,
-	      0.5,
-	      -2.44991257e-15,
-	      -0.5,
-	      -0.866025388
-	    ],
-	    [
-	      -0.57357645,
-	      -0.898794055,
-	      -0.99862951,
-	      -0.848048091,
-	      -0.484809607,
-	      0.874619722,
-	      0.529919267,
-	      0.0523359552,
-	      -0.438371152,
-	      -0.819152057
-	    ],
-	    [
-	      -0.642787635,
-	      -0.927183867,
-	      -0.994521916,
-	      -0.829037547,
-	      -0.469471574,
-	      0.882947564,
-	      0.559192896,
-	      0.104528464,
-	      -0.37460658,
-	      -0.766044438
-	    ],
-	    [
-	      -0.707106769,
-	      -0.95105654,
-	      -0.987688363,
-	      -0.809017,
-	      -0.453990489,
-	      0.891006529,
-	      0.587785244,
-	      0.156434461,
-	      -0.309017,
-	      -0.707106769
-	    ],
-	    [
-	      -0.766044438,
-	      -0.970295727,
-	      -0.978147626,
-	      -0.788010776,
-	      -0.438371152,
-	      0.898794055,
-	      0.615661502,
-	      0.207911685,
-	      -0.241921902,
-	      -0.642787635
-	    ],
-	    [
-	      -0.819152057,
-	      -0.98480773,
-	      -0.965925813,
-	      -0.766044438,
-	      -0.42261827,
-	      0.906307817,
-	      0.642787635,
-	      0.258819044,
-	      -0.173648179,
-	      -0.57357645
-	    ],
-	    [
-	      -0.866025388,
-	      -0.994521916,
-	      -0.95105654,
-	      -0.74314481,
-	      -0.406736642,
-	      0.91354543,
-	      0.669130623,
-	      0.309017,
-	      -0.104528464,
-	      -0.5
-	    ],
-	    [
-	      -0.906307817,
-	      -0.999390841,
-	      -0.933580399,
-	      -0.719339788,
-	      -0.390731126,
-	      0.920504868,
-	      0.694658399,
-	      0.35836795,
-	      -0.0348994955,
-	      -0.42261827
-	    ],
-	    [
-	      -0.939692616,
-	      -0.999390841,
-	      -0.91354543,
-	      -0.694658399,
-	      -0.37460658,
-	      0.927183867,
-	      0.719339788,
-	      0.406736642,
-	      0.0348994955,
-	      -0.342020154
-	    ],
-	    [
-	      -0.965925813,
-	      -0.994521916,
-	      -0.891006529,
-	      -0.669130623,
-	      -0.35836795,
-	      0.933580399,
-	      0.74314481,
-	      0.453990489,
-	      0.104528464,
-	      -0.258819044
-	    ],
-	    [
-	      -0.98480773,
-	      -0.98480773,
-	      -0.866025388,
-	      -0.642787635,
-	      -0.342020154,
-	      0.939692616,
-	      0.766044438,
-	      0.5,
-	      0.173648179,
-	      -0.173648179
-	    ],
-	    [
-	      -0.99619472,
-	      -0.970295727,
-	      -0.838670552,
-	      -0.615661502,
-	      -0.325568169,
-	      0.945518553,
-	      0.788010776,
-	      0.544639051,
-	      0.241921902,
-	      -0.0871557444
-	    ],
-	    [
-	      -1,
-	      -0.95105654,
-	      -0.809017,
-	      -0.587785244,
-	      -0.309017,
-	      0.95105654,
-	      0.809017,
-	      0.587785244,
-	      0.309017,
-	      -2.9397712e-15
-	    ],
-	    [
-	      -0.99619472,
-	      -0.927183867,
-	      -0.777146,
-	      -0.559192896,
-	      -0.29237169,
-	      0.956304729,
-	      0.829037547,
-	      0.629320383,
-	      0.37460658,
-	      0.0871557444
-	    ],
-	    [
-	      -0.98480773,
-	      -0.898794055,
-	      -0.74314481,
-	      -0.529919267,
-	      -0.275637358,
-	      0.96126169,
-	      0.848048091,
-	      0.669130623,
-	      0.438371152,
-	      0.173648179
-	    ],
-	    [
-	      -0.965925813,
-	      -0.866025388,
-	      -0.707106769,
-	      -0.5,
-	      -0.258819044,
-	      0.965925813,
-	      0.866025388,
-	      0.707106769,
-	      0.5,
-	      0.258819044
-	    ],
-	    [
-	      -0.939692616,
-	      -0.829037547,
-	      -0.669130623,
-	      -0.469471574,
-	      -0.241921902,
-	      0.970295727,
-	      0.882947564,
-	      0.74314481,
-	      0.559192896,
-	      0.342020154
-	    ],
-	    [
-	      -0.906307817,
-	      -0.788010776,
-	      -0.629320383,
-	      -0.438371152,
-	      -0.224951059,
-	      0.974370062,
-	      0.898794055,
-	      0.777146,
-	      0.615661502,
-	      0.42261827
-	    ],
-	    [
-	      -0.866025388,
-	      -0.74314481,
-	      -0.587785244,
-	      -0.406736642,
-	      -0.207911685,
-	      0.978147626,
-	      0.91354543,
-	      0.809017,
-	      0.669130623,
-	      0.5
-	    ],
-	    [
-	      -0.819152057,
-	      -0.694658399,
-	      -0.544639051,
-	      -0.37460658,
-	      -0.190809,
-	      0.981627166,
-	      0.927183867,
-	      0.838670552,
-	      0.719339788,
-	      0.57357645
-	    ],
-	    [
-	      -0.766044438,
-	      -0.642787635,
-	      -0.5,
-	      -0.342020154,
-	      -0.173648179,
-	      0.98480773,
-	      0.939692616,
-	      0.866025388,
-	      0.766044438,
-	      0.642787635
-	    ],
-	    [
-	      -0.707106769,
-	      -0.587785244,
-	      -0.453990489,
-	      -0.309017,
-	      -0.156434461,
-	      0.987688363,
-	      0.95105654,
-	      0.891006529,
-	      0.809017,
-	      0.707106769
-	    ],
-	    [
-	      -0.642787635,
-	      -0.529919267,
-	      -0.406736642,
-	      -0.275637358,
-	      -0.139173105,
-	      0.990268052,
-	      0.96126169,
-	      0.91354543,
-	      0.848048091,
-	      0.766044438
-	    ],
-	    [
-	      -0.57357645,
-	      -0.469471574,
-	      -0.35836795,
-	      -0.241921902,
-	      -0.121869341,
-	      0.992546141,
-	      0.970295727,
-	      0.933580399,
-	      0.882947564,
-	      0.819152057
-	    ],
-	    [
-	      -0.5,
-	      -0.406736642,
-	      -0.309017,
-	      -0.207911685,
-	      -0.104528464,
-	      0.994521916,
-	      0.978147626,
-	      0.95105654,
-	      0.91354543,
-	      0.866025388
-	    ],
-	    [
-	      -0.42261827,
-	      -0.342020154,
-	      -0.258819044,
-	      -0.173648179,
-	      -0.0871557444,
-	      0.99619472,
-	      0.98480773,
-	      0.965925813,
-	      0.939692616,
-	      0.906307817
-	    ],
-	    [
-	      -0.342020154,
-	      -0.275637358,
-	      -0.207911685,
-	      -0.139173105,
-	      -0.0697564706,
-	      0.997564077,
-	      0.990268052,
-	      0.978147626,
-	      0.96126169,
-	      0.939692616
-	    ],
-	    [
-	      -0.258819044,
-	      -0.207911685,
-	      -0.156434461,
-	      -0.104528464,
-	      -0.0523359552,
-	      0.99862951,
-	      0.994521916,
-	      0.987688363,
-	      0.978147626,
-	      0.965925813
-	    ],
-	    [
-	      -0.173648179,
-	      -0.139173105,
-	      -0.104528464,
-	      -0.0697564706,
-	      -0.0348994955,
-	      0.999390841,
-	      0.997564077,
-	      0.994521916,
-	      0.990268052,
-	      0.98480773
-	    ],
-	    [
-	      -0.0871557444,
-	      -0.0697564706,
-	      -0.0523359552,
-	      -0.0348994955,
-	      -0.0174524058,
-	      0.99984771,
-	      0.999390841,
-	      0.99862951,
-	      0.997564077,
-	      0.99619472
-	    ]
-	  ],
-	  [
-	    [
-	      -1,
-	      0,
-	      1,
-	      0,
-	      0,
-	      -1,
-	      0,
-	      0,
-	      0,
-	      1,
-	      0,
-	      0,
-	      0,
-	      0,
-	      -1,
-	      0,
-	      0,
-	      0,
-	      0,
-	      0
-	    ],
-	    [
-	      -0.99984771,
-	      0.0174524058,
-	      0.99954313,
-	      -0.0302238502,
-	      0.000263779628,
-	      -0.99908632,
-	      0.0427332148,
-	      -0.000589739357,
-	      0.00000420248307,
-	      0.998477459,
-	      -0.0551515371,
-	      0.00102125108,
-	      -0.0000111170311,
-	      6.86065036e-8,
-	      -0.997716665,
-	      0.067520842,
-	      -0.0015595908,
-	      0.0000222298295,
-	      -2.05788169e-7,
-	      1.1359047e-9
-	    ],
-	    [
-	      -0.999390841,
-	      0.0348994955,
-	      0.998173058,
-	      -0.0604108796,
-	      0.00105479721,
-	      -0.996347725,
-	      0.0853558108,
-	      -0.00235716137,
-	      0.000033604505,
-	      0.993916631,
-	      -0.110059582,
-	      0.00407940708,
-	      -0.000088855,
-	      0.00000109703558,
-	      -0.99088186,
-	      0.134589493,
-	      -0.00622506905,
-	      0.000177574679,
-	      -0.00000328910164,
-	      3.63212784e-8
-	    ],
-	    [
-	      -0.99862951,
-	      0.0523359552,
-	      0.995891392,
-	      -0.0905243,
-	      0.00237208884,
-	      -0.991791308,
-	      0.12775746,
-	      -0.00529688271,
-	      0.000113328853,
-	      0.986337543,
-	      -0.164481804,
-	      0.00915770326,
-	      -0.000299429055,
-	      0.00000554810504,
-	      -0.979541421,
-	      0.200757101,
-	      -0.0139566557,
-	      0.000597832084,
-	      -0.000016621505,
-	      2.75464799e-7
-	    ],
-	    [
-	      -0.997564077,
-	      0.0697564706,
-	      0.992701054,
-	      -0.120527439,
-	      0.00421405,
-	      -0.985428751,
-	      0.169828475,
-	      -0.00939994864,
-	      0.000268345029,
-	      0.975773752,
-	      -0.218178153,
-	      0.0162282921,
-	      -0.000708244741,
-	      0.0000175098376,
-	      -0.963771284,
-	      0.26558128,
-	      -0.0246884,
-	      0.00141217536,
-	      -0.0000524015522,
-	      0.00000115874502
-	    ],
-	    [
-	      -0.99619472,
-	      0.0871557444,
-	      0.988605797,
-	      -0.150383726,
-	      0.00657843612,
-	      -0.977276683,
-	      0.211460009,
-	      -0.014653855,
-	      0.000523393159,
-	      0.96227181,
-	      -0.270912081,
-	      0.0252523813,
-	      -0.00137949863,
-	      0.0000426705337,
-	      -0.943676829,
-	      0.328629553,
-	      -0.038328696,
-	      0.00274586887,
-	      -0.000127524472,
-	      0.00000352813618
-	    ],
-	    [
-	      -0.994521916,
-	      0.104528464,
-	      0.98361069,
-	      -0.18005681,
-	      0.00946236681,
-	      -0.967356,
-	      0.252544463,
-	      -0.0210425854,
-	      0.000902908447,
-	      0.945891321,
-	      -0.322451502,
-	      0.0361804329,
-	      -0.00237578456,
-	      0.0000882840613,
-	      -0.919392467,
-	      0.3894822,
-	      -0.054761,
-	      0.00471901428,
-	      -0.000263401278,
-	      0.00000875463684
-	    ],
-	    [
-	      -0.992546141,
-	      0.121869341,
-	      0.97772181,
-	      -0.209510505,
-	      0.0128623275,
-	      -0.955692589,
-	      0.292975664,
-	      -0.0285466593,
-	      0.00143094664,
-	      0.926704407,
-	      -0.372570127,
-	      0.0489524,
-	      -0.00375770917,
-	      0.000163125529,
-	      -0.89108032,
-	      0.447735608,
-	      -0.0738447458,
-	      0.00744534191,
-	      -0.000485728844,
-	      0.0000188598242
-	    ],
-	    [
-	      -0.990268052,
-	      0.139173105,
-	      0.970946252,
-	      -0.238708958,
-	      0.0167741776,
-	      -0.942316413,
-	      0.33264932,
-	      -0.0371431746,
-	      0.00213111029,
-	      0.904795587,
-	      -0.421048343,
-	      0.06349805,
-	      -0.00558351539,
-	      0.000277437561,
-	      -0.858929157,
-	      0.503005,
-	      -0.095416449,
-	      0.0110310512,
-	      -0.000824212679,
-	      0.0000366304121
-	    ],
-	    [
-	      -0.987688363,
-	      0.156434461,
-	      0.96329236,
-	      -0.26761657,
-	      0.0211931504,
-	      -0.927262187,
-	      0.37146312,
-	      -0.0468058847,
-	      0.0030264766,
-	      0.880261302,
-	      -0.467674255,
-	      0.0797372833,
-	      -0.00790872145,
-	      0.000442867487,
-	      -0.823153198,
-	      0.55492723,
-	      -0.119290978,
-	      0.0155737158,
-	      -0.00131224515,
-	      0.0000657245328
-	    ],
-	    [
-	      -0.98480773,
-	      0.173648179,
-	      0.954769492,
-	      -0.29619813,
-	      0.0261138603,
-	      -0.910568774,
-	      0.409317106,
-	      -0.0575052574,
-	      0.00413952675,
-	      0.853209496,
-	      -0.51224488,
-	      0.097580567,
-	      -0.0107857706,
-	      0.000672395749,
-	      -0.783990145,
-	      0.6031636,
-	      -0.145263031,
-	      0.0211612582,
-	      -0.00198654155,
-	      0.000110768546
-	    ],
-	    [
-	      -0.981627166,
-	      0.190809,
-	      0.9453879,
-	      -0.324418813,
-	      0.0315303169,
-	      -0.892279327,
-	      0.446113944,
-	      -0.0692085773,
-	      0.00549207628,
-	      0.8237589,
-	      -0.55456686,
-	      0.11692936,
-	      -0.0142636979,
-	      0.000980255776,
-	      -0.7417,
-	      0.647402,
-	      -0.173108727,
-	      0.027871009,
-	      -0.00288673723,
-	      0.00017744326
-	    ],
-	    [
-	      -0.978147626,
-	      0.207911685,
-	      0.935159087,
-	      -0.352244258,
-	      0.0374359153,
-	      -0.872441,
-	      0.481759191,
-	      -0.08188,
-	      0.00710520707,
-	      0.792038739,
-	      -0.594457507,
-	      0.137676626,
-	      -0.0183878168,
-	      0.00138184614,
-	      -0.696562707,
-	      0.687359333,
-	      -0.202587366,
-	      0.0357688442,
-	      -0.00405494822,
-	      0.000272558565
-	    ],
-	    [
-	      -0.974370062,
-	      0.224951059,
-	      0.924095511,
-	      -0.379640549,
-	      0.043823462,
-	      -0.851105,
-	      0.516161561,
-	      -0.0954807103,
-	      0.00899920426,
-	      0.758188,
-	      -0.631745756,
-	      0.159707367,
-	      -0.0231994167,
-	      0.00189363456,
-	      -0.64887625,
-	      0.722783685,
-	      -0.233443365,
-	      0.044908423,
-	      -0.00553530222,
-	      0.000404115446
-	    ],
-	    [
-	      -0.970295727,
-	      0.241921902,
-	      0.912210703,
-	      -0.406574309,
-	      0.0506851785,
-	      -0.828326404,
-	      0.549233,
-	      -0.10996896,
-	      0.0111934906,
-	      0.72235477,
-	      -0.666272759,
-	      0.182899177,
-	      -0.0287354942,
-	      0.00253305561,
-	      -0.598954737,
-	      0.753455698,
-	      -0.265408158,
-	      0.0553305373,
-	      -0.00737343961,
-	      0.00058135466
-	    ],
-	    [
-	      -0.965925813,
-	      0.258819044,
-	      0.899519,
-	      -0.433012694,
-	      0.0580127,
-	      -0.804163933,
-	      0.580889285,
-	      -0.125300229,
-	      0.0137065668,
-	      0.684695423,
-	      -0.697892725,
-	      0.207122892,
-	      -0.0350284949,
-	      0.00331840175,
-	      -0.547125876,
-	      0.77919066,
-	      -0.298202485,
-	      0.0670625493,
-	      -0.0096159894,
-	      0.00081479142
-	    ],
-	    [
-	      -0.96126169,
-	      0.275637358,
-	      0.886036098,
-	      -0.458923548,
-	      0.0657971054,
-	      -0.778679788,
-	      0.61104995,
-	      -0.141427353,
-	      0.0165559556,
-	      0.645374238,
-	      -0.726473689,
-	      0.23224321,
-	      -0.0421060883,
-	      0.00426870678,
-	      -0.493728578,
-	      0.799839199,
-	      -0.331538409,
-	      0.0801179484,
-	      -0.0123100337,
-	      0.00111623504
-	    ],
-	    [
-	      -0.956304729,
-	      0.29237169,
-	      0.87177819,
-	      -0.484275252,
-	      0.0740289,
-	      -0.751939535,
-	      0.639638543,
-	      -0.158300623,
-	      0.0197581388,
-	      0.604562223,
-	      -0.751898,
-	      0.258119404,
-	      -0.0499909483,
-	      0.00540362718,
-	      -0.439110696,
-	      0.815288842,
-	      -0.365121692,
-	      0.0944960266,
-	      -0.0155025441,
-	      0.00149879418
-	    ],
-	    [
-	      -0.95105654,
-	      0.309017,
-	      0.856762767,
-	      -0.509036958,
-	      0.0826980695,
-	      -0.724011958,
-	      0.666583,
-	      -0.175867945,
-	      0.0233285148,
-	      0.562436461,
-	      -0.774062932,
-	      0.28460595,
-	      -0.0587005876,
-	      0.00674331561,
-	      -0.383626401,
-	      0.825464487,
-	      -0.398654133,
-	      0.110181682,
-	      -0.0192398224,
-	      0.00197686534
-	    ],
-	    [
-	      -0.945518553,
-	      0.325568169,
-	      0.841008067,
-	      -0.533178449,
-	      0.0917940363,
-	      -0.694968879,
-	      0.691815674,
-	      -0.194074973,
-	      0.0272813439,
-	      0.519179404,
-	      -0.792881131,
-	      0.311553419,
-	      -0.0682472,
-	      0.00830829144,
-	      -0.327633679,
-	      0.830328882,
-	      -0.43183586,
-	      0.127145335,
-	      -0.0235669315,
-	      0.00256610778
-	    ],
-	    [
-	      -0.939692616,
-	      0.342020154,
-	      0.824533343,
-	      -0.556670427,
-	      0.101305731,
-	      -0.664884746,
-	      0.715273559,
-	      -0.212865278,
-	      0.0316297,
-	      0.474977732,
-	      -0.808281064,
-	      0.338809043,
-	      -0.0786375329,
-	      0.0101193069,
-	      -0.271491736,
-	      0.82988292,
-	      -0.464367747,
-	      0.145342931,
-	      -0.0285271145,
-	      0.00328339939
-	    ],
-	    [
-	      -0.933580399,
-	      0.35836795,
-	      0.807358623,
-	      -0.579484105,
-	      0.111221552,
-	      -0.633836746,
-	      0.736898482,
-	      -0.232180476,
-	      0.0363854282,
-	      0.430021763,
-	      -0.820207298,
-	      0.366217613,
-	      -0.0898727924,
-	      0.0121972151,
-	      -0.215558439,
-	      0.824165523,
-	      -0.495953768,
-	      0.164716139,
-	      -0.0341612436,
-	      0.00414678082
-	    ],
-	    [
-	      -0.927183867,
-	      0.37460658,
-	      0.789504826,
-	      -0.601591825,
-	      0.12152943,
-	      -0.601904333,
-	      0.756637275,
-	      -0.251960427,
-	      0.0415591113,
-	      0.384504348,
-	      -0.828620732,
-	      0.39362222,
-	      -0.101948567,
-	      0.0145628275,
-	      -0.160187721,
-	      0.813253164,
-	      -0.526303351,
-	      0.18519263,
-	      -0.040507257,
-	      0.00517538143
-	    ],
-	    [
-	      -0.920504868,
-	      0.390731126,
-	      0.770993769,
-	      -0.622966528,
-	      0.132216811,
-	      -0.569169283,
-	      0.774441898,
-	      -0.272143364,
-	      0.0471600257,
-	      0.338620067,
-	      -0.833498836,
-	      0.420865029,
-	      -0.114854798,
-	      0.0172367785,
-	      -0.105727136,
-	      0.797259331,
-	      -0.55513376,
-	      0.206686467,
-	      -0.0475996137,
-	      0.00638933061
-	    ],
-	    [
-	      -0.91354543,
-	      0.406736642,
-	      0.751848,
-	      -0.643582284,
-	      0.143270656,
-	      -0.535715163,
-	      0.790269554,
-	      -0.292666078,
-	      0.0531961136,
-	      0.292564303,
-	      -0.834835649,
-	      0.44778809,
-	      -0.128575757,
-	      0.0202393811,
-	      -0.0525153,
-	      0.776333511,
-	      -0.582172155,
-	      0.229098633,
-	      -0.0554687865,
-	      0.00780965388
-	    ],
-	    [
-	      -0.906307817,
-	      0.42261827,
-	      0.732090712,
-	      -0.663413942,
-	      0.154677495,
-	      -0.501627326,
-	      0.80408287,
-	      -0.313464135,
-	      0.0596739501,
-	      0.246532276,
-	      -0.83264184,
-	      0.474234223,
-	      -0.143090084,
-	      0.0235904958,
-	      -0.000879568,
-	      0.750660121,
-	      -0.607158065,
-	      0.252317607,
-	      -0.064140752,
-	      0.00945815817
-	    ],
-	    [
-	      -0.898794055,
-	      0.438371152,
-	      0.711746097,
-	      -0.68243736,
-	      0.16642347,
-	      -0.466992587,
-	      0.8158499,
-	      -0.334471971,
-	      0.0665987208,
-	      0.200718179,
-	      -0.826944649,
-	      0.500047624,
-	      -0.158370793,
-	      0.0273093823,
-	      0.0488663204,
-	      0.720456839,
-	      -0.629845262,
-	      0.276220232,
-	      -0.0736365318,
-	      0.0113573
-	    ],
-	    [
-	      -0.891006529,
-	      0.453990489,
-	      0.690838933,
-	      -0.700629294,
-	      0.178494215,
-	      -0.431898981,
-	      0.825544238,
-	      -0.355623156,
-	      0.073974207,
-	      0.155314222,
-	      -0.817787707,
-	      0.525074899,
-	      -0.174385428,
-	      0.0314145684,
-	      0.0964244157,
-	      0.685973167,
-	      -0.650003791,
-	      0.300672412,
-	      -0.0839717537,
-	      0.0135300411
-	    ],
-	    [
-	      -0.882947564,
-	      0.469471574,
-	      0.669394672,
-	      -0.71796757,
-	      0.190875068,
-	      -0.396435648,
-	      0.833145082,
-	      -0.376850545,
-	      0.0818027481,
-	      0.110509798,
-	      -0.805230737,
-	      0.549165547,
-	      -0.191096097,
-	      0.035923712,
-	      0.141514659,
-	      0.647488296,
-	      -0.667421818,
-	      0.325530231,
-	      -0.0951562673,
-	      0.0159996971
-	    ],
-	    [
-	      -0.874619722,
-	      0.484809607,
-	      0.64743942,
-	      -0.734431207,
-	      0.203550935,
-	      -0.360692352,
-	      0.838637531,
-	      -0.398086399,
-	      0.0900852531,
-	      0.0664905459,
-	      -0.789349437,
-	      0.572173119,
-	      -0.208459631,
-	      0.0408534706,
-	      0.183876783,
-	      0.60530889,
-	      -0.681907594,
-	      0.350640744,
-	      -0.107193753,
-	      0.0187897682
-	    ],
-	    [
-	      -0.866025388,
-	      0.5,
-	      0.625,
-	      -0.75,
-	      0.216506347,
-	      -0.324759513,
-	      0.842012107,
-	      -0.419262737,
-	      0.0988211781,
-	      0.0234375,
-	      -0.770234823,
-	      0.593955576,
-	      -0.226427764,
-	      0.046219375,
-	      0.223272175,
-	      0.559767127,
-	      -0.693290591,
-	      0.375843376,
-	      -0.120081455,
-	      0.021923773
-	    ],
-	    [
-	      -0.857167304,
-	      0.515038073,
-	      0.602103651,
-	      -0.764655054,
-	      0.229725555,
-	      -0.28872776,
-	      0.843265295,
-	      -0.440311372,
-	      0.108008519,
-	      -0.0184737556,
-	      -0.747993112,
-	      0.614376187,
-	      -0.244947284,
-	      0.0520356968,
-	      0.259485394,
-	      0.511217654,
-	      -0.701423287,
-	      0.400970876,
-	      -0.133809894,
-	      0.0254250597
-	    ],
-	    [
-	      -0.848048091,
-	      0.529919267,
-	      0.578778386,
-	      -0.778378487,
-	      0.243192434,
-	      -0.252687752,
-	      0.84239924,
-	      -0.461164147,
-	      0.117643826,
-	      -0.0590738878,
-	      -0.722744823,
-	      0.633304417,
-	      -0.263960302,
-	      0.0583153479,
-	      0.292325705,
-	      0.460035235,
-	      -0.706182301,
-	      0.425850779,
-	      -0.148362651,
-	      0.0293166153
-	    ],
-	    [
-	      -0.838670552,
-	      0.544639051,
-	      0.555052459,
-	      -0.79115355,
-	      0.256890565,
-	      -0.216729924,
-	      0.839421868,
-	      -0.481753141,
-	      0.127722174,
-	      -0.0982006,
-	      -0.694624424,
-	      0.650616169,
-	      -0.283404499,
-	      0.0650697425,
-	      0.321628243,
-	      0.406611711,
-	      -0.707469344,
-	      0.450306475,
-	      -0.163716242,
-	      0.0336208828
-	    ],
-	    [
-	      -0.829037547,
-	      0.559192896,
-	      0.530954957,
-	      -0.802964747,
-	      0.270803303,
-	      -0.180944279,
-	      0.83434689,
-	      -0.502010882,
-	      0.138237208,
-	      -0.135699391,
-	      -0.663779497,
-	      0.666194856,
-	      -0.303213269,
-	      0.0723087117,
-	      0.34725523,
-	      0.351353139,
-	      -0.705212235,
-	      0.474158853,
-	      -0.179839924,
-	      0.0383595526
-	    ],
-	    [
-	      -0.819152057,
-	      0.57357645,
-	      0.506515086,
-	      -0.813797653,
-	      0.284913629,
-	      -0.145420119,
-	      0.827193558,
-	      -0.521870494,
-	      0.149181142,
-	      -0.171424255,
-	      -0.630370259,
-	      0.67993176,
-	      -0.323316187,
-	      0.0800403953,
-	      0.369096637,
-	      0.294676661,
-	      -0.699365437,
-	      0.49722746,
-	      -0.196695775,
-	      0.0435533747
-	    ],
-	    [
-	      -0.809017,
-	      0.587785244,
-	      0.481762737,
-	      -0.823639095,
-	      0.299204409,
-	      -0.110245749,
-	      0.817986846,
-	      -0.541265905,
-	      0.160544738,
-	      -0.205238357,
-	      -0.594568431,
-	      0.691726744,
-	      -0.343639225,
-	      0.0882711485,
-	      0.387070984,
-	      0.237007394,
-	      -0.68991071,
-	      0.519332051,
-	      -0.214238584,
-	      0.0492219403
-	    ],
-	    [
-	      -0.798635483,
-	      0.601815045,
-	      0.456728,
-	      -0.832477033,
-	      0.313658237,
-	      -0.0755083486,
-	      0.80675739,
-	      -0.560131907,
-	      0.172317386,
-	      -0.237014621,
-	      -0.556556761,
-	      0.701488495,
-	      -0.364105076,
-	      0.0970054492,
-	      0.40112561,
-	      0.178775176,
-	      -0.676857054,
-	      0.540294051,
-	      -0.232415989,
-	      0.0553835034
-	    ],
-	    [
-	      -0.788010776,
-	      0.615661502,
-	      0.431441426,
-	      -0.840300739,
-	      0.328257442,
-	      -0.0412936322,
-	      0.793541074,
-	      -0.578404605,
-	      0.184487075,
-	      -0.266636372,
-	      -0.516527653,
-	      0.709135473,
-	      -0.384633511,
-	      0.106245846,
-	      0.411237091,
-	      0.120411336,
-	      -0.660241187,
-	      0.559937775,
-	      -0.251168609,
-	      0.0620547719
-	    ],
-	    [
-	      -0.777146,
-	      0.629320383,
-	      0.405933768,
-	      -0.847100675,
-	      0.342984289,
-	      -0.00768567342,
-	      0.778379381,
-	      -0.596021354,
-	      0.197040468,
-	      -0.293997765,
-	      -0.474682748,
-	      0.714596,
-	      -0.405141771,
-	      0.115992859,
-	      0.417411059,
-	      0.0623455457,
-	      -0.640126824,
-	      0.578092158,
-	      -0.270430148,
-	      0.0692507252
-	    ],
-	    [
-	      -0.766044438,
-	      0.642787635,
-	      0.380236119,
-	      -0.852868557,
-	      0.357820839,
-	      0.0252333339,
-	      0.761319,
-	      -0.612921119,
-	      0.209962875,
-	      -0.319004357,
-	      -0.431231558,
-	      0.717808664,
-	      -0.425545,
-	      0.126244947,
-	      0.419682056,
-	      0.00500250375,
-	      -0.616604924,
-	      0.594592,
-	      -0.290127724,
-	      0.0769844055
-	    ],
-	    [
-	      -0.754709601,
-	      0.656059,
-	      0.354379833,
-	      -0.857597291,
-	      0.372748971,
-	      0.0573833026,
-	      0.742411554,
-	      -0.629044473,
-	      0.223238334,
-	      -0.341573387,
-	      -0.386390567,
-	      0.71872288,
-	      -0.445756465,
-	      0.13699846,
-	      0.418113053,
-	      -0.0512011871,
-	      -0.589792609,
-	      0.609279215,
-	      -0.310182154,
-	      0.0852667838
-	    ],
-	    [
-	      -0.74314481,
-	      0.669130623,
-	      0.32839635,
-	      -0.861281216,
-	      0.387750536,
-	      0.0886864737,
-	      0.721713901,
-	      -0.64433378,
-	      0.236849621,
-	      -0.361634314,
-	      -0.340382189,
-	      0.717299,
-	      -0.465688139,
-	      0.148247585,
-	      0.412794828,
-	      -0.105860129,
-	      -0.559832633,
-	      0.622004569,
-	      -0.330508262,
-	      0.0941065326
-	    ],
-	    [
-	      -0.7313537,
-	      0.681998372,
-	      0.302317351,
-	      -0.863915801,
-	      0.402807266,
-	      0.119067609,
-	      0.699287713,
-	      -0.658733487,
-	      0.250778317,
-	      -0.379128963,
-	      -0.293433666,
-	      0.713508487,
-	      -0.485251039,
-	      0.159984291,
-	      0.403845161,
-	      -0.158583134,
-	      -0.526892304,
-	      0.63262856,
-	      -0.351015329,
-	      0.10350991
-	    ],
-	    [
-	      -0.719339788,
-	      0.694658399,
-	      0.276174635,
-	      -0.865497828,
-	      0.417900771,
-	      0.148454204,
-	      0.675199151,
-	      -0.672190368,
-	      0.265004843,
-	      -0.394011736,
-	      -0.245775878,
-	      0.707334399,
-	      -0.504355729,
-	      0.1721984,
-	      0.391407639,
-	      -0.208996147,
-	      -0.49116233,
-	      0.641022801,
-	      -0.371607512,
-	      0.113480605
-	    ],
-	    [
-	      -0.707106769,
-	      0.707106769,
-	      0.25,
-	      -0.866025388,
-	      0.433012694,
-	      0.176776692,
-	      0.649519,
-	      -0.684653223,
-	      0.279508501,
-	      -0.40625,
-	      -0.197642356,
-	      0.698771238,
-	      -0.522912502,
-	      0.1848775,
-	      0.375650465,
-	      -0.256744951,
-	      -0.452855527,
-	      0.647071242,
-	      -0.392184377,
-	      0.124019593
-	    ],
-	    [
-	      -0.694658399,
-	      0.719339788,
-	      0.22382538,
-	      -0.865497828,
-	      0.448124617,
-	      0.203968629,
-	      0.622322381,
-	      -0.696073472,
-	      0.294267476,
-	      -0.415823936,
-	      -0.149268031,
-	      0.687825,
-	      -0.540832222,
-	      0.198006928,
-	      0.356765121,
-	      -0.301497817,
-	      -0.41220516,
-	      0.650671065,
-	      -0.412641525,
-	      0.135125011
-	    ],
-	    [
-	      -0.681998372,
-	      0.7313537,
-	      0.197682649,
-	      -0.863915801,
-	      0.463218153,
-	      0.229966834,
-	      0.593688309,
-	      -0.706405222,
-	      0.309259027,
-	      -0.42272675,
-	      -0.100888163,
-	      0.674513459,
-	      -0.558026433,
-	      0.211569905,
-	      0.334964633,
-	      -0.34294793,
-	      -0.369463414,
-	      0.651733816,
-	      -0.432870984,
-	      0.146792069
-	    ],
-	    [
-	      -0.669130623,
-	      0.74314481,
-	      0.17160365,
-	      -0.861281216,
-	      0.478274852,
-	      0.254711658,
-	      0.563699722,
-	      -0.71560514,
-	      0.324459404,
-	      -0.426964611,
-	      -0.0527371019,
-	      0.65886575,
-	      -0.574407756,
-	      0.225547418,
-	      0.310481846,
-	      -0.380815536,
-	      -0.324899465,
-	      0.65018636,
-	      -0.452762038,
-	      0.159012988
-	    ],
-	    [
-	      -0.656059,
-	      0.754709601,
-	      0.145620167,
-	      -0.857597291,
-	      0.493276417,
-	      0.278146982,
-	      0.532443225,
-	      -0.723632872,
-	      0.339844,
-	      -0.428556591,
-	      -0.00504725659,
-	      0.640922725,
-	      -0.589890659,
-	      0.239918366,
-	      0.283567578,
-	      -0.414850116,
-	      -0.278797477,
-	      0.645971298,
-	      -0.472201824,
-	      0.171776831
-	    ],
-	    [
-	      -0.642787635,
-	      0.766044438,
-	      0.119763866,
-	      -0.852868557,
-	      0.508204579,
-	      0.300220519,
-	      0.500008881,
-	      -0.730451,
-	      0.3553873,
-	      -0.427534461,
-	      0.0419521108,
-	      0.620736361,
-	      -0.604391634,
-	      0.254659504,
-	      0.254488528,
-	      -0.444832,
-	      -0.231454641,
-	      0.6390481,
-	      -0.491075933,
-	      0.185069621
-	    ],
-	    [
-	      -0.629320383,
-	      0.777146,
-	      0.0940662324,
-	      -0.847100675,
-	      0.523041129,
-	      0.32088393,
-	      0.466489762,
-	      -0.736025095,
-	      0.371063113,
-	      -0.423942566,
-	      0.0880359635,
-	      0.598369777,
-	      -0.617829442,
-	      0.269745618,
-	      0.223525122,
-	      -0.470574051,
-	      -0.183178872,
-	      0.629393339,
-	      -0.509269297,
-	      0.198874116
-	    ],
-	    [
-	      -0.615661502,
-	      0.788010776,
-	      0.0685585812,
-	      -0.840300739,
-	      0.537767947,
-	      0.340092868,
-	      0.431981891,
-	      -0.74032414,
-	      0.386844516,
-	      -0.41783756,
-	      0.132984594,
-	      0.573897,
-	      -0.630126059,
-	      0.285149485,
-	      0.190969393,
-	      -0.491922885,
-	      -0.134286612,
-	      0.617001176,
-	      -0.526666701,
-	      0.213169962
-	    ],
-	    [
-	      -0.601815045,
-	      0.798635483,
-	      0.0432719849,
-	      -0.832477033,
-	      0.552367151,
-	      0.35780713,
-	      0.396583915,
-	      -0.743320107,
-	      0.402703911,
-	      -0.409288,
-	      0.176584691,
-	      0.547402501,
-	      -0.641206503,
-	      0.300842017,
-	      0.157122463,
-	      -0.50876,
-	      -0.0851004198,
-	      0.601883709,
-	      -0.543153763,
-	      0.227933615
-	    ],
-	    [
-	      -0.587785244,
-	      0.809017,
-	      0.0182372537,
-	      -0.823639095,
-	      0.566821,
-	      0.373990864,
-	      0.360396802,
-	      -0.744988561,
-	      0.418613225,
-	      -0.398374,
-	      0.218630359,
-	      0.518981,
-	      -0.650999486,
-	      0.316792309,
-	      0.122292347,
-	      -0.521002412,
-	      -0.0359466225,
-	      0.584071159,
-	      -0.558617532,
-	      0.243138373
-	    ],
-	    [
-	      -0.57357645,
-	      0.819152057,
-	      -0.00651510758,
-	      -0.813797653,
-	      0.581111789,
-	      0.388612479,
-	      0.323523581,
-	      -0.74530834,
-	      0.434543818,
-	      -0.385186851,
-	      0.258924127,
-	      0.488736719,
-	      -0.659437895,
-	      0.332967699,
-	      0.0867913961,
-	      -0.528603256,
-	      0.0128471432,
-	      0.563611865,
-	      -0.572947264,
-	      0.258754492
-	    ],
-	    [
-	      -0.559192896,
-	      0.829037547,
-	      -0.0309549458,
-	      -0.802964747,
-	      0.595222116,
-	      0.401644915,
-	      0.286069185,
-	      -0.744261742,
-	      0.450466663,
-	      -0.369828522,
-	      0.297277898,
-	      0.456783414,
-	      -0.666458845,
-	      0.349334031,
-	      0.0509339347,
-	      -0.531552,
-	      0.0609543584,
-	      0.540572166,
-	      -0.586035311,
-	      0.27474916
-	    ],
-	    [
-	      -0.544639051,
-	      0.838670552,
-	      -0.0550524816,
-	      -0.79115355,
-	      0.609134853,
-	      0.413065583,
-	      0.248139873,
-	      -0.741834819,
-	      0.466352403,
-	      -0.352411,
-	      0.333513856,
-	      0.423243493,
-	      -0.672004223,
-	      0.365855545,
-	      0.0150337582,
-	      -0.529874325,
-	      0.108052082,
-	      0.515036285,
-	      -0.597777665,
-	      0.291086674
-	    ],
-	    [
-	      -0.529919267,
-	      0.848048091,
-	      -0.0787783638,
-	      -0.778378487,
-	      0.622832954,
-	      0.42285645,
-	      0.209843263,
-	      -0.738016903,
-	      0.482171416,
-	      -0.333055854,
-	      0.367465287,
-	      0.38824749,
-	      -0.676021,
-	      0.382495195,
-	      -0.0205982868,
-	      -0.523631871,
-	      0.153823346,
-	      0.487105817,
-	      -0.608074725,
-	      0.307728499
-	    ],
-	    [
-	      -0.515038073,
-	      0.857167304,
-	      -0.102103673,
-	      -0.764655054,
-	      0.636299849,
-	      0.431004167,
-	      0.171287775,
-	      -0.732801199,
-	      0.4978939,
-	      -0.311893493,
-	      0.398977429,
-	      0.351933628,
-	      -0.678461432,
-	      0.399214596,
-	      -0.0556567125,
-	      -0.512921512,
-	      0.197959587,
-	      0.456899434,
-	      -0.616832137,
-	      0.324633449
-	    ],
-	    [
-	      -0.5,
-	      0.866025388,
-	      -0.125,
-	      -0.75,
-	      0.649519,
-	      0.4375,
-	      0.132582515,
-	      -0.726184368,
-	      0.513489902,
-	      -0.2890625,
-	      0.427908242,
-	      0.314447045,
-	      -0.679283261,
-	      0.415974349,
-	      -0.08984375,
-	      -0.497874498,
-	      0.240162909,
-	      0.424552053,
-	      -0.623961568,
-	      0.341757804
-	    ],
-	    [
-	      -0.484809607,
-	      0.874619722,
-	      -0.14743945,
-	      -0.734431207,
-	      0.662474453,
-	      0.442339838,
-	      0.0938368812,
-	      -0.718166888,
-	      0.528929472,
-	      -0.264709,
-	      0.454128981,
-	      0.275939256,
-	      -0.678450286,
-	      0.432734042,
-	      -0.122871645,
-	      -0.478655517,
-	      0.280148357,
-	      0.390214294,
-	      -0.629380882,
-	      0.359055489
-	    ],
-	    [
-	      -0.469471574,
-	      0.882947564,
-	      -0.169394672,
-	      -0.71796757,
-	      0.675150335,
-	      0.445524335,
-	      0.0551602542,
-	      -0.708752811,
-	      0.544182777,
-	      -0.238985762,
-	      0.477524847,
-	      0.236567229,
-	      -0.675932169,
-	      0.44945243,
-	      -0.154464841,
-	      -0.455460936,
-	      0.317646116,
-	      0.354051501,
-	      -0.633015394,
-	      0.376478285
-	    ],
-	    [
-	      -0.453990489,
-	      0.891006529,
-	      -0.190838933,
-	      -0.700629294,
-	      0.687531173,
-	      0.447058767,
-	      0.0166617651,
-	      -0.697949767,
-	      0.559219956,
-	      -0.212051556,
-	      0.497995645,
-	      0.19649294,
-	      -0.671704769,
-	      0.46608761,
-	      -0.184362113,
-	      -0.428517491,
-	      0.352403462,
-	      0.316242844,
-	      -0.63479805,
-	      0.393975943
-	    ],
-	    [
-	      -0.438371152,
-	      0.898794055,
-	      -0.211746112,
-	      -0.68243736,
-	      0.699601948,
-	      0.446953058,
-	      -0.0215500612,
-	      -0.6857692,
-	      0.574011445,
-	      -0.184070244,
-	      0.51545608,
-	      0.155882403,
-	      -0.665750563,
-	      0.482597172,
-	      -0.212318495,
-	      -0.39808017,
-	      0.384186774,
-	      0.276980251,
-	      -0.63467,
-	      0.41149658
-	    ],
-	    [
-	      -0.42261827,
-	      0.906307817,
-	      -0.232090712,
-	      -0.663413942,
-	      0.711347878,
-	      0.445221782,
-	      -0.0593675859,
-	      -0.672226,
-	      0.588528037,
-	      -0.155209973,
-	      0.529836178,
-	      0.114905022,
-	      -0.658058405,
-	      0.498938352,
-	      -0.238107204,
-	      -0.364430279,
-	      0.412783265,
-	      0.236467153,
-	      -0.632581353,
-	      0.428986728
-	    ],
-	    [
-	      -0.406736642,
-	      0.91354543,
-	      -0.251847953,
-	      -0.643582284,
-	      0.722754776,
-	      0.441884071,
-	      -0.0966843441,
-	      -0.657338798,
-	      0.602740645,
-	      -0.125642315,
-	      0.541081905,
-	      0.0737327188,
-	      -0.648623705,
-	      0.515068114,
-	      -0.26152125,
-	      -0.327873081,
-	      0.438002616,
-	      0.194917336,
-	      -0.628491282,
-	      0.446391702
-	    ],
-	    [
-	      -0.390731126,
-	      0.920504868,
-	      -0.270993769,
-	      -0.622966528,
-	      0.733808577,
-	      0.436963588,
-	      -0.133395374,
-	      -0.641129553,
-	      0.616620898,
-	      -0.0955414,
-	      0.549154818,
-	      0.0325391926,
-	      -0.637448788,
-	      0.530943573,
-	      -0.282375067,
-	      -0.28873542,
-	      0.459678471,
-	      0.152553529,
-	      -0.622368515,
-	      0.4636558
-	    ],
-	    [
-	      -0.37460658,
-	      0.927183867,
-	      -0.289504856,
-	      -0.601591825,
-	      0.744496,
-	      0.430488437,
-	      -0.169397429,
-	      -0.623623908,
-	      0.630140781,
-	      -0.0650830269,
-	      0.554032922,
-	      -0.00850094855,
-	      -0.624542534,
-	      0.546521783,
-	      -0.300505787,
-	      -0.247362956,
-	      0.477669626,
-	      0.109606,
-	      -0.614192,
-	      0.480722666
-	    ],
-	    [
-	      -0.35836795,
-	      0.933580399,
-	      -0.307358623,
-	      -0.579484105,
-	      0.754803836,
-	      0.422491103,
-	      -0.204589352,
-	      -0.604850829,
-	      0.643272877,
-	      -0.0344437547,
-	      0.555710196,
-	      -0.0492129587,
-	      -0.60992074,
-	      0.561760247,
-	      -0.3157745,
-	      -0.204117492,
-	      0.491861343,
-	      0.0663111061,
-	      -0.60395056,
-	      0.497535378
-	    ],
-	    [
-	      -0.342020154,
-	      0.939692616,
-	      -0.324533343,
-	      -0.556670427,
-	      0.764719665,
-	      0.413008332,
-	      -0.238872305,
-	      -0.584842563,
-	      0.655990362,
-	      -0.00380004128,
-	      0.554196954,
-	      -0.0894228071,
-	      -0.593605816,
-	      0.576616824,
-	      -0.328067213,
-	      -0.159374073,
-	      0.502166,
-	      0.0229097549,
-	      -0.591643691,
-	      0.514037
-	    ],
-	    [
-	      -0.325568169,
-	      0.945518553,
-	      -0.341008067,
-	      -0.533178449,
-	      0.774231374,
-	      0.402081043,
-	      -0.27215004,
-	      -0.563634634,
-	      0.66826731,
-	      0.0266726762,
-	      0.549519598,
-	      -0.128957972,
-	      -0.575626969,
-	      0.591050088,
-	      -0.337295622,
-	      -0.113517947,
-	      0.508523881,
-	      -0.0203541834,
-	      -0.577281296,
-	      0.53017056
-	    ],
-	    [
-	      -0.309017,
-	      0.95105654,
-	      -0.356762737,
-	      -0.509036958,
-	      0.783327341,
-	      0.389754236,
-	      -0.304329157,
-	      -0.541265905,
-	      0.680078387,
-	      0.0568008572,
-	      0.54172039,
-	      -0.167648286,
-	      -0.556019962,
-	      0.60501945,
-	      -0.343397766,
-	      -0.066941604,
-	      0.510903835,
-	      -0.0632354543,
-	      -0.56088388,
-	      0.545879662
-	    ],
-	    [
-	      -0.29237169,
-	      0.956304729,
-	      -0.37177819,
-	      -0.484275252,
-	      0.791996479,
-	      0.376076847,
-	      -0.3353194,
-	      -0.517778039,
-	      0.691399336,
-	      0.0864137411,
-	      0.530857623,
-	      -0.205326691,
-	      -0.534827,
-	      0.618485153,
-	      -0.346338362,
-	      -0.0200415589,
-	      0.509303331,
-	      -0.105489045,
-	      -0.542482674,
-	      0.56110853
-	    ],
-	    [
-	      -0.275637358,
-	      0.96126169,
-	      -0.386036068,
-	      -0.458923548,
-	      0.800228298,
-	      0.361101508,
-	      -0.365033895,
-	      -0.493215799,
-	      0.702206612,
-	      0.115344189,
-	      0.517004728,
-	      -0.241830081,
-	      -0.512096763,
-	      0.631408751,
-	      -0.346108913,
-	      0.0267847329,
-	      0.503748655,
-	      -0.14687179,
-	      -0.522119522,
-	      0.575802386
-	    ],
-	    [
-	      -0.258819044,
-	      0.965925813,
-	      -0.399519056,
-	      -0.433012694,
-	      0.808012724,
-	      0.344884604,
-	      -0.393389285,
-	      -0.46762684,
-	      0.712477803,
-	      0.143429562,
-	      0.500250399,
-	      -0.277,
-	      -0.487884,
-	      0.643752813,
-	      -0.34272781,
-	      0.0731420219,
-	      0.494294673,
-	      -0.187144,
-	      -0.499846488,
-	      0.589907885
-	    ],
-	    [
-	      -0.241921902,
-	      0.970295727,
-	      -0.412210703,
-	      -0.406574309,
-	      0.815340221,
-	      0.327485919,
-	      -0.420306176,
-	      -0.441061407,
-	      0.722191513,
-	      0.170512497,
-	      0.480697811,
-	      -0.310683519,
-	      -0.462249607,
-	      0.655481577,
-	      -0.33624,
-	      0.118640393,
-	      0.481024653,
-	      -0.22607109,
-	      -0.475726068,
-	      0.603373
-	    ],
-	    [
-	      -0.224951059,
-	      0.974370062,
-	      -0.424095541,
-	      -0.379640549,
-	      0.822201967,
-	      0.308968604,
-	      -0.445709109,
-	      -0.413572371,
-	      0.731327355,
-	      0.196441725,
-	      0.458464354,
-	      -0.342733771,
-	      -0.435260117,
-	      0.666560769,
-	      -0.326716483,
-	      0.162898347,
-	      0.464049429,
-	      -0.263425082,
-	      -0.449830651,
-	      0.616147876
-	    ],
-	    [
-	      -0.207911685,
-	      0.978147626,
-	      -0.435159087,
-	      -0.352244258,
-	      0.828589499,
-	      0.289398909,
-	      -0.469526976,
-	      -0.385215133,
-	      0.739866197,
-	      0.221072838,
-	      0.433680743,
-	      -0.373010814,
-	      -0.406987548,
-	      0.676957846,
-	      -0.314253658,
-	      0.205545768,
-	      0.443506926,
-	      -0.298986197,
-	      -0.422242343,
-	      0.628184557
-	    ],
-	    [
-	      -0.190809,
-	      0.981627166,
-	      -0.4453879,
-	      -0.324418813,
-	      0.834495068,
-	      0.268846035,
-	      -0.491693079,
-	      -0.356047243,
-	      0.747790158,
-	      0.244269,
-	      0.406490564,
-	      -0.401382178,
-	      -0.377509266,
-	      0.686642,
-	      -0.298972517,
-	      0.246226907,
-	      0.419560939,
-	      -0.332544327,
-	      -0.393052399,
-	      0.639437616
-	    ],
-	    [
-	      -0.173648179,
-	      0.98480773,
-	      -0.454769462,
-	      -0.29619813,
-	      0.83991152,
-	      0.24738194,
-	      -0.51214534,
-	      -0.326128513,
-	      0.755082488,
-	      0.265901625,
-	      0.377049536,
-	      -0.427723587,
-	      -0.346907467,
-	      0.695584476,
-	      -0.281017542,
-	      0.284603089,
-	      0.392400086,
-	      -0.363900453,
-	      -0.362360924,
-	      0.649864137
-	    ],
-	    [
-	      -0.156434461,
-	      0.987688363,
-	      -0.46329239,
-	      -0.26761657,
-	      0.844832242,
-	      0.225081131,
-	      -0.530826509,
-	      -0.295520723,
-	      0.76172775,
-	      0.285851,
-	      0.345524579,
-	      -0.451919466,
-	      -0.315269,
-	      0.703758657,
-	      -0.260555416,
-	      0.320355445,
-	      0.36223641,
-	      -0.392867953,
-	      -0.33027631,
-	      0.659424245
-	    ],
-	    [
-	      -0.139173105,
-	      0.990268052,
-	      -0.470946282,
-	      -0.238708958,
-	      0.849251211,
-	      0.202020496,
-	      -0.547684371,
-	      -0.264287412,
-	      0.767712,
-	      0.304007024,
-	      0.312093109,
-	      -0.473863572,
-	      -0.282684922,
-	      0.711140037,
-	      -0.237773672,
-	      0.353187382,
-	      0.32930389,
-	      -0.419273943,
-	      -0.296914697,
-	      0.668081045
-	    ],
-	    [
-	      -0.121869341,
-	      0.992546141,
-	      -0.477721781,
-	      -0.209510505,
-	      0.853163064,
-	      0.178278968,
-	      -0.562671661,
-	      -0.232493877,
-	      0.773022532,
-	      0.320269555,
-	      0.276942104,
-	      -0.493459404,
-	      -0.249250263,
-	      0.717706501,
-	      -0.212879047,
-	      0.382826924,
-	      0.29385671,
-	      -0.442960411,
-	      -0.262399256,
-	      0.675801039
-	    ],
-	    [
-	      -0.104528464,
-	      0.994521916,
-	      -0.48361069,
-	      -0.18005681,
-	      0.856563032,
-	      0.153937444,
-	      -0.575746536,
-	      -0.200206831,
-	      0.777648,
-	      0.33454904,
-	      0.240267202,
-	      -0.510620713,
-	      -0.215063468,
-	      0.723438203,
-	      -0.186095774,
-	      0.409028858,
-	      0.256167382,
-	      -0.463785231,
-	      -0.226859644,
-	      0.682554
-	    ],
-	    [
-	      -0.0871557444,
-	      0.99619472,
-	      -0.488605827,
-	      -0.150383726,
-	      0.859446943,
-	      0.129078493,
-	      -0.586872399,
-	      -0.167494327,
-	      0.78157866,
-	      0.346766979,
-	      0.202271596,
-	      -0.525271893,
-	      -0.180226117,
-	      0.728317797,
-	      -0.157663718,
-	      0.43157658,
-	      0.216524854,
-	      -0.481623262,
-	      -0.190431237,
-	      0.688313723
-	    ],
-	    [
-	      -0.0697564706,
-	      0.997564077,
-	      -0.492701054,
-	      -0.120527439,
-	      0.86181134,
-	      0.103786126,
-	      -0.596018076,
-	      -0.134425521,
-	      0.784806132,
-	      0.356856227,
-	      0.163165152,
-	      -0.53734839,
-	      -0.144842461,
-	      0.73233062,
-	      -0.127836362,
-	      0.450283945,
-	      0.175232336,
-	      -0.496367127,
-	      -0.153254405,
-	      0.693057477
-	    ],
-	    [
-	      -0.0523359552,
-	      0.99862951,
-	      -0.495891422,
-	      -0.0905243,
-	      0.863653302,
-	      0.0781455562,
-	      -0.603158116,
-	      -0.101070546,
-	      0.787323534,
-	      0.364761382,
-	      0.123163298,
-	      -0.546796918,
-	      -0.109019056,
-	      0.735464394,
-	      -0.0968786925,
-	      0.464996517,
-	      0.132605106,
-	      -0.507927895,
-	      -0.115473703,
-	      0.696766615
-	    ],
-	    [
-	      -0.0348994955,
-	      0.999390841,
-	      -0.498173028,
-	      -0.0604108796,
-	      0.864970624,
-	      0.0522429794,
-	      -0.608272374,
-	      -0.0675002709,
-	      0.789125502,
-	      0.370439082,
-	      0.0824859142,
-	      -0.553575873,
-	      -0.0728642121,
-	      0.737709641,
-	      -0.0650650337,
-	      0.475593,
-	      0.0889681876,
-	      -0.516235888,
-	      -0.0772370845,
-	      0.699426532
-	    ],
-	    [
-	      -0.0174524058,
-	      0.99984771,
-	      -0.49954313,
-	      -0.0302238502,
-	      0.865761638,
-	      0.0261653196,
-	      -0.611346722,
-	      -0.0337861441,
-	      0.79020822,
-	      0.373858213,
-	      0.0413563,
-	      -0.557655215,
-	      -0.0364876501,
-	      0.739059567,
-	      -0.0326767601,
-	      0.481986046,
-	      0.0446540304,
-	      -0.52124083,
-	      -0.0386951044,
-	      0.701026678
-	    ],
-	    [
-	      0,
-	      1,
-	      -0.5,
-	      0,
-	      0.866025388,
-	      0,
-	      -0.612372458,
-	      0,
-	      0.790569425,
-	      0.375,
-	      0,
-	      -0.559017,
-	      0,
-	      0.73951,
-	      0,
-	      0.484122932,
-	      0,
-	      -0.522912502,
-	      0,
-	      0.701560736
-	    ],
-	    [
-	      0.0174524058,
-	      0.99984771,
-	      -0.49954313,
-	      0.0302238502,
-	      0.865761638,
-	      -0.0261653196,
-	      -0.611346722,
-	      0.0337861441,
-	      0.79020822,
-	      0.373858213,
-	      -0.0413563,
-	      -0.557655215,
-	      0.0364876501,
-	      0.739059567,
-	      0.0326767601,
-	      0.481986046,
-	      -0.0446540304,
-	      -0.52124083,
-	      0.0386951044,
-	      0.701026678
-	    ],
-	    [
-	      0.0348994955,
-	      0.999390841,
-	      -0.498173028,
-	      0.0604108796,
-	      0.864970624,
-	      -0.0522429794,
-	      -0.608272374,
-	      0.0675002709,
-	      0.789125502,
-	      0.370439082,
-	      -0.0824859142,
-	      -0.553575873,
-	      0.0728642121,
-	      0.737709641,
-	      0.0650650337,
-	      0.475593,
-	      -0.0889681876,
-	      -0.516235888,
-	      0.0772370845,
-	      0.699426532
-	    ],
-	    [
-	      0.0523359552,
-	      0.99862951,
-	      -0.495891422,
-	      0.0905243,
-	      0.863653302,
-	      -0.0781455562,
-	      -0.603158116,
-	      0.101070546,
-	      0.787323534,
-	      0.364761382,
-	      -0.123163298,
-	      -0.546796918,
-	      0.109019056,
-	      0.735464394,
-	      0.0968786925,
-	      0.464996517,
-	      -0.132605106,
-	      -0.507927895,
-	      0.115473703,
-	      0.696766615
-	    ],
-	    [
-	      0.0697564706,
-	      0.997564077,
-	      -0.492701054,
-	      0.120527439,
-	      0.86181134,
-	      -0.103786126,
-	      -0.596018076,
-	      0.134425521,
-	      0.784806132,
-	      0.356856227,
-	      -0.163165152,
-	      -0.53734839,
-	      0.144842461,
-	      0.73233062,
-	      0.127836362,
-	      0.450283945,
-	      -0.175232336,
-	      -0.496367127,
-	      0.153254405,
-	      0.693057477
-	    ],
-	    [
-	      0.0871557444,
-	      0.99619472,
-	      -0.488605827,
-	      0.150383726,
-	      0.859446943,
-	      -0.129078493,
-	      -0.586872399,
-	      0.167494327,
-	      0.78157866,
-	      0.346766979,
-	      -0.202271596,
-	      -0.525271893,
-	      0.180226117,
-	      0.728317797,
-	      0.157663718,
-	      0.43157658,
-	      -0.216524854,
-	      -0.481623262,
-	      0.190431237,
-	      0.688313723
-	    ],
-	    [
-	      0.104528464,
-	      0.994521916,
-	      -0.48361069,
-	      0.18005681,
-	      0.856563032,
-	      -0.153937444,
-	      -0.575746536,
-	      0.200206831,
-	      0.777648,
-	      0.33454904,
-	      -0.240267202,
-	      -0.510620713,
-	      0.215063468,
-	      0.723438203,
-	      0.186095774,
-	      0.409028858,
-	      -0.256167382,
-	      -0.463785231,
-	      0.226859644,
-	      0.682554
-	    ],
-	    [
-	      0.121869341,
-	      0.992546141,
-	      -0.477721781,
-	      0.209510505,
-	      0.853163064,
-	      -0.178278968,
-	      -0.562671661,
-	      0.232493877,
-	      0.773022532,
-	      0.320269555,
-	      -0.276942104,
-	      -0.493459404,
-	      0.249250263,
-	      0.717706501,
-	      0.212879047,
-	      0.382826924,
-	      -0.29385671,
-	      -0.442960411,
-	      0.262399256,
-	      0.675801039
-	    ],
-	    [
-	      0.139173105,
-	      0.990268052,
-	      -0.470946282,
-	      0.238708958,
-	      0.849251211,
-	      -0.202020496,
-	      -0.547684371,
-	      0.264287412,
-	      0.767712,
-	      0.304007024,
-	      -0.312093109,
-	      -0.473863572,
-	      0.282684922,
-	      0.711140037,
-	      0.237773672,
-	      0.353187382,
-	      -0.32930389,
-	      -0.419273943,
-	      0.296914697,
-	      0.668081045
-	    ],
-	    [
-	      0.156434461,
-	      0.987688363,
-	      -0.46329239,
-	      0.26761657,
-	      0.844832242,
-	      -0.225081131,
-	      -0.530826509,
-	      0.295520723,
-	      0.76172775,
-	      0.285851,
-	      -0.345524579,
-	      -0.451919466,
-	      0.315269,
-	      0.703758657,
-	      0.260555416,
-	      0.320355445,
-	      -0.36223641,
-	      -0.392867953,
-	      0.33027631,
-	      0.659424245
-	    ],
-	    [
-	      0.173648179,
-	      0.98480773,
-	      -0.454769462,
-	      0.29619813,
-	      0.83991152,
-	      -0.24738194,
-	      -0.51214534,
-	      0.326128513,
-	      0.755082488,
-	      0.265901625,
-	      -0.377049536,
-	      -0.427723587,
-	      0.346907467,
-	      0.695584476,
-	      0.281017542,
-	      0.284603089,
-	      -0.392400086,
-	      -0.363900453,
-	      0.362360924,
-	      0.649864137
-	    ],
-	    [
-	      0.190809,
-	      0.981627166,
-	      -0.4453879,
-	      0.324418813,
-	      0.834495068,
-	      -0.268846035,
-	      -0.491693079,
-	      0.356047243,
-	      0.747790158,
-	      0.244269,
-	      -0.406490564,
-	      -0.401382178,
-	      0.377509266,
-	      0.686642,
-	      0.298972517,
-	      0.246226907,
-	      -0.419560939,
-	      -0.332544327,
-	      0.393052399,
-	      0.639437616
-	    ],
-	    [
-	      0.207911685,
-	      0.978147626,
-	      -0.435159087,
-	      0.352244258,
-	      0.828589499,
-	      -0.289398909,
-	      -0.469526976,
-	      0.385215133,
-	      0.739866197,
-	      0.221072838,
-	      -0.433680743,
-	      -0.373010814,
-	      0.406987548,
-	      0.676957846,
-	      0.314253658,
-	      0.205545768,
-	      -0.443506926,
-	      -0.298986197,
-	      0.422242343,
-	      0.628184557
-	    ],
-	    [
-	      0.224951059,
-	      0.974370062,
-	      -0.424095541,
-	      0.379640549,
-	      0.822201967,
-	      -0.308968604,
-	      -0.445709109,
-	      0.413572371,
-	      0.731327355,
-	      0.196441725,
-	      -0.458464354,
-	      -0.342733771,
-	      0.435260117,
-	      0.666560769,
-	      0.326716483,
-	      0.162898347,
-	      -0.464049429,
-	      -0.263425082,
-	      0.449830651,
-	      0.616147876
-	    ],
-	    [
-	      0.241921902,
-	      0.970295727,
-	      -0.412210703,
-	      0.406574309,
-	      0.815340221,
-	      -0.327485919,
-	      -0.420306176,
-	      0.441061407,
-	      0.722191513,
-	      0.170512497,
-	      -0.480697811,
-	      -0.310683519,
-	      0.462249607,
-	      0.655481577,
-	      0.33624,
-	      0.118640393,
-	      -0.481024653,
-	      -0.22607109,
-	      0.475726068,
-	      0.603373
-	    ],
-	    [
-	      0.258819044,
-	      0.965925813,
-	      -0.399519056,
-	      0.433012694,
-	      0.808012724,
-	      -0.344884604,
-	      -0.393389285,
-	      0.46762684,
-	      0.712477803,
-	      0.143429562,
-	      -0.500250399,
-	      -0.277,
-	      0.487884,
-	      0.643752813,
-	      0.34272781,
-	      0.0731420219,
-	      -0.494294673,
-	      -0.187144,
-	      0.499846488,
-	      0.589907885
-	    ],
-	    [
-	      0.275637358,
-	      0.96126169,
-	      -0.386036068,
-	      0.458923548,
-	      0.800228298,
-	      -0.361101508,
-	      -0.365033895,
-	      0.493215799,
-	      0.702206612,
-	      0.115344189,
-	      -0.517004728,
-	      -0.241830081,
-	      0.512096763,
-	      0.631408751,
-	      0.346108913,
-	      0.0267847329,
-	      -0.503748655,
-	      -0.14687179,
-	      0.522119522,
-	      0.575802386
-	    ],
-	    [
-	      0.29237169,
-	      0.956304729,
-	      -0.37177819,
-	      0.484275252,
-	      0.791996479,
-	      -0.376076847,
-	      -0.3353194,
-	      0.517778039,
-	      0.691399336,
-	      0.0864137411,
-	      -0.530857623,
-	      -0.205326691,
-	      0.534827,
-	      0.618485153,
-	      0.346338362,
-	      -0.0200415589,
-	      -0.509303331,
-	      -0.105489045,
-	      0.542482674,
-	      0.56110853
-	    ],
-	    [
-	      0.309017,
-	      0.95105654,
-	      -0.356762737,
-	      0.509036958,
-	      0.783327341,
-	      -0.389754236,
-	      -0.304329157,
-	      0.541265905,
-	      0.680078387,
-	      0.0568008572,
-	      -0.54172039,
-	      -0.167648286,
-	      0.556019962,
-	      0.60501945,
-	      0.343397766,
-	      -0.066941604,
-	      -0.510903835,
-	      -0.0632354543,
-	      0.56088388,
-	      0.545879662
-	    ],
-	    [
-	      0.325568169,
-	      0.945518553,
-	      -0.341008067,
-	      0.533178449,
-	      0.774231374,
-	      -0.402081043,
-	      -0.27215004,
-	      0.563634634,
-	      0.66826731,
-	      0.0266726762,
-	      -0.549519598,
-	      -0.128957972,
-	      0.575626969,
-	      0.591050088,
-	      0.337295622,
-	      -0.113517947,
-	      -0.508523881,
-	      -0.0203541834,
-	      0.577281296,
-	      0.53017056
-	    ],
-	    [
-	      0.342020154,
-	      0.939692616,
-	      -0.324533343,
-	      0.556670427,
-	      0.764719665,
-	      -0.413008332,
-	      -0.238872305,
-	      0.584842563,
-	      0.655990362,
-	      -0.00380004128,
-	      -0.554196954,
-	      -0.0894228071,
-	      0.593605816,
-	      0.576616824,
-	      0.328067213,
-	      -0.159374073,
-	      -0.502166,
-	      0.0229097549,
-	      0.591643691,
-	      0.514037
-	    ],
-	    [
-	      0.35836795,
-	      0.933580399,
-	      -0.307358623,
-	      0.579484105,
-	      0.754803836,
-	      -0.422491103,
-	      -0.204589352,
-	      0.604850829,
-	      0.643272877,
-	      -0.0344437547,
-	      -0.555710196,
-	      -0.0492129587,
-	      0.60992074,
-	      0.561760247,
-	      0.3157745,
-	      -0.204117492,
-	      -0.491861343,
-	      0.0663111061,
-	      0.60395056,
-	      0.497535378
-	    ],
-	    [
-	      0.37460658,
-	      0.927183867,
-	      -0.289504856,
-	      0.601591825,
-	      0.744496,
-	      -0.430488437,
-	      -0.169397429,
-	      0.623623908,
-	      0.630140781,
-	      -0.0650830269,
-	      -0.554032922,
-	      -0.00850094855,
-	      0.624542534,
-	      0.546521783,
-	      0.300505787,
-	      -0.247362956,
-	      -0.477669626,
-	      0.109606,
-	      0.614192,
-	      0.480722666
-	    ],
-	    [
-	      0.390731126,
-	      0.920504868,
-	      -0.270993769,
-	      0.622966528,
-	      0.733808577,
-	      -0.436963588,
-	      -0.133395374,
-	      0.641129553,
-	      0.616620898,
-	      -0.0955414,
-	      -0.549154818,
-	      0.0325391926,
-	      0.637448788,
-	      0.530943573,
-	      0.282375067,
-	      -0.28873542,
-	      -0.459678471,
-	      0.152553529,
-	      0.622368515,
-	      0.4636558
-	    ],
-	    [
-	      0.406736642,
-	      0.91354543,
-	      -0.251847953,
-	      0.643582284,
-	      0.722754776,
-	      -0.441884071,
-	      -0.0966843441,
-	      0.657338798,
-	      0.602740645,
-	      -0.125642315,
-	      -0.541081905,
-	      0.0737327188,
-	      0.648623705,
-	      0.515068114,
-	      0.26152125,
-	      -0.327873081,
-	      -0.438002616,
-	      0.194917336,
-	      0.628491282,
-	      0.446391702
-	    ],
-	    [
-	      0.42261827,
-	      0.906307817,
-	      -0.232090712,
-	      0.663413942,
-	      0.711347878,
-	      -0.445221782,
-	      -0.0593675859,
-	      0.672226,
-	      0.588528037,
-	      -0.155209973,
-	      -0.529836178,
-	      0.114905022,
-	      0.658058405,
-	      0.498938352,
-	      0.238107204,
-	      -0.364430279,
-	      -0.412783265,
-	      0.236467153,
-	      0.632581353,
-	      0.428986728
-	    ],
-	    [
-	      0.438371152,
-	      0.898794055,
-	      -0.211746112,
-	      0.68243736,
-	      0.699601948,
-	      -0.446953058,
-	      -0.0215500612,
-	      0.6857692,
-	      0.574011445,
-	      -0.184070244,
-	      -0.51545608,
-	      0.155882403,
-	      0.665750563,
-	      0.482597172,
-	      0.212318495,
-	      -0.39808017,
-	      -0.384186774,
-	      0.276980251,
-	      0.63467,
-	      0.41149658
-	    ],
-	    [
-	      0.453990489,
-	      0.891006529,
-	      -0.190838933,
-	      0.700629294,
-	      0.687531173,
-	      -0.447058767,
-	      0.0166617651,
-	      0.697949767,
-	      0.559219956,
-	      -0.212051556,
-	      -0.497995645,
-	      0.19649294,
-	      0.671704769,
-	      0.46608761,
-	      0.184362113,
-	      -0.428517491,
-	      -0.352403462,
-	      0.316242844,
-	      0.63479805,
-	      0.393975943
-	    ],
-	    [
-	      0.469471574,
-	      0.882947564,
-	      -0.169394672,
-	      0.71796757,
-	      0.675150335,
-	      -0.445524335,
-	      0.0551602542,
-	      0.708752811,
-	      0.544182777,
-	      -0.238985762,
-	      -0.477524847,
-	      0.236567229,
-	      0.675932169,
-	      0.44945243,
-	      0.154464841,
-	      -0.455460936,
-	      -0.317646116,
-	      0.354051501,
-	      0.633015394,
-	      0.376478285
-	    ],
-	    [
-	      0.484809607,
-	      0.874619722,
-	      -0.14743945,
-	      0.734431207,
-	      0.662474453,
-	      -0.442339838,
-	      0.0938368812,
-	      0.718166888,
-	      0.528929472,
-	      -0.264709,
-	      -0.454128981,
-	      0.275939256,
-	      0.678450286,
-	      0.432734042,
-	      0.122871645,
-	      -0.478655517,
-	      -0.280148357,
-	      0.390214294,
-	      0.629380882,
-	      0.359055489
-	    ],
-	    [
-	      0.5,
-	      0.866025388,
-	      -0.125,
-	      0.75,
-	      0.649519,
-	      -0.4375,
-	      0.132582515,
-	      0.726184368,
-	      0.513489902,
-	      -0.2890625,
-	      -0.427908242,
-	      0.314447045,
-	      0.679283261,
-	      0.415974349,
-	      0.08984375,
-	      -0.497874498,
-	      -0.240162909,
-	      0.424552053,
-	      0.623961568,
-	      0.341757804
-	    ],
-	    [
-	      0.515038073,
-	      0.857167304,
-	      -0.102103673,
-	      0.764655054,
-	      0.636299849,
-	      -0.431004167,
-	      0.171287775,
-	      0.732801199,
-	      0.4978939,
-	      -0.311893493,
-	      -0.398977429,
-	      0.351933628,
-	      0.678461432,
-	      0.399214596,
-	      0.0556567125,
-	      -0.512921512,
-	      -0.197959587,
-	      0.456899434,
-	      0.616832137,
-	      0.324633449
-	    ],
-	    [
-	      0.529919267,
-	      0.848048091,
-	      -0.0787783638,
-	      0.778378487,
-	      0.622832954,
-	      -0.42285645,
-	      0.209843263,
-	      0.738016903,
-	      0.482171416,
-	      -0.333055854,
-	      -0.367465287,
-	      0.38824749,
-	      0.676021,
-	      0.382495195,
-	      0.0205982868,
-	      -0.523631871,
-	      -0.153823346,
-	      0.487105817,
-	      0.608074725,
-	      0.307728499
-	    ],
-	    [
-	      0.544639051,
-	      0.838670552,
-	      -0.0550524816,
-	      0.79115355,
-	      0.609134853,
-	      -0.413065583,
-	      0.248139873,
-	      0.741834819,
-	      0.466352403,
-	      -0.352411,
-	      -0.333513856,
-	      0.423243493,
-	      0.672004223,
-	      0.365855545,
-	      -0.0150337582,
-	      -0.529874325,
-	      -0.108052082,
-	      0.515036285,
-	      0.597777665,
-	      0.291086674
-	    ],
-	    [
-	      0.559192896,
-	      0.829037547,
-	      -0.0309549458,
-	      0.802964747,
-	      0.595222116,
-	      -0.401644915,
-	      0.286069185,
-	      0.744261742,
-	      0.450466663,
-	      -0.369828522,
-	      -0.297277898,
-	      0.456783414,
-	      0.666458845,
-	      0.349334031,
-	      -0.0509339347,
-	      -0.531552,
-	      -0.0609543584,
-	      0.540572166,
-	      0.586035311,
-	      0.27474916
-	    ],
-	    [
-	      0.57357645,
-	      0.819152057,
-	      -0.00651510758,
-	      0.813797653,
-	      0.581111789,
-	      -0.388612479,
-	      0.323523581,
-	      0.74530834,
-	      0.434543818,
-	      -0.385186851,
-	      -0.258924127,
-	      0.488736719,
-	      0.659437895,
-	      0.332967699,
-	      -0.0867913961,
-	      -0.528603256,
-	      -0.0128471432,
-	      0.563611865,
-	      0.572947264,
-	      0.258754492
-	    ],
-	    [
-	      0.587785244,
-	      0.809017,
-	      0.0182372537,
-	      0.823639095,
-	      0.566821,
-	      -0.373990864,
-	      0.360396802,
-	      0.744988561,
-	      0.418613225,
-	      -0.398374,
-	      -0.218630359,
-	      0.518981,
-	      0.650999486,
-	      0.316792309,
-	      -0.122292347,
-	      -0.521002412,
-	      0.0359466225,
-	      0.584071159,
-	      0.558617532,
-	      0.243138373
-	    ],
-	    [
-	      0.601815045,
-	      0.798635483,
-	      0.0432719849,
-	      0.832477033,
-	      0.552367151,
-	      -0.35780713,
-	      0.396583915,
-	      0.743320107,
-	      0.402703911,
-	      -0.409288,
-	      -0.176584691,
-	      0.547402501,
-	      0.641206503,
-	      0.300842017,
-	      -0.157122463,
-	      -0.50876,
-	      0.0851004198,
-	      0.601883709,
-	      0.543153763,
-	      0.227933615
-	    ],
-	    [
-	      0.615661502,
-	      0.788010776,
-	      0.0685585812,
-	      0.840300739,
-	      0.537767947,
-	      -0.340092868,
-	      0.431981891,
-	      0.74032414,
-	      0.386844516,
-	      -0.41783756,
-	      -0.132984594,
-	      0.573897,
-	      0.630126059,
-	      0.285149485,
-	      -0.190969393,
-	      -0.491922885,
-	      0.134286612,
-	      0.617001176,
-	      0.526666701,
-	      0.213169962
-	    ],
-	    [
-	      0.629320383,
-	      0.777146,
-	      0.0940662324,
-	      0.847100675,
-	      0.523041129,
-	      -0.32088393,
-	      0.466489762,
-	      0.736025095,
-	      0.371063113,
-	      -0.423942566,
-	      -0.0880359635,
-	      0.598369777,
-	      0.617829442,
-	      0.269745618,
-	      -0.223525122,
-	      -0.470574051,
-	      0.183178872,
-	      0.629393339,
-	      0.509269297,
-	      0.198874116
-	    ],
-	    [
-	      0.642787635,
-	      0.766044438,
-	      0.119763866,
-	      0.852868557,
-	      0.508204579,
-	      -0.300220519,
-	      0.500008881,
-	      0.730451,
-	      0.3553873,
-	      -0.427534461,
-	      -0.0419521108,
-	      0.620736361,
-	      0.604391634,
-	      0.254659504,
-	      -0.254488528,
-	      -0.444832,
-	      0.231454641,
-	      0.6390481,
-	      0.491075933,
-	      0.185069621
-	    ],
-	    [
-	      0.656059,
-	      0.754709601,
-	      0.145620167,
-	      0.857597291,
-	      0.493276417,
-	      -0.278146982,
-	      0.532443225,
-	      0.723632872,
-	      0.339844,
-	      -0.428556591,
-	      0.00504725659,
-	      0.640922725,
-	      0.589890659,
-	      0.239918366,
-	      -0.283567578,
-	      -0.414850116,
-	      0.278797477,
-	      0.645971298,
-	      0.472201824,
-	      0.171776831
-	    ],
-	    [
-	      0.669130623,
-	      0.74314481,
-	      0.17160365,
-	      0.861281216,
-	      0.478274852,
-	      -0.254711658,
-	      0.563699722,
-	      0.71560514,
-	      0.324459404,
-	      -0.426964611,
-	      0.0527371019,
-	      0.65886575,
-	      0.574407756,
-	      0.225547418,
-	      -0.310481846,
-	      -0.380815536,
-	      0.324899465,
-	      0.65018636,
-	      0.452762038,
-	      0.159012988
-	    ],
-	    [
-	      0.681998372,
-	      0.7313537,
-	      0.197682649,
-	      0.863915801,
-	      0.463218153,
-	      -0.229966834,
-	      0.593688309,
-	      0.706405222,
-	      0.309259027,
-	      -0.42272675,
-	      0.100888163,
-	      0.674513459,
-	      0.558026433,
-	      0.211569905,
-	      -0.334964633,
-	      -0.34294793,
-	      0.369463414,
-	      0.651733816,
-	      0.432870984,
-	      0.146792069
-	    ],
-	    [
-	      0.694658399,
-	      0.719339788,
-	      0.22382538,
-	      0.865497828,
-	      0.448124617,
-	      -0.203968629,
-	      0.622322381,
-	      0.696073472,
-	      0.294267476,
-	      -0.415823936,
-	      0.149268031,
-	      0.687825,
-	      0.540832222,
-	      0.198006928,
-	      -0.356765121,
-	      -0.301497817,
-	      0.41220516,
-	      0.650671065,
-	      0.412641525,
-	      0.135125011
-	    ],
-	    [
-	      0.707106769,
-	      0.707106769,
-	      0.25,
-	      0.866025388,
-	      0.433012694,
-	      -0.176776692,
-	      0.649519,
-	      0.684653223,
-	      0.279508501,
-	      -0.40625,
-	      0.197642356,
-	      0.698771238,
-	      0.522912502,
-	      0.1848775,
-	      -0.375650465,
-	      -0.256744951,
-	      0.452855527,
-	      0.647071242,
-	      0.392184377,
-	      0.124019593
-	    ],
-	    [
-	      0.719339788,
-	      0.694658399,
-	      0.276174635,
-	      0.865497828,
-	      0.417900771,
-	      -0.148454204,
-	      0.675199151,
-	      0.672190368,
-	      0.265004843,
-	      -0.394011736,
-	      0.245775878,
-	      0.707334399,
-	      0.504355729,
-	      0.1721984,
-	      -0.391407639,
-	      -0.208996147,
-	      0.49116233,
-	      0.641022801,
-	      0.371607512,
-	      0.113480605
-	    ],
-	    [
-	      0.7313537,
-	      0.681998372,
-	      0.302317351,
-	      0.863915801,
-	      0.402807266,
-	      -0.119067609,
-	      0.699287713,
-	      0.658733487,
-	      0.250778317,
-	      -0.379128963,
-	      0.293433666,
-	      0.713508487,
-	      0.485251039,
-	      0.159984291,
-	      -0.403845161,
-	      -0.158583134,
-	      0.526892304,
-	      0.63262856,
-	      0.351015329,
-	      0.10350991
-	    ],
-	    [
-	      0.74314481,
-	      0.669130623,
-	      0.32839635,
-	      0.861281216,
-	      0.387750536,
-	      -0.0886864737,
-	      0.721713901,
-	      0.64433378,
-	      0.236849621,
-	      -0.361634314,
-	      0.340382189,
-	      0.717299,
-	      0.465688139,
-	      0.148247585,
-	      -0.412794828,
-	      -0.105860129,
-	      0.559832633,
-	      0.622004569,
-	      0.330508262,
-	      0.0941065326
-	    ],
-	    [
-	      0.754709601,
-	      0.656059,
-	      0.354379833,
-	      0.857597291,
-	      0.372748971,
-	      -0.0573833026,
-	      0.742411554,
-	      0.629044473,
-	      0.223238334,
-	      -0.341573387,
-	      0.386390567,
-	      0.71872288,
-	      0.445756465,
-	      0.13699846,
-	      -0.418113053,
-	      -0.0512011871,
-	      0.589792609,
-	      0.609279215,
-	      0.310182154,
-	      0.0852667838
-	    ],
-	    [
-	      0.766044438,
-	      0.642787635,
-	      0.380236119,
-	      0.852868557,
-	      0.357820839,
-	      -0.0252333339,
-	      0.761319,
-	      0.612921119,
-	      0.209962875,
-	      -0.319004357,
-	      0.431231558,
-	      0.717808664,
-	      0.425545,
-	      0.126244947,
-	      -0.419682056,
-	      0.00500250375,
-	      0.616604924,
-	      0.594592,
-	      0.290127724,
-	      0.0769844055
-	    ],
-	    [
-	      0.777146,
-	      0.629320383,
-	      0.405933768,
-	      0.847100675,
-	      0.342984289,
-	      0.00768567342,
-	      0.778379381,
-	      0.596021354,
-	      0.197040468,
-	      -0.293997765,
-	      0.474682748,
-	      0.714596,
-	      0.405141771,
-	      0.115992859,
-	      -0.417411059,
-	      0.0623455457,
-	      0.640126824,
-	      0.578092158,
-	      0.270430148,
-	      0.0692507252
-	    ],
-	    [
-	      0.788010776,
-	      0.615661502,
-	      0.431441426,
-	      0.840300739,
-	      0.328257442,
-	      0.0412936322,
-	      0.793541074,
-	      0.578404605,
-	      0.184487075,
-	      -0.266636372,
-	      0.516527653,
-	      0.709135473,
-	      0.384633511,
-	      0.106245846,
-	      -0.411237091,
-	      0.120411336,
-	      0.660241187,
-	      0.559937775,
-	      0.251168609,
-	      0.0620547719
-	    ],
-	    [
-	      0.798635483,
-	      0.601815045,
-	      0.456728,
-	      0.832477033,
-	      0.313658237,
-	      0.0755083486,
-	      0.80675739,
-	      0.560131907,
-	      0.172317386,
-	      -0.237014621,
-	      0.556556761,
-	      0.701488495,
-	      0.364105076,
-	      0.0970054492,
-	      -0.40112561,
-	      0.178775176,
-	      0.676857054,
-	      0.540294051,
-	      0.232415989,
-	      0.0553835034
-	    ],
-	    [
-	      0.809017,
-	      0.587785244,
-	      0.481762737,
-	      0.823639095,
-	      0.299204409,
-	      0.110245749,
-	      0.817986846,
-	      0.541265905,
-	      0.160544738,
-	      -0.205238357,
-	      0.594568431,
-	      0.691726744,
-	      0.343639225,
-	      0.0882711485,
-	      -0.387070984,
-	      0.237007394,
-	      0.68991071,
-	      0.519332051,
-	      0.214238584,
-	      0.0492219403
-	    ],
-	    [
-	      0.819152057,
-	      0.57357645,
-	      0.506515086,
-	      0.813797653,
-	      0.284913629,
-	      0.145420119,
-	      0.827193558,
-	      0.521870494,
-	      0.149181142,
-	      -0.171424255,
-	      0.630370259,
-	      0.67993176,
-	      0.323316187,
-	      0.0800403953,
-	      -0.369096637,
-	      0.294676661,
-	      0.699365437,
-	      0.49722746,
-	      0.196695775,
-	      0.0435533747
-	    ],
-	    [
-	      0.829037547,
-	      0.559192896,
-	      0.530954957,
-	      0.802964747,
-	      0.270803303,
-	      0.180944279,
-	      0.83434689,
-	      0.502010882,
-	      0.138237208,
-	      -0.135699391,
-	      0.663779497,
-	      0.666194856,
-	      0.303213269,
-	      0.0723087117,
-	      -0.34725523,
-	      0.351353139,
-	      0.705212235,
-	      0.474158853,
-	      0.179839924,
-	      0.0383595526
-	    ],
-	    [
-	      0.838670552,
-	      0.544639051,
-	      0.555052459,
-	      0.79115355,
-	      0.256890565,
-	      0.216729924,
-	      0.839421868,
-	      0.481753141,
-	      0.127722174,
-	      -0.0982006,
-	      0.694624424,
-	      0.650616169,
-	      0.283404499,
-	      0.0650697425,
-	      -0.321628243,
-	      0.406611711,
-	      0.707469344,
-	      0.450306475,
-	      0.163716242,
-	      0.0336208828
-	    ],
-	    [
-	      0.848048091,
-	      0.529919267,
-	      0.578778386,
-	      0.778378487,
-	      0.243192434,
-	      0.252687752,
-	      0.84239924,
-	      0.461164147,
-	      0.117643826,
-	      -0.0590738878,
-	      0.722744823,
-	      0.633304417,
-	      0.263960302,
-	      0.0583153479,
-	      -0.292325705,
-	      0.460035235,
-	      0.706182301,
-	      0.425850779,
-	      0.148362651,
-	      0.0293166153
-	    ],
-	    [
-	      0.857167304,
-	      0.515038073,
-	      0.602103651,
-	      0.764655054,
-	      0.229725555,
-	      0.28872776,
-	      0.843265295,
-	      0.440311372,
-	      0.108008519,
-	      -0.0184737556,
-	      0.747993112,
-	      0.614376187,
-	      0.244947284,
-	      0.0520356968,
-	      -0.259485394,
-	      0.511217654,
-	      0.701423287,
-	      0.400970876,
-	      0.133809894,
-	      0.0254250597
-	    ],
-	    [
-	      0.866025388,
-	      0.5,
-	      0.625,
-	      0.75,
-	      0.216506347,
-	      0.324759513,
-	      0.842012107,
-	      0.419262737,
-	      0.0988211781,
-	      0.0234375,
-	      0.770234823,
-	      0.593955576,
-	      0.226427764,
-	      0.046219375,
-	      -0.223272175,
-	      0.559767127,
-	      0.693290591,
-	      0.375843376,
-	      0.120081455,
-	      0.021923773
-	    ],
-	    [
-	      0.874619722,
-	      0.484809607,
-	      0.64743942,
-	      0.734431207,
-	      0.203550935,
-	      0.360692352,
-	      0.838637531,
-	      0.398086399,
-	      0.0900852531,
-	      0.0664905459,
-	      0.789349437,
-	      0.572173119,
-	      0.208459631,
-	      0.0408534706,
-	      -0.183876783,
-	      0.60530889,
-	      0.681907594,
-	      0.350640744,
-	      0.107193753,
-	      0.0187897682
-	    ],
-	    [
-	      0.882947564,
-	      0.469471574,
-	      0.669394672,
-	      0.71796757,
-	      0.190875068,
-	      0.396435648,
-	      0.833145082,
-	      0.376850545,
-	      0.0818027481,
-	      0.110509798,
-	      0.805230737,
-	      0.549165547,
-	      0.191096097,
-	      0.035923712,
-	      -0.141514659,
-	      0.647488296,
-	      0.667421818,
-	      0.325530231,
-	      0.0951562673,
-	      0.0159996971
-	    ],
-	    [
-	      0.891006529,
-	      0.453990489,
-	      0.690838933,
-	      0.700629294,
-	      0.178494215,
-	      0.431898981,
-	      0.825544238,
-	      0.355623156,
-	      0.073974207,
-	      0.155314222,
-	      0.817787707,
-	      0.525074899,
-	      0.174385428,
-	      0.0314145684,
-	      -0.0964244157,
-	      0.685973167,
-	      0.650003791,
-	      0.300672412,
-	      0.0839717537,
-	      0.0135300411
-	    ],
-	    [
-	      0.898794055,
-	      0.438371152,
-	      0.711746097,
-	      0.68243736,
-	      0.16642347,
-	      0.466992587,
-	      0.8158499,
-	      0.334471971,
-	      0.0665987208,
-	      0.200718179,
-	      0.826944649,
-	      0.500047624,
-	      0.158370793,
-	      0.0273093823,
-	      -0.0488663204,
-	      0.720456839,
-	      0.629845262,
-	      0.276220232,
-	      0.0736365318,
-	      0.0113573
-	    ],
-	    [
-	      0.906307817,
-	      0.42261827,
-	      0.732090712,
-	      0.663413942,
-	      0.154677495,
-	      0.501627326,
-	      0.80408287,
-	      0.313464135,
-	      0.0596739501,
-	      0.246532276,
-	      0.83264184,
-	      0.474234223,
-	      0.143090084,
-	      0.0235904958,
-	      0.000879568,
-	      0.750660121,
-	      0.607158065,
-	      0.252317607,
-	      0.064140752,
-	      0.00945815817
-	    ],
-	    [
-	      0.91354543,
-	      0.406736642,
-	      0.751848,
-	      0.643582284,
-	      0.143270656,
-	      0.535715163,
-	      0.790269554,
-	      0.292666078,
-	      0.0531961136,
-	      0.292564303,
-	      0.834835649,
-	      0.44778809,
-	      0.128575757,
-	      0.0202393811,
-	      0.0525153,
-	      0.776333511,
-	      0.582172155,
-	      0.229098633,
-	      0.0554687865,
-	      0.00780965388
-	    ],
-	    [
-	      0.920504868,
-	      0.390731126,
-	      0.770993769,
-	      0.622966528,
-	      0.132216811,
-	      0.569169283,
-	      0.774441898,
-	      0.272143364,
-	      0.0471600257,
-	      0.338620067,
-	      0.833498836,
-	      0.420865029,
-	      0.114854798,
-	      0.0172367785,
-	      0.105727136,
-	      0.797259331,
-	      0.55513376,
-	      0.206686467,
-	      0.0475996137,
-	      0.00638933061
-	    ],
-	    [
-	      0.927183867,
-	      0.37460658,
-	      0.789504826,
-	      0.601591825,
-	      0.12152943,
-	      0.601904333,
-	      0.756637275,
-	      0.251960427,
-	      0.0415591113,
-	      0.384504348,
-	      0.828620732,
-	      0.39362222,
-	      0.101948567,
-	      0.0145628275,
-	      0.160187721,
-	      0.813253164,
-	      0.526303351,
-	      0.18519263,
-	      0.040507257,
-	      0.00517538143
-	    ],
-	    [
-	      0.933580399,
-	      0.35836795,
-	      0.807358623,
-	      0.579484105,
-	      0.111221552,
-	      0.633836746,
-	      0.736898482,
-	      0.232180476,
-	      0.0363854282,
-	      0.430021763,
-	      0.820207298,
-	      0.366217613,
-	      0.0898727924,
-	      0.0121972151,
-	      0.215558439,
-	      0.824165523,
-	      0.495953768,
-	      0.164716139,
-	      0.0341612436,
-	      0.00414678082
-	    ],
-	    [
-	      0.939692616,
-	      0.342020154,
-	      0.824533343,
-	      0.556670427,
-	      0.101305731,
-	      0.664884746,
-	      0.715273559,
-	      0.212865278,
-	      0.0316297,
-	      0.474977732,
-	      0.808281064,
-	      0.338809043,
-	      0.0786375329,
-	      0.0101193069,
-	      0.271491736,
-	      0.82988292,
-	      0.464367747,
-	      0.145342931,
-	      0.0285271145,
-	      0.00328339939
-	    ],
-	    [
-	      0.945518553,
-	      0.325568169,
-	      0.841008067,
-	      0.533178449,
-	      0.0917940363,
-	      0.694968879,
-	      0.691815674,
-	      0.194074973,
-	      0.0272813439,
-	      0.519179404,
-	      0.792881131,
-	      0.311553419,
-	      0.0682472,
-	      0.00830829144,
-	      0.327633679,
-	      0.830328882,
-	      0.43183586,
-	      0.127145335,
-	      0.0235669315,
-	      0.00256610778
-	    ],
-	    [
-	      0.95105654,
-	      0.309017,
-	      0.856762767,
-	      0.509036958,
-	      0.0826980695,
-	      0.724011958,
-	      0.666583,
-	      0.175867945,
-	      0.0233285148,
-	      0.562436461,
-	      0.774062932,
-	      0.28460595,
-	      0.0587005876,
-	      0.00674331561,
-	      0.383626401,
-	      0.825464487,
-	      0.398654133,
-	      0.110181682,
-	      0.0192398224,
-	      0.00197686534
-	    ],
-	    [
-	      0.956304729,
-	      0.29237169,
-	      0.87177819,
-	      0.484275252,
-	      0.0740289,
-	      0.751939535,
-	      0.639638543,
-	      0.158300623,
-	      0.0197581388,
-	      0.604562223,
-	      0.751898,
-	      0.258119404,
-	      0.0499909483,
-	      0.00540362718,
-	      0.439110696,
-	      0.815288842,
-	      0.365121692,
-	      0.0944960266,
-	      0.0155025441,
-	      0.00149879418
-	    ],
-	    [
-	      0.96126169,
-	      0.275637358,
-	      0.886036098,
-	      0.458923548,
-	      0.0657971054,
-	      0.778679788,
-	      0.61104995,
-	      0.141427353,
-	      0.0165559556,
-	      0.645374238,
-	      0.726473689,
-	      0.23224321,
-	      0.0421060883,
-	      0.00426870678,
-	      0.493728578,
-	      0.799839199,
-	      0.331538409,
-	      0.0801179484,
-	      0.0123100337,
-	      0.00111623504
-	    ],
-	    [
-	      0.965925813,
-	      0.258819044,
-	      0.899519,
-	      0.433012694,
-	      0.0580127,
-	      0.804163933,
-	      0.580889285,
-	      0.125300229,
-	      0.0137065668,
-	      0.684695423,
-	      0.697892725,
-	      0.207122892,
-	      0.0350284949,
-	      0.00331840175,
-	      0.547125876,
-	      0.77919066,
-	      0.298202485,
-	      0.0670625493,
-	      0.0096159894,
-	      0.00081479142
-	    ],
-	    [
-	      0.970295727,
-	      0.241921902,
-	      0.912210703,
-	      0.406574309,
-	      0.0506851785,
-	      0.828326404,
-	      0.549233,
-	      0.10996896,
-	      0.0111934906,
-	      0.72235477,
-	      0.666272759,
-	      0.182899177,
-	      0.0287354942,
-	      0.00253305561,
-	      0.598954737,
-	      0.753455698,
-	      0.265408158,
-	      0.0553305373,
-	      0.00737343961,
-	      0.00058135466
-	    ],
-	    [
-	      0.974370062,
-	      0.224951059,
-	      0.924095511,
-	      0.379640549,
-	      0.043823462,
-	      0.851105,
-	      0.516161561,
-	      0.0954807103,
-	      0.00899920426,
-	      0.758188,
-	      0.631745756,
-	      0.159707367,
-	      0.0231994167,
-	      0.00189363456,
-	      0.64887625,
-	      0.722783685,
-	      0.233443365,
-	      0.044908423,
-	      0.00553530222,
-	      0.000404115446
-	    ],
-	    [
-	      0.978147626,
-	      0.207911685,
-	      0.935159087,
-	      0.352244258,
-	      0.0374359153,
-	      0.872441,
-	      0.481759191,
-	      0.08188,
-	      0.00710520707,
-	      0.792038739,
-	      0.594457507,
-	      0.137676626,
-	      0.0183878168,
-	      0.00138184614,
-	      0.696562707,
-	      0.687359333,
-	      0.202587366,
-	      0.0357688442,
-	      0.00405494822,
-	      0.000272558565
-	    ],
-	    [
-	      0.981627166,
-	      0.190809,
-	      0.9453879,
-	      0.324418813,
-	      0.0315303169,
-	      0.892279327,
-	      0.446113944,
-	      0.0692085773,
-	      0.00549207628,
-	      0.8237589,
-	      0.55456686,
-	      0.11692936,
-	      0.0142636979,
-	      0.000980255776,
-	      0.7417,
-	      0.647402,
-	      0.173108727,
-	      0.027871009,
-	      0.00288673723,
-	      0.00017744326
-	    ],
-	    [
-	      0.98480773,
-	      0.173648179,
-	      0.954769492,
-	      0.29619813,
-	      0.0261138603,
-	      0.910568774,
-	      0.409317106,
-	      0.0575052574,
-	      0.00413952675,
-	      0.853209496,
-	      0.51224488,
-	      0.097580567,
-	      0.0107857706,
-	      0.000672395749,
-	      0.783990145,
-	      0.6031636,
-	      0.145263031,
-	      0.0211612582,
-	      0.00198654155,
-	      0.000110768546
-	    ],
-	    [
-	      0.987688363,
-	      0.156434461,
-	      0.96329236,
-	      0.26761657,
-	      0.0211931504,
-	      0.927262187,
-	      0.37146312,
-	      0.0468058847,
-	      0.0030264766,
-	      0.880261302,
-	      0.467674255,
-	      0.0797372833,
-	      0.00790872145,
-	      0.000442867487,
-	      0.823153198,
-	      0.55492723,
-	      0.119290978,
-	      0.0155737158,
-	      0.00131224515,
-	      0.0000657245328
-	    ],
-	    [
-	      0.990268052,
-	      0.139173105,
-	      0.970946252,
-	      0.238708958,
-	      0.0167741776,
-	      0.942316413,
-	      0.33264932,
-	      0.0371431746,
-	      0.00213111029,
-	      0.904795587,
-	      0.421048343,
-	      0.06349805,
-	      0.00558351539,
-	      0.000277437561,
-	      0.858929157,
-	      0.503005,
-	      0.095416449,
-	      0.0110310512,
-	      0.000824212679,
-	      0.0000366304121
-	    ],
-	    [
-	      0.992546141,
-	      0.121869341,
-	      0.97772181,
-	      0.209510505,
-	      0.0128623275,
-	      0.955692589,
-	      0.292975664,
-	      0.0285466593,
-	      0.00143094664,
-	      0.926704407,
-	      0.372570127,
-	      0.0489524,
-	      0.00375770917,
-	      0.000163125529,
-	      0.89108032,
-	      0.447735608,
-	      0.0738447458,
-	      0.00744534191,
-	      0.000485728844,
-	      0.0000188598242
-	    ],
-	    [
-	      0.994521916,
-	      0.104528464,
-	      0.98361069,
-	      0.18005681,
-	      0.00946236681,
-	      0.967356,
-	      0.252544463,
-	      0.0210425854,
-	      0.000902908447,
-	      0.945891321,
-	      0.322451502,
-	      0.0361804329,
-	      0.00237578456,
-	      0.0000882840613,
-	      0.919392467,
-	      0.3894822,
-	      0.054761,
-	      0.00471901428,
-	      0.000263401278,
-	      0.00000875463684
-	    ],
-	    [
-	      0.99619472,
-	      0.0871557444,
-	      0.988605797,
-	      0.150383726,
-	      0.00657843612,
-	      0.977276683,
-	      0.211460009,
-	      0.014653855,
-	      0.000523393159,
-	      0.96227181,
-	      0.270912081,
-	      0.0252523813,
-	      0.00137949863,
-	      0.0000426705337,
-	      0.943676829,
-	      0.328629553,
-	      0.038328696,
-	      0.00274586887,
-	      0.000127524472,
-	      0.00000352813618
-	    ],
-	    [
-	      0.997564077,
-	      0.0697564706,
-	      0.992701054,
-	      0.120527439,
-	      0.00421405,
-	      0.985428751,
-	      0.169828475,
-	      0.00939994864,
-	      0.000268345029,
-	      0.975773752,
-	      0.218178153,
-	      0.0162282921,
-	      0.000708244741,
-	      0.0000175098376,
-	      0.963771284,
-	      0.26558128,
-	      0.0246884,
-	      0.00141217536,
-	      0.0000524015522,
-	      0.00000115874502
-	    ],
-	    [
-	      0.99862951,
-	      0.0523359552,
-	      0.995891392,
-	      0.0905243,
-	      0.00237208884,
-	      0.991791308,
-	      0.12775746,
-	      0.00529688271,
-	      0.000113328853,
-	      0.986337543,
-	      0.164481804,
-	      0.00915770326,
-	      0.000299429055,
-	      0.00000554810504,
-	      0.979541421,
-	      0.200757101,
-	      0.0139566557,
-	      0.000597832084,
-	      0.000016621505,
-	      2.75464799e-7
-	    ],
-	    [
-	      0.999390841,
-	      0.0348994955,
-	      0.998173058,
-	      0.0604108796,
-	      0.00105479721,
-	      0.996347725,
-	      0.0853558108,
-	      0.00235716137,
-	      0.000033604505,
-	      0.993916631,
-	      0.110059582,
-	      0.00407940708,
-	      0.000088855,
-	      0.00000109703558,
-	      0.99088186,
-	      0.134589493,
-	      0.00622506905,
-	      0.000177574679,
-	      0.00000328910164,
-	      3.63212784e-8
-	    ],
-	    [
-	      0.99984771,
-	      0.0174524058,
-	      0.99954313,
-	      0.0302238502,
-	      0.000263779628,
-	      0.99908632,
-	      0.0427332148,
-	      0.000589739357,
-	      0.00000420248307,
-	      0.998477459,
-	      0.0551515371,
-	      0.00102125108,
-	      0.0000111170311,
-	      6.86065036e-8,
-	      0.997716665,
-	      0.067520842,
-	      0.0015595908,
-	      0.0000222298295,
-	      2.05788169e-7,
-	      1.1359047e-9
-	    ],
-	    [
-	      1,
-	      0,
-	      1,
-	      0,
-	      0,
-	      1,
-	      0,
-	      0,
-	      0,
-	      1,
-	      0,
-	      0,
-	      0,
-	      0,
-	      1,
-	      0,
-	      0,
-	      0,
-	      0,
-	      0
-	    ]
-	  ]
-	];
+	// Internal dependencies.
+	var Global = __webpack_require__(3);
+	var Utils = __webpack_require__(4);
+	var LateReflections = __webpack_require__(5);
+	var EarlyReflections = __webpack_require__(6);
 
-	module.exports = AmbisonicEncoderTable;
+	/**
+	 * @class Room
+	 * @description Model that manages early and late reflections using acoustic
+	 * properties and listener position relative to a rectangular room.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @param {Object} options
+	 * @param {Number} options.speedOfSound
+	 * (in meters/second). Defaults to
+	 * {@link SPEED_OF_SOUND SPEED_OF_SOUND}.
+	 * @param {Object} options.dimensions (in meters). Defaults to
+	 * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} options.materials Named acoustic materials per wall.
+	 * Defaults to {@link Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+	 * @param {Float32Array} options.listenerPosition
+	 * The initial listener position (in meters). Defaults to
+	 * {@link DEFAULT_POSITION DEFAULT_POSITION}.
+	 */
+	function Room (context, options) {
+	  /**
+	   * EarlyReflections {@link EarlyReflections EarlyReflections} submodule.
+	   * @member {AudioNode} early
+	   * @memberof Room
+	   * @instance
+	   */
+	  /**
+	   * LateReflections {@link LateReflections LateReflections} submodule.
+	   * @member {AudioNode} late
+	   * @memberof Room
+	   * @instance
+	   */
+	  /**
+	   * Output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} output
+	   * @memberof Room
+	   * @instance
+	   */
+
+	  // Sanitize inputs.
+	  if (options == undefined) {
+	    options = {};
+	  }
+	  if (options.speedOfSound == undefined) {
+	    options.speedOfSound = Global.SPEED_OF_SOUND;
+	  }
+	  this.speedOfSound = options.speedOfSound;
+	  options.dimensions = _sanitizeDimensions(options.dimensions);
+	  var absorptionCoefficients = _getCoefficientsFromMaterials(options.materials);
+	  var durations = _getDurationsFromProperties(options.dimensions,
+	    absorptionCoefficients, options.speedOfSound);
+	  var reflectionCoefficients =
+	    _computeReflectionCoefficients(absorptionCoefficients);
+
+	  // Construct submodules for early and late reflections.
+	  this.early = new EarlyReflections(context, {
+	    dimensions : options.dimensions,
+	    coefficients : reflectionCoefficients,
+	    speedOfSound : options.speedOfSound,
+	    listenerPosition : options.listenerPosition
+	  });
+	  this.late = new LateReflections(context, {
+	    durations : durations
+	  });
+
+	  // Construct auxillary audio nodes.
+	  this.output = context.createGain();
+	  this._merger = context.createChannelMerger(4);
+
+	  this.early.output.connect(this.output);
+	  this.late.output.connect(this._merger, 0, 0);
+	  this._merger.connect(this.output);
+	}
+
+	/**
+	 * Set the room's dimensions and wall materials.
+	 * @param {Object} dimensions (in meters). Defaults to
+	 * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} materials Named acoustic materials per wall. Defaults to
+	 * {@link Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+	 */
+	Room.prototype.setProperties = function (dimensions, materials) {
+	  // Compute late response.
+	  absorptionCoefficients = _getCoefficientsFromMaterials(materials);
+	  durations = _getDurationsFromProperties(dimensions, absorptionCoefficients,
+	    this.speedOfSound);
+	  this.late.setDurations(durations);
+
+	  // Compute early response.
+	  this.early.speedOfSound = this.speedOfSound;
+	  var reflectionCoefficients =
+	    _computeReflectionCoefficients(absorptionCoefficients);
+	  this.early.setRoomProperties(dimensions, reflectionCoefficients);
+	}
+
+	/**
+	 * Set the listener's position (in meters),
+	 * where [0,0,0] is the center of the room.
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 */
+	Room.prototype.setListenerPosition = function (x, y, z) {
+	  //TODO(bitllama): Check distance and zero-out if outside of room.
+	  this.early.speedOfSound = this.speedOfSound;
+	  this.early.setListenerPosition(x, y, z);
+	}
+
+	/** @type {Number} */
+	Room.MIN_VOLUME = 1e-4;
+	/** @type {Float32Array} */
+	Room.AIR_ABSORPTION_COEFFICIENTS =
+	  [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
+	/** @type {Number} */
+	Room.EYRING_CORRECTION = 1.38;
+
+	/**
+	 * Default materials use strings from
+	 * {@link MATERIAL_COEFFICIENTS MATERIAL_COEFFICIENTS}
+	 * @type {Object}
+	 */
+	Room.DEFAULT_MATERIALS = {
+	  left : 'transparent', right : 'transparent', front : 'transparent',
+	  back : 'transparent', down : 'transparent', up : 'transparent'
+	};
+
+	/**
+	 * Pre-defined frequency-dependent absorption coefficients for listed materials.
+	 * Currently supported materials are:
+	 * 'transparent',
+	 * 'acoustic-ceiling-tiles',
+	 * 'brick-bare',
+	 * 'brick-painted',
+	 * 'concrete-block-coarse',
+	 * 'concrete-block-painted',
+	 * 'curtain-heavy',
+	 * 'fiber-glass-insulation',
+	 * 'glass-thin',
+	 * 'glass-thick',
+	 * 'grass',
+	 * 'linoleum-on-concrete',
+	 * 'marble',
+	 * 'metal',
+	 * 'parquet-on-concrete',
+	 * 'plaster-smooth',
+	 * 'plywood-panel',
+	 * 'polished-concrete-or-tile',
+	 * 'sheetrock',
+	 * 'water-or-ice-surface',
+	 * 'wood-ceiling',
+	 * 'wood-panel',
+	 * 'uniform'
+	 * @type {Object}
+	 */
+	Room.MATERIAL_COEFFICIENTS = {
+	  'transparent' :
+	  [1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000],
+	  'acoustic-ceiling-tiles' :
+	  [0.672, 0.675, 0.700, 0.660, 0.720, 0.920, 0.880, 0.750, 1.000],
+	  'brick-bare' :
+	  [0.030, 0.030, 0.030, 0.030, 0.030, 0.040, 0.050, 0.070, 0.140],
+	  'brick-painted' :
+	  [0.006, 0.007, 0.010, 0.010, 0.020, 0.020, 0.020, 0.030, 0.060],
+	  'concrete-block-coarse' :
+	  [0.360, 0.360, 0.360, 0.440, 0.310, 0.290, 0.390, 0.250, 0.500],
+	  'concrete-block-painted' :
+	  [0.092, 0.090, 0.100, 0.050, 0.060, 0.070, 0.090, 0.080, 0.160],
+	  'curtain-heavy' :
+	  [0.073, 0.106, 0.140, 0.350, 0.550, 0.720, 0.700, 0.650, 1.000],
+	  'fiber-glass-insulation' :
+	  [0.193, 0.220, 0.220, 0.820, 0.990, 0.990, 0.990, 0.990, 1.000],
+	  'glass-thin' :
+	  [0.180, 0.169, 0.180, 0.060, 0.040, 0.030, 0.020, 0.020, 0.040],
+	  'glass-thick' :
+	  [0.350, 0.350, 0.350, 0.250, 0.180, 0.120, 0.070, 0.040, 0.080],
+	  'grass' :
+	  [0.050, 0.050, 0.150, 0.250, 0.400, 0.550, 0.600, 0.600, 0.600],
+	  'linoleum-on-concrete' :
+	  [0.020, 0.020, 0.020, 0.030, 0.030, 0.030, 0.030, 0.020, 0.040],
+	  'marble' :
+	  [0.010, 0.010, 0.010, 0.010, 0.010, 0.010, 0.020, 0.020, 0.0400],
+	  'metal' :
+	  [0.030, 0.035, 0.040, 0.040, 0.050, 0.050, 0.050, 0.070, 0.090],
+	  'parquet-on-concrete' :
+	  [0.028, 0.030, 0.040, 0.040, 0.070, 0.060, 0.060, 0.070, 0.140],
+	  'plaster-rough' :
+	  [0.017, 0.018, 0.020, 0.030, 0.040, 0.050, 0.040, 0.030, 0.060],
+	  'plaster-smooth' :
+	  [0.011, 0.012, 0.013, 0.015, 0.020, 0.030, 0.040, 0.050, 0.100],
+	  'plywood-panel' :
+	  [0.400, 0.340, 0.280, 0.220, 0.170, 0.090, 0.100, 0.110, 0.220],
+	  'polished-concrete-or-tile' :
+	  [0.008, 0.008, 0.010, 0.010, 0.015, 0.020, 0.020, 0.020, 0.040],
+	  'sheet-rock' :
+	  [0.290, 0.279, 0.290, 0.100, 0.050, 0.040, 0.070, 0.090, 0.180],
+	  'water-or-ice-surface' :
+	  [0.006, 0.006, 0.008, 0.008, 0.013, 0.015, 0.020, 0.025, 0.050],
+	  'wood-ceiling' :
+	  [0.150, 0.147, 0.150, 0.110, 0.100, 0.070, 0.060, 0.070, 0.140],
+	  'wood-panel' :
+	  [0.280, 0.280, 0.280, 0.220, 0.170, 0.090, 0.100, 0.110, 0.220],
+	  'uniform' :
+	  [0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500]
+	}
+
+	/** @type {Number} */
+	Room.STARTING_BAND = 4;
+	/** @type {Number} */
+	Room.NUMBER_AVERAGING_BANDS = 3;
+
+	function _getCoefficientsFromMaterials (materials) {
+	  // Initialize coefficients to use defaults.
+	  var coefficients = {};
+	  for (var property in Room.DEFAULT_MATERIALS) {
+	    coefficients[property] =
+	      Room.MATERIAL_COEFFICIENTS[Room.DEFAULT_MATERIALS[property]];
+	  }
+
+	  // Sanitize materials.
+	  if (materials == undefined) {
+	    materials = Room.DEFAULT_MATERIALS;
+	  }
+
+	  // Assign coefficients using provided materials.
+	  for (var property in Room.DEFAULT_MATERIALS) {
+	    if (materials.hasOwnProperty(property)) {
+	      if (materials[property] in Room.MATERIAL_COEFFICIENTS) {
+	        coefficients[property] =
+	          Room.MATERIAL_COEFFICIENTS[materials[property]];
+	      } else {
+	        Utils.log('Material \"' + materials[property] + '\" on wall \"' +
+	          property + '\" not found. Using \"' +
+	          Room.DEFAULT_MATERIALS[property] + '\".');
+	      }
+	    } else {
+	      Utils.log('Wall \"' + property + '\" is not defined. Default used.');
+	    }
+	  }
+	  return coefficients;
+	}
+
+	function _sanitizeCoefficients (coefficients) {
+	  if (coefficients == undefined) {
+	    coefficients = {};
+	  }
+	  for (var property in Room.DEFAULT_MATERIALS) {
+	    if (!(coefficients.hasOwnProperty(property))) {
+	      // If element is not present, use default coefficients.
+	      coefficients[property] =
+	        Room.MATERIAL_COEFFICIENTS[Room.DEFAULT_MATERIALS[property]];
+	    }
+	  }
+	  return coefficients;
+	}
+
+	function _sanitizeDimensions (dimensions) {
+	  if (dimensions == undefined) {
+	    dimensions = {};
+	  }
+	  for (var property in EarlyReflections.DEFAULT_DIMENSIONS) {
+	    if (!(dimensions.hasOwnProperty(property))) {
+	      dimensions[property] = EarlyReflections.DEFAULT_DIMENSIONS[property];
+	    }
+	  }
+	  return dimensions;
+	}
+
+	function _getDurationsFromProperties (dimensions, coefficients, speedOfSound) {
+	  var durations = new Float32Array(Global.NUMBER_REVERB_BANDS);
+
+	  // Sanitize inputs.
+	  dimensions = _sanitizeDimensions(dimensions);
+	  coefficients = _sanitizeCoefficients(coefficients);
+	  if (speedOfSound == undefined) {
+	    speedOfSound = Globals.SPEED_OF_SOUND;
+	  }
+
+	  // Acoustic constant.
+	  var k = Global.TWENTY_FOUR_LOG10 / speedOfSound;
+
+	  // Compute volume, skip if room is not present.
+	  var volume = dimensions.width * dimensions.height * dimensions.depth;
+	  if (volume < Room.MIN_VOLUME) {
+	    return durations;
+	  }
+
+	  // Room surface area.
+	  var leftRightArea = dimensions.width * dimensions.height;
+	  var floorCeilingArea = dimensions.width * dimensions.depth;
+	  var frontBackArea = dimensions.depth * dimensions.height;
+	  var totalArea = 2 * (leftRightArea + floorCeilingArea + frontBackArea);
+	  for (var i = 0; i < Global.NUMBER_REVERB_BANDS; i++) {
+	    // Effective absorptive area.
+	    var absorbtionArea =
+	      (coefficients.left[i] + coefficients.right[i]) * leftRightArea +
+	      (coefficients.down[i] + coefficients.up[i]) * floorCeilingArea +
+	      (coefficients.front[i] + coefficients.back[i]) * frontBackArea;
+	    var meanAbsorbtionArea = absorbtionArea / totalArea;
+
+	    // Compute reverberation using one of two algorithms, depending on area [1].
+	    // [1] Beranek, Leo L. "Analysis of Sabine and Eyring equations and their
+	    //     application to concert hall audience and chair absorption." The
+	    //     Journal of the Acoustical Society of America, Vol. 120, No. 3.
+	    //     (2006), pp. 1399-1399.
+	    if (meanAbsorbtionArea <= 0.5) {
+	      // Sabine equation.
+	      durations[i] = k * volume / (absorbtionArea + 4 *
+	        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
+	    } else {
+	      // Eyring equation.
+	      durations[i] = Room.EYRING_CORRECTION * k * volume / (-totalArea *
+	        Math.log(1 - meanAbsorbtionArea) + 4 *
+	        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
+	    }
+	  }
+	  return durations;
+	}
+
+	function _computeReflectionCoefficients (absorptionCoefficients) {
+	  var reflectionCoefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+	    // Compute average absorption coefficient (per wall).
+	    for (var j = 0; j < Room.NUMBER_AVERAGING_BANDS; j++) {
+	      var bandIndex = j + Room.STARTING_BAND;
+	      reflectionCoefficients[property] +=
+	        absorptionCoefficients[property][bandIndex];
+	    }
+	    reflectionCoefficients[property] /= Room.NUMBER_AVERAGING_BANDS;
+
+	    // Convert absorption coefficient to reflection coefficient.
+	    reflectionCoefficients[property] =
+	      Math.sqrt(1 - reflectionCoefficients[property]);
+	  }
+	  return reflectionCoefficients;
+	}
+
+	module.exports = Room;
+
+
+/***/ }),
+/* 3 */
+/***/ (function(module, exports) {
+
+	/**
+	 * @license
+	 * Copyright 2017 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Mathematical constants and default values for submodules.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	// Math constants.
+	/** @type {Number} */
+	exports.TWO_PI = 6.28318530717959;
+	/** @type {Number} */
+	exports.TWENTY_FOUR_LOG10 = 55.2620422318571;
+	/** @type {Number} */
+	exports.LOG1000 = 6.90775527898214;
+	/** @type {Number} */
+	exports.LOG2_DIV2 = 0.346573590279973;
+	/** @type {Number} */
+	exports.DEGREES_TO_RADIANS = 0.017453292519943;
+	/** @type {Number} */
+	exports.RADIANS_TO_DEGREES = 57.295779513082323;
+	/** @type {Number} */
+	exports.EPSILON_FLOAT = 1e-6;
+	/** @type {Number} */
+	exports.DEFAULT_GAIN_LINEAR = 1;
+	/** @type {Float32Array} */
+	exports.DEFAULT_POSITION = [0, 0, 0];
+	/** @type {Float32Array} */
+	exports.DEFAULT_ORIENTATION = [0, 0, 0];
+	/** @type {Float32Array} */
+	exports.DEFAULT_FORWARD = [0, 0, 1];
+	/** @type {Float32Array} */
+	exports.DEFAULT_UP = [0, 1, 0];
+	/** @type {Float32Array} */
+	exports.DEFAULT_RIGHT = [1, 0, 0];
+	/** @type {Number} */
+	exports.DEFAULT_AMBISONIC_ORDER = 1;
+	/** @type {Number} */
+	exports.SPEED_OF_SOUND = 343;
+
+	// Reverb constants and defaults.
+	/** @type {Number} */
+	exports.NUMBER_REVERB_BANDS = 9;
+
+
 
 /***/ }),
 /* 4 */
@@ -8767,904 +820,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @file Distance attenuation filter.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	// Internal dependencies.
-	var Globals = __webpack_require__(6);
-	var Utils = __webpack_require__(4);
-
-	/**
-	 * @class Attenuation
-	 * @description Distance attenuation filter.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Object} options
-	 * @param {Number} options.minDistance Min. distance (in meters).
-	 * @param {Number} options.maxDistance Max. distance (in meters).
-	 * @param {string} options.rolloffModel
-	 * Rolloff model to use, chosen from options in
-	 * {@link Globals.RolloffModels Global.RolloffModels}.
-	 */
-	function Attenuation (context, options) {
-	  // Public variables.
-	  /**
-	   * Minimum distance from the listener (in meters).
-	   * @member {Number} minDistance
-	   * @memberof Attenuation
-	   */
-	  /**
-	   * Maximum distance from the listener (in meters).
-	   * @member {Number} maxDistance
-	   * @memberof Attenuation
-	   */
-	  /**
-	   * Input to .connect() input AudioNodes to.
-	   * @member {AudioNode} input
-	   * @memberof Attenuation
-	   */
-	  /**
-	   * Outuput to .connect() object from.
-	   * @member {AudioNode} output
-	   * @memberof Attenuation
-	   */
-
-	  // Use defaults for undefined arguments
-	  if (options == undefined) {
-	    options = new Object();
-	  }
-	  if (options.minDistance == undefined) {
-	    options.minDistance = Globals.DefaultMinDistance;
-	  }
-	  if (options.maxDistance == undefined) {
-	    options.maxDistance = Globals.DefaultMaxDistance;
-	  }
-	  if (options.rollofModel == undefined) {
-	    options.rolloffModel = Globals.DefaultRolloffModel;
-	  }
-
-	  // Assign values.
-	  this.minDistance = options.minDistance;
-	  this.maxDistance = options.maxDistance;
-	  this.setRolloffModel(options.rolloffModel);
-
-	  // Create node.
-	  this._gainNode = context.createGain();
-
-	  // Initialize distance to max distance.
-	  this.setDistance(options.maxDistance);
-
-	  // Input/Output proxy.
-	  this.input = this._gainNode;
-	  this.output = this._gainNode;
-	}
-
-	/**
-	 * Set distance from the listener.
-	 * @param {Number} distance Distance (in meters).
-	 */
-	Attenuation.prototype.setDistance = function(distance) {
-	  var gain = 1;
-	  if (this._rolloffModel == 'logarithmic') {
-	    if (distance > this.maxDistance) {
-	      gain = 0;
-	    } else if (distance > this.minDistance) {
-	      var range = this.maxDistance - this.minDistance;
-	      if (range > Globals.EpsilonFloat) {
-	        // Compute the distance attenuation value by the logarithmic curve
-	        // "1 / (d + 1)" with an offset of |minDistance|.
-	        var relativeDistance = distance - this.minDistance;
-	        var attenuation = 1 / (relativeDistance + 1);
-	        var attenuationMax = 1 / (range + 1);
-	        gain = (attenuation - attenuationMax) / (1 - attenuationMax);
-	      }
-	    }
-	  } else if (this._rolloffModel == 'linear') {
-	    if (distance > this.maxDistance) {
-	      gain = 0;
-	    } else if (distance > this.minDistance) {
-	      var range = this.maxDistance - this.minDistance;
-	      if (range > Globals.EpsilonFloat) {
-	        gain = (this.maxDistance - distance) / range;
-	      }
-	    }
-	  }
-	  this._gainNode.gain.value = gain;
-	}
-
-	/**
-	 * Set rolloff model.
-	 * @param {string} rolloffModel
-	 * Rolloff model to use, chosen from options in
-	 * {@link Globals.RolloffModels Global.RolloffModels}.
-	 */
-	Attenuation.prototype.setRolloffModel = function (rolloffModel) {
-	  rolloffModel = rolloffModel.toString().toLowerCase();
-	  var isValidModel = ~Globals.RolloffModels.indexOf(rolloffModel);
-	  if (rolloffModel == undefined || !isValidModel) {
-	    if (!isValidModel) {
-	      Utils.log('Invalid rolloff model (\"' + rolloffModel +
-	        '\"). Using default: \"' + Globals.DefaultRolloffModel + '\".');
-	    }
-	    rolloffModel = Globals.DefaultRolloffModel;
-	  }
-	  this._rolloffModel = rolloffModel;
-	}
-
-	module.exports = Attenuation;
-
-/***/ }),
-/* 6 */
-/***/ (function(module, exports) {
-
-	/**
-	 * @license
-	 * Copyright 2017 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
-	 * @file Mathematical constants and default values for submodules.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	/**
-	 * @class Globals
-	 * @description Mathematical constants and default values for submodules.
-	 */
-	var Globals = {};
-
-	// Math constants.
-	Globals.TwoPi = 6.28318530717959;
-	Globals.TwentyFourLog10 = 55.2620422318571;
-	Globals.TwentyFourLog10Div343 = 0.161113825748855;
-	Globals.Log1000 = 6.90775527898214;
-	Globals.Log2Div2 = 0.346573590279973;
-	Globals.PiByOneEighty = 0.017453292519943;
-	Globals.OneEightyByPi = 57.295779513082323;
-
-	// Numerical constants.
-	Globals.EpsilonFloat = 1e-6;
-
-	/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none'). */
-	Globals.RolloffModels = ['logarithmic', 'linear', 'none'];
-	/** Default rolloff model ('logarithmic'). */
-	Globals.DefaultRolloffModel = 'logarithmic';
-	Globals.DefaultMinDistance = 1;
-	Globals.DefaultMaxDistance = 1000;
-	Globals.DefaultGainLinear = 1;
-	Globals.DefaultPosition = [0, 0, 0];
-	Globals.DefaultVelocity = [0, 0, 0];
-	Globals.DefaultOrientation = [0, 0, 0];
-	Globals.DefaultForward = [0, 0, 1];
-	Globals.DefaultUp = [0, 1, 0];
-	Globals.DefaultRight = [1, 0, 0];
-
-	// Listener defaults.
-	Globals.DefaultAmbisonicOrder = 1;
-	Globals.DefaultSpeedOfSound = 343;
-
-	// Reverb constants and defaults.
-	/**
-	 * Center frequencies of the multiband reverberation engine.
-	 * Nine bands are computed by: 31.25 * 2^(0:8).
-	 * @member {Array}
-	 */
-	Globals.ReverbBands = [31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000];
-	/** The number of center frequencies supported.
-	 * @member {Number}
-	 */
-	Globals.NumReverbBands = Globals.ReverbBands.length;
-	/** The default bandwidth of the center frequencies. */
-	Globals.ReverbBandwidth = 1;
-	/** The default multiplier applied when computing tail lengths. */
-	Globals.ReverbDurationMultiplier = 1;
-	Globals.DefaultReverbPreDelayMs = 1.5;
-	Globals.DefaultReverbTailOnsetMs = 3.8;
-	Globals.DefaultReverbGain = 0.01;
-	Globals.DefaultReverbMaxDurationSecs = 3;
-
-	// Reflections constants and defaults.
-	Globals.ReflectionsMaxDuration = 1;
-	Globals.DefaultReflectionsCutoffFrequency = 6400; // -12dB cutoff.
-	Globals.DefaultReflectionsStartingBand = 4;
-	Globals.DefaultReflectionsNumAveragingBands = 3;
-
-	module.exports = Globals;
-
-
-/***/ }),
-/* 7 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	/**
-	 * @license
-	 * Copyright 2016 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
-	 * @file Listener model to spatialize sources in an environment.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	// Internal dependencies.
-	var Reflections = __webpack_require__(8);
-	var Reverb = __webpack_require__(10);
-	var Room = __webpack_require__(9);
-	var Globals = __webpack_require__(6);
-	var Utils = __webpack_require__(4);
-
-	/**
-	 * @class Listener
-	 * @description Listener model to spatialize sources in an environment.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Number} options.ambisonicOrder
-	 * Desired ambisonic order.
-	 * @param {Map} options.dimensions
-	 * Dimensions map which should conform to the layout of
-	 * {@link Room.DefaultDimensions Room.DefaultDimensions}
-	 * @param {Map} options.materials
-	 * Materials map which should conform to the layout of
-	 * {@link Room.DefaultMaterials Room.DefaultMaterials}
-	 * @param {Number} options.speedOfSound
-	 * (in meters / second).
-	 */
-	function Listener (context, options) {
-	  // Public variables.
-	  /**
-	   * Listener's speed of sound (in meters/second).
-	   * @member {Number} speedOfSound
-	   * @memberof Listener
-	   */
-	  /**
-	   * Input to .connect() input AudioNodes to.
-	   * @member {AudioNode} input
-	   * @memberof Reverb
-	   */
-	  /**
-	   * Outuput to .connect() object from.
-	   * @member {AudioNode} output
-	   * @memberof Listener
-	   */
-
-	  //TODO(bitllama): Add "outside-the-room" effect.
-
-	  // Assign defaults for undefined options.
-	  if (options == undefined) {
-	    options = new Object();
-	  }
-	  if (options.ambisonicOrder == undefined) {
-	    options.ambisonicOrder = Globals.DefaultAmbisonicOrder;
-	  }
-	  if (options.speedOfSound == undefined) {
-	    options.speedOfSound = Globals.DefaultSpeedOfSound;
-	  }
-	  this.speedOfSound = Globals.DefaultSpeedOfSound;
-
-	  // Stored in order to access when constructing sources.
-	  this._context = context;
-	  this._ambisonicOrder = options.ambisonicOrder;
-	  this._position = new Float32Array(3);
-	  this._velocity = new Float32Array(3);
-	  this._forward = new Float32Array(3);
-	  this._up = new Float32Array(3);
-	  this._right = new Float32Array(3);
-
-	  // Create nodes.
-	  this._reflections = new Reflections(context, options);
-	  this._reverb = new Reverb(context);
-	  this.output = context.createGain();
-
-	  // Connect nodes.
-	  this._reflections.output.connect(this.output);
-	  this._reverb.output.connect(this.output);
-
-	  // Assign initial conditions.
-	  this.setPosition(0, 0, 0);
-	  this.setVelocity(0, 0, 0);
-	  this.setOrientation(0, 0, 0);
-	  this.setRoomProperties(options.dimensions, options.materials);
-	}
-
-	/**
-	 * Set the listener's position (in meters).
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
-	 */
-	Listener.prototype.setPosition = function(x, y, z) {
-	  this._position = [x, y, z];
-	  this._reflections.speedOfSound = this.speedOfSound;
-	  this._reflections.setListenerPosition(x, y, z);
-	}
-
-	/**
-	 * Set the listener's velocity (in meters/second).
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
-	 */
-	Listener.prototype.setVelocity = function(x, y, z) {
-	  //TODO(bitllama): Doppler!
-	}
-
-	/**
-	 * Set the listener's orientation (in radians).
-	 * @param {Number} roll
-	 * @param {Number} pitch
-	 * @param {Number} yaw
-	 */
-	Listener.prototype.setOrientation = function(roll, pitch, yaw) {
-	  var q = Utils.toQuaternion(roll, pitch, yaw);
-	  this._forward = Utils.rotateVector(Globals.DefaultForward, q);
-	  this._up = Utils.rotateVector(Globals.DefaultUp, q);
-	  this._right = Utils.rotateVector(Globals.DefaultRight, q);
-	}
-
-	/**
-	 * Set the dimensions and material properties
-	 * for the room associated with the listener.
-	 * @param {Map} dimensions
-	 * Dimensions map which should conform to the layout of
-	 * {@link Room.DefaultDimensions Room.DefaultDimensions}
-	 * @param {Map} materials
-	 * Materials map which should conform to the layout of
-	 * {@link Room.DefaultMaterials Room.DefaultMaterials}
-	 */
-	Listener.prototype.setRoomProperties = function(dimensions, materials) {
-	  // Update reverb.
-	  var coefficients = Room.getCoefficientsFromMaterials(materials);
-	  var RT60Secs =
-	    Room.computeRT60Secs(dimensions, coefficients, this.speedOfSound);
-	  this._reverb.setRT60s(RT60Secs);
-
-	  // Update reflections.
-	  this._reflections.speedOfSound = this.speedOfSound;
-	  this._reflections.setRoomProperties(dimensions, coefficients);
-	}
-
-	module.exports = Listener;
-
-/***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	/**
-	 * @license
-	 * Copyright 2016 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
-	 * @file Ray-based room reflections model.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	// Internal dependencies.
-	var AmbisonicEncoder = __webpack_require__(2);
-	var Room = __webpack_require__(9);
-	var Globals = __webpack_require__(6);
-
-	/**
-	 * @class Reflections
-	 * @description Ray-based room reflections model.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Object} options
-	 * @param {Number} options.ambisonicOrder
-	 * Desired ambisonic order.
-	 * @param {Map} options.dimensions
-	 * Room dimensions (in meters).
-	 * @param {Map} options.coefficients
-	 * Multiband absorption coeffs per wall.
-	 * @param {Number} options.speedOfSound
-	 * (in meters / second) [optional].
-	 */
-	function Reflections (context, options) {
-	  // Public variables.
-	  /**
-	   * The room's speed of sound (in meters/second).
-	   * @member {Number} speedOfSound
-	   * @memberof Reflections
-	   */
-	  /**
-	   * Input to .connect() input AudioNodes to.
-	   * @member {AudioNode} input
-	   * @memberof Reflections
-	   */
-	  /**
-	   * Outuput to .connect() object from.
-	   * @member {AudioNode} output
-	   * @memberof Reflections
-	   */
-
-	  this._listenerPosition = new Float32Array(3);
-
-	  var wallAzimuthElevation = {
-	    'left' : [90, 0],
-	    'right' : [-90, 0],
-	    'front' : [0, 0],
-	    'back' : [180, 0],
-	    'ceiling' : [0, 90],
-	    'floor' : [0, -90]
-	  };
-
-	  // Assign defaults for undefined options.
-	  if (options == undefined) {
-	    options = {};
-	  }
-	  if (options.ambisonicOrder == undefined) {
-	    options.ambisonicOrder = Globals.DefaultAmbisonicOrder;
-	  }
-	  if (options.speedOfSound == undefined) {
-	    options.speedOfSound = Globals.DefaultSpeedOfSound;
-	  }
-	  this.speedOfSound = options.speedOfSound;
-
-	  // Create nodes.
-	  this.input = context.createGain();
-	  this.output = context.createGain();
-	  this._lowpass = context.createBiquadFilter();
-	  this._delays = new Array(Room.NumWalls);
-	  this._gains = new Array(Room.NumWalls);
-	  this._encoders = new Array(Room.NumWalls);
-
-	  // For each wall, we connect a series of [delay] -> [gain] -> [encoder].
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-	    this._delays[key] = context.createDelay(Globals.ReflectionsMaxDuration);
-	    this._gains[key] = context.createGain();
-	    this._encoders[key] = new AmbisonicEncoder(context, options.ambisonicOrder);
-	  }
-
-	  // Initialize lowpass filter.
-	  this._lowpass.type = 'lowpass';
-	  this._lowpass.frequency.value = Globals.DefaultReflectionsCutoffFrequency;
-	  this._lowpass.Q.value = 0;
-
-	  // Initialize encoder directions, set delay times and gains to 0.
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-	    this._encoders[key].setDirection(wallAzimuthElevation[key][0],
-	      wallAzimuthElevation[key][1]);
-	    this._delays[key].delayTime.value = 0;
-	    this._gains[key].gain.value = 0;
-	  }
-
-	  // Connect nodes.
-	  this.input.connect(this._lowpass);
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-	    this._lowpass.connect(this._delays[key]);
-	    this._delays[key].connect(this._gains[key]);
-	    this._gains[key].connect(this._encoders[key].input);
-	    this._encoders[key].output.connect(this.output);
-	  }
-
-	  // Initialize.
-	  this.setRoomProperties(options.dimensions, options.coefficients);
-	}
-
-	/**
-	 * Set the listener position within the shoebox model.
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
-	 */
-	Reflections.prototype.setListenerPosition = function(x, y, z) {
-	  //TODO(bitllama): Handle listeners exiting the room!
-
-	  // Assign listener position.
-	  this._listenerPosition = [x, y, z];
-
-	  // Determine distances to each wall.
-	  var distances = {
-	    'left' : this._halfDimensions['width'] + x,
-	    'right' : this._halfDimensions['width'] - x,
-	    'front' : this._halfDimensions['depth'] + z,
-	    'back' : this._halfDimensions['depth'] - z,
-	    'floor' : this._halfDimensions['height'] + y,
-	    'ceiling' : this._halfDimensions['height'] - y,
-	  };
-
-	  // Assign delay & attenuation values using distances.
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-
-	    // Compute and assign delay (in secs).
-	    var delayInSecs = distances[key] / this.speedOfSound;
-	    this._delays[key].delayTime.value = delayInSecs;
-
-	    // Compute and assign gain, uses logarithmic rolloff: "g = R / (d + 1)"
-	    var attenuation = this._reflectionCoefficients[key] / (distances[key] + 1);
-	    this._gains[key].gain.value = attenuation;
-	  }
-	}
-
-	/**
-	 * Set the room's properties which determines the characteristics of reflections.
-	 * @param {Map} dimensions
-	 * Dimensions map which should conform to the layout of
-	 * {@link Room.DefaultDimensions Room.DefaultDimensions}
-	 * @param {Map} coefficients
-	 * Absorption coefficients map which should contain the keys
-	 * {@link Room.WallTypes Room.WallTypes}, which each key containing nine (9)
-	 * values coninciding with desired coefficients for each
-	 * {@link Globals.ReverbBands frequency band}.
-	 *
-	 */
-	Reflections.prototype.setRoomProperties = function(dimensions, coefficients) {
-	  // Compute reflection coefficients.
-	  this._reflectionCoefficients =
-	    Room.computeReflectionCoefficients(coefficients);
-
-	  // Sanitize dimensions and store half-dimensions.
-	  dimensions = Room.sanitizeDimensions(dimensions);
-	  this._halfDimensions = {};
-	  this._halfDimensions['width'] = dimensions['width'] * 0.5;
-	  this._halfDimensions['height'] = dimensions['height'] * 0.5;
-	  this._halfDimensions['depth'] = dimensions['depth'] * 0.5;
-
-	  // Update listener position with new room properties.
-	  this.setListenerPosition(this._listenerPosition[0],
-	    this._listenerPosition[1], this._listenerPosition[2]);
-	}
-
-	module.exports = Reflections;
-
-/***/ }),
-/* 9 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	/**
-	 * @license
-	 * Copyright 2017 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
-	 * @file Pre-defined wall materials and mathematical constants.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	// Internal dependencies.
-	var Globals = __webpack_require__(6);
-	var Utils = __webpack_require__(4);
-
-	/**
-	 * @class Room
-	 */
-	var Room = {};
-
-	// Reverb/reflections constants.
-	Room.MinVolume = 1e-4;
-	Room.AirAbsorbtionCoefficients =
-	  [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
-	Room.EyringCorrection = 1.38;
-
-	/** Wall types are 'left', 'right', 'front', 'back', 'ceiling', and 'floor'. */
-	Room.WallTypes = ['left', 'right', 'front', 'back', 'ceiling', 'floor'];
-	Room.NumWalls = Room.WallTypes.length;
-
-	Room.DimensionTypes = ['width', 'height', 'depth'];
-	Room.NumDimensions = Room.DimensionTypes.length;
-
-	/**
-	 * Default dimensions use scalars assigned to
-	 * keys 'width', 'height', and 'depth'.
-	 * @type {Map}
-	 */
-	Room.DefaultDimensions = {'width' : 0, 'height' : 0, 'depth' : 0};
-	/**
-	 * Default materials use strings from
-	 * {@link Room.MaterialCoefficients Room.MaterialCoefficients}
-	 * assigned to keys 'left', 'right', 'front', 'back', 'floor', and 'ceiling'.
-	 * @type {Map}
-	 */
-	Room.DefaultMaterials = { 'left' : 'Transparent', 'right' : 'Transparent',
-	  'front' : 'Transparent', 'back' : 'Transparent', 'floor' : 'Transparent',
-	  'ceiling' : 'Transparent'}
-
-	/**
-	 * Pre-defined frequency-dependent absorption coefficients for listed materials.
-	 * Currently supported materials are:
-	 * 'Transparent',
-	 * 'AcousticCeilingTiles',
-	 * 'BrickBare',
-	 * 'BrickPainted',
-	 * 'ConcreteBlockCoarse',
-	 * 'ConcreteBlockPainted',
-	 * 'CurtainHeavy',
-	 * 'FiberGlassInsulation',
-	 * 'GlassThin',
-	 * 'GlassThick',
-	 * 'Grass',
-	 * 'LinoleumOnConcrete',
-	 * 'Marble',
-	 * 'Metal',
-	 * 'ParquetOnConcrete',
-	 * 'PlasterSmooth',
-	 * 'PlywoodPanel',
-	 * 'PolishedConcreteOrTile',
-	 * 'Sheetrock',
-	 * 'WaterOrIceSurface',
-	 * 'WoodCeiling',
-	 * 'WoodPanel',
-	 * 'Uniform'
-	 * @type {Map}
-	 */
-	Room.MaterialCoefficients = {
-	  'Transparent' :
-	  [1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000],
-	  'AcousticCeilingTiles' :
-	  [0.672, 0.675, 0.700, 0.660, 0.720, 0.920, 0.880, 0.750, 1.000],
-	  'BrickBare' :
-	  [0.030, 0.030, 0.030, 0.030, 0.030, 0.040, 0.050, 0.070, 0.140],
-	  'BrickPainted' :
-	  [0.006, 0.007, 0.010, 0.010, 0.020, 0.020, 0.020, 0.030, 0.060],
-	  'ConcreteBlockCoarse' :
-	  [0.360, 0.360, 0.360, 0.440, 0.310, 0.290, 0.390, 0.250, 0.500],
-	  'ConcreteBlockPainted' :
-	  [0.092, 0.090, 0.100, 0.050, 0.060, 0.070, 0.090, 0.080, 0.160],
-	  'CurtainHeavy' :
-	  [0.073, 0.106, 0.140, 0.350, 0.550, 0.720, 0.700, 0.650, 1.000],
-	  'FiberGlassInsulation' :
-	  [0.193, 0.220, 0.220, 0.820, 0.990, 0.990, 0.990, 0.990, 1.000],
-	  'GlassThin' :
-	  [0.180, 0.169, 0.180, 0.060, 0.040, 0.030, 0.020, 0.020, 0.040],
-	  'GlassThick' :
-	  [0.350, 0.350, 0.350, 0.250, 0.180, 0.120, 0.070, 0.040, 0.080],
-	  'Grass' :
-	  [0.050, 0.050, 0.150, 0.250, 0.400, 0.550, 0.600, 0.600, 0.600],
-	  'LinoleumOnConcrete' :
-	  [0.020, 0.020, 0.020, 0.030, 0.030, 0.030, 0.030, 0.020, 0.040],
-	  'Marble' :
-	  [0.010, 0.010, 0.010, 0.010, 0.010, 0.010, 0.020, 0.020, 0.0400],
-	  'Metal' :
-	  [0.030, 0.035, 0.040, 0.040, 0.050, 0.050, 0.050, 0.070, 0.090],
-	  'ParquetOnConcrete' :
-	  [0.028, 0.030, 0.040, 0.040, 0.070, 0.060, 0.060, 0.070, 0.140],
-	  'PlasterRough' :
-	  [0.017, 0.018, 0.020, 0.030, 0.040, 0.050, 0.040, 0.030, 0.060],
-	  'PlasterSmooth' :
-	  [0.011, 0.012, 0.013, 0.015, 0.020, 0.030, 0.040, 0.050, 0.100],
-	  'PlywoodPanel' :
-	  [0.400, 0.340, 0.280, 0.220, 0.170, 0.090, 0.100, 0.110, 0.220],
-	  'PolishedConcreteOrTile' :
-	  [0.008, 0.008, 0.010, 0.010, 0.015, 0.020, 0.020, 0.020, 0.040],
-	  'Sheetrock' :
-	  [0.290, 0.279, 0.290, 0.100, 0.050, 0.040, 0.070, 0.090, 0.180],
-	  'WaterOrIceSurface' :
-	  [0.006, 0.006, 0.008, 0.008, 0.013, 0.015, 0.020, 0.025, 0.050],
-	  'WoodCeiling' :
-	  [0.150, 0.147, 0.150, 0.110, 0.100, 0.070, 0.060, 0.070, 0.140],
-	  'WoodPanel' :
-	  [0.280, 0.280, 0.280, 0.220, 0.170, 0.090, 0.100, 0.110, 0.220],
-	  'Uniform' :
-	  [0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500]
-	}
-
-	Room.getCoefficientsFromMaterials = function(materials) {
-	  // Initialize coefficients to use default coefficients.
-	  var coefficients = {};
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-	    var defaultMaterialForWall = Room.DefaultMaterials[key];
-	    coefficients[key] = Room.MaterialCoefficients[defaultMaterialForWall];
-	  }
-
-	  // Sanitize materials.
-	  if (materials == undefined) {
-	    materials = Room.DefaultMaterials;
-	  }
-
-	  // Default to using 'Walls' for all walls if present (not ceiling/floor).
-	  if ('walls' in materials) {
-	    for (var i = 0; i < Room.NumWalls; i++) {
-	      var key = Room.WallTypes[i];
-	      if (key !== 'ceiling' && key !== 'floor') {
-	        materials[key] = materials['walls'];
-	      }
-	    }
-	  }
-
-	  // Assign coefficients using provided materials.
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-	    if (key in materials) {
-	      var defaultMaterialForWall = Room.DefaultMaterials[key];
-	      if (materials[key] in Room.MaterialCoefficients) {
-	        coefficients[key] = Room.MaterialCoefficients[materials[key]];
-	      } else {
-	        Utils.log('Material \"' + materials[key] + '\" on Wall \"' + key +
-	          '\" not found. Using \"' + defaultMaterialForWall + '\".');
-	      }
-	    } else {
-	      Utils.log('Wall \"' + key + '\" is not defined and will be ignored.');
-	    }
-	  }
-	  return coefficients;
-	}
-
-	Room.sanitizeCoefficients = function(coefficients) {
-	  if (coefficients == undefined) {
-	    coefficients = {};
-	  }
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-	    if (!(key in coefficients)) {
-	      // If element is not present, use default coefficients.
-	      var defaultMaterialForWall = Room.DefaultMaterials[key];
-	      coefficients[key] = Room.MaterialCoefficients[defaultMaterialForWall];
-	    }
-	  }
-	  return coefficients;
-	}
-
-	Room.sanitizeDimensions = function(dimensions) {
-	  if (dimensions == undefined) {
-	    dimensions = {};
-	  }
-	  for (var i = 0; i < Room.NumDimensions; i++) {
-	    var key = Room.DimensionTypes[i];
-	    if (!(key in dimensions)) {
-	      dimensions[key] = Room.DefaultDimensions[key];
-	    }
-	  }
-	  return dimensions;
-	}
-
-	Room.computeReflectionCoefficients = function(coefficients) {
-	  var reflectionCoefficients = {'left' : 0, 'right' : 0, 'front' : 0,
-	    'back' : 0, 'floor' : 0, 'ceiling' : 0};
-
-	  // Sanitize inputs.
-	  coefficients = Room.sanitizeCoefficients(coefficients);
-
-	  // Compute average reflection coefficient per wall.
-	  for (var i = 0; i < Room.NumWalls; i++) {
-	    var key = Room.WallTypes[i];
-	    for (var j = 0; j < Globals.DefaultReflectionsNumAveragingBands; j++) {
-	      var bandIndex = j + Globals.DefaultReflectionsStartingBand;
-	      reflectionCoefficients[key] += coefficients[key][bandIndex];
-	    }
-	    reflectionCoefficients[key] /= Globals.DefaultReflectionsNumAveragingBands;
-	    reflectionCoefficients[key] = Math.sqrt(1 - reflectionCoefficients[key]);
-	  }
-	  return reflectionCoefficients;
-	}
-
-	Room.computeRT60Secs = function(dimensions, coefficients, speedOfSound) {
-	  var RT60Secs = new Float32Array(Globals.NumReverbBands);
-
-	  // Sanitize inputs.
-	  dimensions = Room.sanitizeDimensions(dimensions);
-	  coefficients = Room.sanitizeCoefficients(coefficients);
-	  if (speedOfSound == undefined) {
-	    speedOfSound = Globals.DefaultSpeedOfSound;
-	  }
-
-	  // Acoustic constant.
-	  var k = Globals.TwentyFourLog10 / speedOfSound;
-
-	  // Compute volume, skip if room is not present.
-	  var volume = dimensions['width'] * dimensions['height'] * dimensions['depth'];
-	  if (volume < Room.MinVolume) {
-	    return RT60Secs;
-	  }
-
-	  // Room surface area.
-	  var leftRightArea = dimensions['width'] * dimensions['height'];
-	  var floorCeilingArea = dimensions['width'] * dimensions['depth'];
-	  var frontBackArea = dimensions['depth'] * dimensions['height'];
-	  var totalArea = 2 * (leftRightArea + floorCeilingArea + frontBackArea);
-	  for (var i = 0; i < Globals.NumReverbBands; i++) {
-	    // Effective absorptive area.
-	    var absorbtionArea =
-	      (coefficients['left'][i] + coefficients['right'][i]) *
-	      leftRightArea +
-	      (coefficients['floor'][i] + coefficients['ceiling'][i]) *
-	      floorCeilingArea +
-	      (coefficients['front'][i] + coefficients['back'][i]) *
-	      frontBackArea;
-	    var meanAbsorbtionArea = absorbtionArea / totalArea;
-
-	    // Compute reverberation using one of two algorithms, depending on area.
-	    //TODO(bitllama): Point to references for these equations.
-	    if (meanAbsorbtionArea <= 0.5) {
-	      // Sabine equation.
-	      RT60Secs[i] = k * volume / (absorbtionArea + 4 *
-	        Room.AirAbsorbtionCoefficients[i] * volume);
-	    } else {
-	      // Eyring equation.
-	      RT60Secs[i] = Room.EyringCorrection * k * volume / (-totalArea *
-	        Math.log(1 - meanAbsorbtionArea) + 4 *
-	        Room.AirAbsorbtionCoefficients[i] * volume);
-	    }
-	  }
-	  return RT60Secs;
-	}
-
-	module.exports = Room;
-
-
-/***/ }),
-/* 10 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	/**
-	 * @license
-	 * Copyright 2016 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
 	 * @file Late reverberation filter for Ambisonic content.
 	 * @author Andrew Allen <bitllama@google.com>
 	 */
@@ -9672,33 +827,45 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 
 	// Internal dependencies.
-	var Globals = __webpack_require__(6);
+	var Global = __webpack_require__(3);
 	var Utils = __webpack_require__(4);
 
 	/**
-	 * @class Reverb
-	 * @description Late reverberation filter for Ambisonic content.
+	 * @class LateReflections
+	 * @description Late-reflections reverberation filter for Ambisonic content.
 	 * @param {AudioContext} context
 	 * Associated {@link
 	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
 	 * @param {Object} options
-	 * @param {Array} options.RT60DurationSecs
-	 * Multiband RT60 durations (in secs) for each
-	 * {@link Globals.ReverbBands frequency band}.
-	 * @param {Number} options.preDelayMs Pre-delay (in ms).
-	 * @param {Number} options.gain Output gain (linear).
+	 * @param {Array} options.durations
+	 * Multiband RT60 durations (in seconds) for each frequency band, listed as
+	 * {@link REVERB_BANDS REVERB_BANDS}. Defaults to
+	 * {@link LateReflections.DEFAULT_DURATIONS DEFAULT_DURATIONS}.
+	 * @param {Number} options.predelay Pre-delay (in milliseconds). Defaults to
+	 * {@link LateReflections.PREDELAY_MS PREDELAY_MS}.
+	 * @param {Number} options.gain Output gain (linear). Defaults to
+	 * {@link LateReflections.DEFAULT_GAIN DEFAULT_GAIN}.
+	 * @param {Number} options.bandwidth Bandwidth (in octaves) for each frequency
+	 * band. Defaults to {@link LateReflections.BANDWIDTH BANDWIDTH}.
+	 * @param {Number} options.tailonset Length (in milliseconds) of impulse
+	 * response to apply a half-Hann window. Defaults to
+	 * {@link LateReflections.TAIL_ONSET_MS TAIL_ONSET_MS}.
 	 */
-	function Reverb (context, options) {
+	function LateReflections (context, options) {
 	  // Public variables.
 	  /**
-	   * Input to .connect() input AudioNodes to.
+	   * Input {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
 	   * @member {AudioNode} input
-	   * @memberof Reverb
+	   * @memberof LateReflections
+	   * @instance
 	   */
 	  /**
-	   * Outuput to .connect() object from.
+	   * Output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
 	   * @member {AudioNode} output
-	   * @memberof Reverb
+	   * @memberof LateReflections
+	   * @instance
 	   */
 
 	  this._context = context;
@@ -9707,25 +874,30 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (options == undefined) {
 	    options = {};
 	  }
-	  if (options.RT60DurationSecs == undefined) {
-	    options.RT60DurationSecs = new Float32Array(Globals.NumReverbBands);
+	  if (options.durations == undefined) {
+	    options.durations = LateReflections.DEFAULT_DURATIONS;
 	  }
-	  if (options.preDelayMs == undefined) {
-	    options.preDelayMs = Globals.DefaultReverbPreDelayMs;
+	  if (options.predelay == undefined) {
+	    options.predelay = LateReflections.PREDELAY_MS;
 	  }
 	  if (options.gain == undefined) {
-	    options.gain = Globals.DefaultReverbGain;
+	    options.gain = LateReflections.DEFAULT_GAIN;
+	  }
+	  if (options.bandwidth == undefined) {
+	    options.bandwidth = LateReflections.BANDWIDTH;
+	  }
+	  if (options.tailonset == undefined) {
+	    options.tailonset = LateReflections.TAIL_ONSET_MS;
 	  }
 
-	  // Used for updating RT60s during runtime.
-	  this._enabled = false;
-
-	  // Compute pre-delay.
-	  var delayInSecs = options.preDelayMs / 1000;
+	  // Assign pre-computed variables.
+	  var delaySecs = options.predelay / 1000;
+	  this._bandwidthCoeff = options.bandwidth * Global.LOG2_DIV2;
+	  this._tailonsetSamples = options.tailonset / 1000;
 
 	  // Create nodes.
 	  this.input = context.createGain();
-	  this._predelay = context.createDelay(delayInSecs);
+	  this._predelay = context.createDelay(delaySecs);
 	  this._convolver = context.createConvolver();
 	  this.output = context.createGain();
 
@@ -9741,69 +913,70 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._convolver.connect(this.output);
 
 	  // Compute IR using RT60 values.
-	  this.setRT60s(options.RT60DurationSecs);
+	  this.setDurations(options.durations);
 	}
 
 	/**
 	 * Re-compute a new impulse response by providing Multiband RT60 durations.
-	 * @param {Array} RT60DurationSecs
-	 * Multiband RT60 durations (in secs) for each
-	 * {@link Globals.ReverbBands frequency band}.
+	 * @param {Array} durations
+	 * Multiband RT60 durations (in seconds) for each frequency band, listed as
+	 * {@link REVERB_BANDS REVERB_BANDS}.
 	 */
-	Reverb.prototype.setRT60s = function (RT60DurationSecs) {
-	  if (RT60DurationSecs.length !== Globals.NumReverbBands) {
+	LateReflections.prototype.setDurations = function (durations) {
+	  if (durations.length !== Global.NUMBER_REVERB_BANDS) {
 	    Utils.log("Warning: invalid number of RT60 values provided to reverb.");
 	    return;
 	  }
 
 	  // Compute impulse response.
-	  var RT60Samples = new Float32Array(Globals.NumReverbBands);
+	  var durationsSamples = new Float32Array(Global.NUMBER_REVERB_BANDS);
 	  var sampleRate = this._context.sampleRate;
 
-	  for (var i = 0; i < Math.min(RT60DurationSecs.length, RT60Samples.length); i++) {
+	  for (var i = 0; i < durations.length; i++) {
 	    // Clamp within suitable range.
-	    RT60DurationSecs[i] = Math.max(0, Math.min(
-	      Globals.DefaultReverbMaxDurationSecs, RT60DurationSecs[i]));
+	    durations[i] =
+	      Math.max(0, Math.min(LateReflections.MAX_DURATION, durations[i]));
 
-	      // Convert seconds to samples.
-	    RT60Samples[i] =
-	      Math.round(RT60DurationSecs[i] * sampleRate * Globals.ReverbDurationMultiplier);
+	    // Convert seconds to samples.
+	    durationsSamples[i] = Math.round(durations[i] * sampleRate *
+	      LateReflections.DURATION_MULTIPLIER);
 	  };
 
 	  // Determine max RT60 length in samples.
-	  var RT60MaxLengthSamples = 0;
-	  for (var i = 0; i < RT60Samples.length; i++) {
-	    if (RT60Samples[i] > RT60MaxLengthSamples) {
-	      RT60MaxLengthSamples = RT60Samples[i];
+	  var durationsSamplesMax = 0;
+	  for (var i = 0; i < durationsSamples.length; i++) {
+	    if (durationsSamples[i] > durationsSamplesMax) {
+	      durationsSamplesMax = durationsSamples[i];
 	    }
 	  }
 
 	  // Skip this step if there is no reverberation to compute.
-	  if (RT60MaxLengthSamples < 1) {
-	    RT60MaxLengthSamples = 1;
+	  if (durationsSamplesMax < 1) {
+	    durationsSamplesMax = 1;
 	  }
 
-	  var buffer = this._context.createBuffer(1, RT60MaxLengthSamples, sampleRate);
+	  // Create impulse response buffer.
+	  var buffer = this._context.createBuffer(1, durationsSamplesMax, sampleRate);
 	  var bufferData = buffer.getChannelData(0);
 
 	  // Create noise signal (computed once, referenced in each band's routine).
-	  var noiseSignal = new Float32Array(RT60MaxLengthSamples);
-	  for (var i = 0; i < RT60MaxLengthSamples; i++) {
+	  var noiseSignal = new Float32Array(durationsSamplesMax);
+	  for (var i = 0; i < durationsSamplesMax; i++) {
 	    noiseSignal[i] = Math.random() * 2 - 1;
 	  }
 
 	  // Compute the decay rate per-band and filter the decaying noise signal.
-	  for (var i = 0; i < Globals.NumReverbBands; i++) {
+	  for (var i = 0; i < Global.NUMBER_REVERB_BANDS; i++) {
 	  //for (var i = 0; i < 1; i++) {
 	    // Compute decay rate.
-	    var decayRate = -Globals.Log1000 / RT60Samples[i];
+	    //TODO(bitllama): Remove global usage.
+	    var decayRate = -Global.LOG1000 / durationsSamples[i];
 
-	    // Construct a standard bandpass filter:
+	    // Construct a standard one-zero, two-pole bandpass filter:
 	    // H(z) = (b0 * z^0 + b1 * z^-1 + b2 * z^-2) / (1 + a1 * z^-1 + a2 * z^-2)
-	    var omega = Globals.TwoPi * Globals.ReverbBands[i] / sampleRate;
+	    var omega = Global.TWO_PI * LateReflections.REVERB_BANDS[i] / sampleRate;
 	    var sinOmega = Math.sin(omega);
-	    var alpha = sinOmega * Math.sinh(Globals.Log2Div2 *
-	      Globals.ReverbBandwidth * omega / sinOmega);
+	    var alpha = sinOmega * Math.sinh(this._bandwidthCoeff * omega / sinOmega);
 	    var a0CoeffReciprocal = 1 / (1 + alpha);
 	    var b0Coeff = alpha * a0CoeffReciprocal;
 	    var a1Coeff = -2 * Math.cos(omega) * a0CoeffReciprocal;
@@ -9815,7 +988,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    //   y[n] = b0 * (u[n] - u[n-2])
 	    var um1 = 0;
 	    var um2 = 0;
-	    for (var j = 0; j < RT60Samples[i]; j++) {
+	    for (var j = 0; j < durationsSamples[i]; j++) {
 	      // Exponentially-decaying white noise.
 	      var x = noiseSignal[j] * Math.exp(decayRate * j);
 
@@ -9829,21 +1002,286 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	  }
 
-	  // Create and apply half-Hann window.
+	  // Create and apply half of a Hann window to the beginning of the IR.
 	  var halfHannLength =
-	    Math.round(Globals.DefaultReverbTailOnsetMs / 1000 * sampleRate);
+	    Math.round(this._tailonsetSamples);
 	  for (var i = 0; i < Math.min(bufferData.length, halfHannLength); i++) {
 	    var halfHann =
-	      0.5 * (1 - Math.cos(Globals.TwoPi * i / (2 * halfHannLength - 1)));
-	    bufferData[i] *= halfHann;
+	      0.5 * (1 - Math.cos(Global.TWO_PI * i / (2 * halfHannLength - 1)));
+	      bufferData[i] *= halfHann;
 	  }
 	  this._convolver.buffer = buffer;
 	}
 
-	module.exports = Reverb;
+	/** The default bandwidth (in octaves) of the center frequencies.
+	 * @type {Number}
+	 */
+	LateReflections.BANDWIDTH = 1;
+	/** The default multiplier applied when computing tail lengths.
+	 * @type {Number}
+	 */
+	LateReflections.DURATION_MULTIPLIER = 1;
+	/** @type {Number} */
+	LateReflections.PREDELAY_MS = 1.5;
+	/** @type {Number} */
+	LateReflections.TAIL_ONSET_MS = 3.8;
+	/** @type {Number} */
+	LateReflections.DEFAULT_GAIN = 0.01;
+	/** @type {Number} */
+	LateReflections.MAX_DURATION = 3;
+	/**
+	 * Center frequencies of the multiband reverberation engine.
+	 * Nine bands are computed by: 31.25 * 2^(0:8).
+	 * @type {Array}
+	 */
+	LateReflections.REVERB_BANDS = [
+	  31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000
+	];
+	/** @type {Float32Array} */
+	LateReflections.DEFAULT_DURATIONS =
+	  new Float32Array(LateReflections.REVERB_BANDS.length);
+
+	module.exports = LateReflections;
 
 /***/ }),
-/* 11 */
+/* 6 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	/**
+	 * @license
+	 * Copyright 2016 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Ray-tracing-based early reflections model.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	// Internal dependencies.
+	var Global = __webpack_require__(3);
+
+	/**
+	 * @class EarlyReflections
+	 * @description Ray-tracing-based early reflections model.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @param {Object} options
+	 * @param {Object} options.dimensions
+	 * Room dimensions (in meters). Defaults to
+	 * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} options.coefficients
+	 * Multiband reflection coefficients per wall. Defaults to
+	 * {@link EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS
+	 * DEFAULT_REFLECTION_COEFFICIENTS}.
+	 * @param {Number} options.speedOfSound
+	 * (in meters / second). Defaults to {@link SPEED_OF_SOUND SPEED_OF_SOUND}.
+	 * @param {Float32Array} options.listenerPosition
+	 * (in meters). Defaults to
+	 * {@link DEFAULT_POSITION DEFAULT_POSITION}.
+	 */
+	function EarlyReflections (context, options) {
+	  // Public variables.
+	  /**
+	   * The room's speed of sound (in meters/second).
+	   * @member {Number} speedOfSound
+	   * @memberof EarlyReflections
+	   * @instance
+	   */
+	  /**
+	   * Input {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} input
+	   * @memberof EarlyReflections
+	   * @instance
+	   */
+	  /**
+	   * Output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} output
+	   * @memberof EarlyReflections
+	   * @instance
+	   */
+
+	  // Assign defaults for undefined options.
+	  if (options == undefined) {
+	    options = {};
+	  }
+	  if (options.speedOfSound == undefined) {
+	    options.speedOfSound = Global.SPEED_OF_SOUND;
+	  }
+	  if (options.listenerPosition == undefined) {
+	    options.listenerPosition = Global.DEFAULT_POSITION;
+	  }
+	  if (options.coefficients == undefined) {
+	    options.coefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+	  }
+
+	  this.speedOfSound = options.speedOfSound;
+
+	  // Create nodes.
+	  this.input = context.createGain();
+	  this.output = context.createGain();
+	  this._lowpass = context.createBiquadFilter();
+	  this._delays = {};
+	  this._gains = {}; // ReflectionCoeff / Attenuation
+	  this._inverters = {};
+	  this._merger = context.createChannelMerger(4); // First-order encoding only.
+
+	  // Connect audio graph for each wall reflection.
+	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+	    this._delays[property] = context.createDelay(EarlyReflections.MAX_DURATION);
+	    this._gains[property] = context.createGain();
+	  }
+	  this._inverters.right = context.createGain();
+	  this._inverters.down = context.createGain();
+	  this._inverters.back = context.createGain();
+
+	  // Initialize lowpass filter.
+	  this._lowpass.type = 'lowpass';
+	  this._lowpass.frequency.value = EarlyReflections.CUTOFF_FREQUENCY;
+	  this._lowpass.Q.value = 0;
+
+	  // Initialize encoder directions, set delay times and gains to 0.
+	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+	    this._delays[property].delayTime.value = 0;
+	    this._gains[property].gain.value = 0;
+	  }
+
+	  // Initialize inverters for opposite walls ('right', 'down', 'back' only).
+	  this._inverters.right.gain.value = -1;
+	  this._inverters.down.gain.value = -1;
+	  this._inverters.back.gain.value = -1;
+
+	  // Connect nodes.
+	  this.input.connect(this._lowpass);
+	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+	    this._lowpass.connect(this._delays[property]);
+	    this._delays[property].connect(this._gains[property]);
+	    this._gains[property].connect(this._merger, 0, 0);
+	  }
+
+	  // Connect gains to ambisonic channel output.
+	  this._gains.left.connect(this._merger, 0, 1);     // Left: [1 1 0 0]
+
+	  this._gains.right.connect(this._inverters.right); // Right: [1 -1 0 0]
+	  this._inverters.right.connect(this._merger, 0, 1);
+
+	  this._gains.up.connect(this._merger, 0, 2);       // Up: [1 0 1 0]
+
+	  this._gains.down.connect(this._inverters.down);   // Down: [1 0 -1 0]
+	  this._inverters.down.connect(this._merger, 0, 2);
+
+	  this._gains.front.connect(this._merger, 0, 3);    // Front: [1 0 0 1]
+
+	  this._gains.back.connect(this._inverters.back);   // Back: [1 0 0 -1]
+	  this._inverters.back.connect(this._merger, 0, 3);
+	  this._merger.connect(this.output);
+
+	  // Initialize.
+	  this._listenerPosition = options.listenerPosition;
+	  this.setRoomProperties(options.dimensions, options.coefficients);
+	}
+
+	/**
+	 * Set the listener's position (in meters),
+	 * where [0,0,0] is the center of the room.
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 */
+	EarlyReflections.prototype.setListenerPosition = function (x, y, z) {
+	  // Assign listener position.
+	  this._listenerPosition = [x, y, z];
+
+	  // Determine distances to each wall.
+	  var distances = {
+	    left : this._halfDimensions.width + x + EarlyReflections.MIN_DISTANCE,
+	    right : this._halfDimensions.width - x + EarlyReflections.MIN_DISTANCE,
+	    front : this._halfDimensions.depth + z + EarlyReflections.MIN_DISTANCE,
+	    back : this._halfDimensions.depth - z + EarlyReflections.MIN_DISTANCE,
+	    down : this._halfDimensions.height + y + EarlyReflections.MIN_DISTANCE,
+	    up : this._halfDimensions.height - y + EarlyReflections.MIN_DISTANCE,
+	  };
+
+	  // Assign delay & attenuation values using distances.
+	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+	    // Compute and assign delay (in seconds).
+	    var delayInSecs = distances[property] / this.speedOfSound;
+	    this._delays[property].delayTime.value = delayInSecs;
+
+	    // Compute and assign gain, uses logarithmic rolloff: "g = R / (d + 1)"
+	    var attenuation = this._coefficients[property] / distances[property];
+	    this._gains[property].gain.value = attenuation;
+	  }
+	}
+
+	/**
+	 * Set the room's properties which determines the characteristics of reflections.
+	 * @param {Object} dimensions
+	 * Room dimensions (in meters). Defaults to
+	 * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} coefficients
+	 * Multiband reflection coeffs per wall. Defaults to
+	 * {@link EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS
+	 * DEFAULT_REFLECTION_COEFFICIENTS}.
+	 */
+	EarlyReflections.prototype.setRoomProperties = function (dimensions,
+	                                                         coefficients) {
+	  if (dimensions == undefined) {
+	    dimensions = EarlyReflections.DEFAULT_DIMENSIONS;
+	  }
+	  if (coefficients == undefined) {
+	    coefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+	  }
+	  this._coefficients = coefficients;
+
+	  // Sanitize dimensions and store half-dimensions.
+	  this._halfDimensions = {};
+	  this._halfDimensions.width = dimensions.width * 0.5;
+	  this._halfDimensions.height = dimensions.height * 0.5;
+	  this._halfDimensions.depth = dimensions.depth * 0.5;
+
+	  // Update listener position with new room properties.
+	  this.setListenerPosition(this._listenerPosition[0],
+	    this._listenerPosition[1], this._listenerPosition[2]);
+	}
+
+	/** @type {Number} */
+	EarlyReflections.MAX_DURATION = 0.5;
+	/** @type {Number} */
+	EarlyReflections.CUTOFF_FREQUENCY = 6400; // Uses -12dB cutoff.
+	/** @type {Object} */
+	EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS = {
+	  left : 0, right : 0, front : 0, back : 0, down : 0, up : 0
+	};
+	/** @type {Number} */
+	EarlyReflections.MIN_DISTANCE = 1;
+	/**
+	 * Default dimensions (in meters).
+	 * @type {Object}
+	 */
+	EarlyReflections.DEFAULT_DIMENSIONS = {
+	  width : 0, height : 0, depth : 0
+	};
+
+	module.exports = EarlyReflections;
+
+/***/ }),
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	/**
@@ -9870,9 +1308,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 
 	// Internal dependencies.
-	var Attenuation = __webpack_require__(5);
-	var AmbisonicEncoder = __webpack_require__(2);
-	var Globals = __webpack_require__(6);
+	var Attenuation = __webpack_require__(8);
+	var Encoder = __webpack_require__(9);
+	var Global = __webpack_require__(3);
 	var Utils = __webpack_require__(4);
 
 	/**
@@ -9883,9 +1321,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} options.minDistance Min. distance (in meters).
 	 * @param {Number} options.maxDistance Max. distance (in meters).
 	 * @param {Number} options.gain Gain (linear).
-	 * @param {Float32Array} options.position Position [x,y,z] (in meters).
-	 * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
-	 * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
+	 * @param {Float32Array} options.position
+	 * Position [x,y,z] (in meters).
+	 * @param {Float32Array} options.orientation
+	 * Orientation [roll, pitch, yaw] (in radians).
+	 * @param {string} options.rolloff
 	 */
 	function Source (listener, options) {
 	  // Public variables.
@@ -9900,49 +1340,57 @@ return /******/ (function(modules) { // webpackBootstrap
 	    options = new Object();
 	  }
 	  if (options.gain == undefined) {
-	    options.gain = Globals.DefaultGainLinear;
+	    options.gain = Global.DEFAULT_GAIN_LINEAR;
 	  }
 	  if (options.position == undefined) {
-	    options.position = Globals.DefaultPosition;
-	  }
-	  if (options.velocity == undefined) {
-	    options.velocity = Globals.DefaultVelocity;
+	    options.position = Global.DEFAULT_POSITION;
 	  }
 	  if (options.orientation == undefined) {
-	    options.orientation = Globals.DefaultOrientation;
+	    options.orientation = Global.DEFAULT_ORIENTATION;
+	  }
+	  if (options.rolloff == undefined) {
+	    options.rolloff = Attenuation.DEFAULT_ROLLOFF_MODEL;
 	  }
 
 	  this._listener = listener;
 	  this._position = new Float32Array(3);
-	  this._velocity = new Float32Array(3);
 	  this._forward = new Float32Array(3);
 	  this._up = new Float32Array(3);
 	  this._right = new Float32Array(3);
 	  this._directivity_alpha = 0;
-	  this._directivity_order = listener._ambisonicOrder;
+	  this._directivity_order = 1;
 
 	  // Create nodes.
 	  var context = listener._context;
 	  this.input = context.createGain();
-	  this._directivity = context.createGain();
+	  this._directivity = context.createBiquadFilter();
+	  this._toEarly = context.createGain();
+	  this._toLate = context.createGain();
 	  this._attenuation =
 	    new Attenuation(context, options);
 	  this._encoder =
-	    new AmbisonicEncoder(context, listener._ambisonicOrder);
+	    new Encoder(context, listener._ambisonicOrder);
+
+	  // Initialize Directivity filter.
+	  this._directivity.type = 'lowpass';
+	  this._directivity.Q.value = 0;
+	  this._directivity.frequency.value = listener._context.sampleRate * 0.5;
 
 	  // Connect nodes.
+	  this.input.connect(this._toLate);
+	  this._toLate.connect(listener._room.late.input);
+
 	  this.input.connect(this._attenuation.input);
-	  this.input.connect(listener._reverb.input);
+	  this._attenuation.output.connect(this._toEarly);
+	  this._toEarly.connect(listener._room.early.input);
+
 	  this._attenuation.output.connect(this._directivity);
-	  this._attenuation.output.connect(listener._reflections.input);
 	  this._directivity.connect(this._encoder.input);
 	  this._encoder.output.connect(listener.output);
 
 	  // Assign initial conditions.
 	  this.setPosition(options.position[0], options.position[1],
 	    options.position[2]);
-	  this.setVelocity(options.velocity[0], options.velocity[1],
-	    options.velocity[2]);
 	  this.setOrientation(options.orientation[0], options.orientation[1],
 	    options.orientation[2]);
 	  this.input.gain.value = options.gain;
@@ -9954,13 +1402,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} y
 	 * @param {Number} z
 	 */
-	Source.prototype.setPosition = function(x, y, z) {
+	Source.prototype.setPosition = function (x, y, z) {
 	  var dx = new Float32Array(3);
 
 	  // Assign new position.
 	  this._position[0] = x;
 	  this._position[1] = y;
 	  this._position[2] = z;
+	  this._computeDistanceOutsideRoom();
 
 	  // Compute distance to listener.
 	  for (var i = 0; i < 3; i++) {
@@ -9974,13 +1423,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  dx[2] /= distance;
 
 	  // Compute directivity pattern.
-	  this._directivity.gain.value = computeDirectivity(this._forward, dx,
-	    this._directivity_alpha, this._directivity_order);
+	  this._computeDirectivity(dx);
 
 	  // Compuete angle of direction vector.
-	  var azimuth = Math.atan2(-dx[0], dx[2]) * Globals.OneEightyByPi;
+	  var azimuth = Math.atan2(-dx[0], dx[2]) * Global.RADIANS_TO_DEGREES;
 	  var elevation = Math.atan2(dx[1],
-	    Math.sqrt(dx[0] * dx[0] + dx[2] * dx[2])) * Globals.OneEightyByPi;
+	    Math.sqrt(dx[0] * dx[0] + dx[2] * dx[2])) * Global.RADIANS_TO_DEGREES;
 
 	  // Set distance/direction values.
 	  this._attenuation.setDistance(distance);
@@ -9994,15 +1442,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} elevation (in degrees) [defaults to 0].
 	 * @param {Number} distance (in meters) [defaults to 1].
 	 */
-	Source.prototype.setAngleFromListener = function(azimuth, elevation, distance) {
+	Source.prototype.setAngleFromListener = function (azimuth, elevation,
+	                                                  distance) {
+	  if (azimuth == undefined) {
+	    azimuth = Attenuation.DEFAULT_AZIMUTH;
+	  }
 	  if (elevation == undefined) {
-	    elevation = 0;
+	    elevation = Attenuation.DEFAULT_ELEVATION;
 	  }
 	  if (distance == undefined) {
-	    distance = 1;
+	    distance = Source.DEFAULT_DISTANCE;
 	  }
-	  var theta = azimuth * Globals.PiByOneEighty;
-	  var phi = elevation * Globals.PiByOneEighty;
+	  var theta = azimuth * Global.DEGREES_TO_RADIANS;
+	  var phi = elevation * Global.DEGREES_TO_RADIANS;
 
 	  // Polar -> Cartesian (direction from listener).
 	  var x = Math.sin(theta) * Math.cos(phi);
@@ -10010,13 +1462,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var z = -Math.cos(theta) * Math.cos(phi);
 
 	  // Compute directivity pattern.
-	  this._directivity.gain.value = computeDirectivity(this._forward, [x, y, z],
-	    this._directivity_alpha, this._directivity_order);
+	  this._computeDirectivity([x, y, z]);
 
 	  // Assign new position based on relationship to listener.
 	  this._position[0] = this._listener._position[0] + x;
 	  this._position[1] = this._listener._position[1] + y;
 	  this._position[2] = this._listener._position[2] + z;
+	  this._computeDistanceOutsideRoom();
 
 	  // Set distance/direction values.
 	  this._attenuation.setDistance(distance);
@@ -10029,21 +1481,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} pitch
 	 * @param {Number} yaw
 	 */
-	Source.prototype.setOrientation = function(roll, pitch, yaw) {
+	Source.prototype.setOrientation = function (roll, pitch, yaw) {
 	  var q = Utils.toQuaternion(roll, pitch, yaw);
-	  this._forward = Utils.rotateVector(Globals.DefaultForward, q);
-	  this._up = Utils.rotateVector(Globals.DefaultUp, q);
-	  this._right = Utils.rotateVector(Globals.DefaultRight, q);
+	  this._forward = Utils.rotateVector(Global.DEFAULT_FORWARD, q);
+	  this._up = Utils.rotateVector(Global.DEFAULT_UP, q);
+	  this._right = Utils.rotateVector(Global.DEFAULT_RIGHT, q);
 	}
 
-	/**
-	 * Set source's velocity (in meters/second).
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
-	 */
-	Source.prototype.setVelocity = function(x, y, z) {
-	  //TODO(bitllama) Make velocity/doppler thing here.
+	Source.prototype.setSpread = function (spread) {
 	}
 
 	/**
@@ -10055,7 +1500,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} order
 	 * Determines the steepness of the directivity pattern (1 to Inf).
 	 */
-	Source.prototype.setDirectivity = function(alpha, order) {
+	Source.prototype.setDirectivity = function (alpha, order) {
 	  // Clamp between 0 and 1.
 	  this._directivity_alpha = Math.min(1, Math.max(0, alpha));
 
@@ -10065,20 +1510,7460 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	}
 
-	function computeDirectivity(forward, direction_to_listener, alpha, order) {
-	  if (alpha < Globals.EpsilonFloat) {
-	    return 1.0;
+	// Compute directivity using standard microphone patterns.
+	// Assign coeff to control a lowpass filter.
+	Source.prototype._computeDirectivity = function (direction_to_listener) {
+	  var coeff = 1.0;
+	  if (this._directivity_alpha > Global.EPSILON_FLOAT) {
+	    var cosTheta = this._forward[0] * direction_to_listener[0] +
+	      this._forward[1] * direction_to_listener[1] +
+	      this._forward[2] * direction_to_listener[2];
+	    coeff = (1 - this._directivity_alpha) + this._directivity_alpha * cosTheta;
+	    coeff = Math.pow(Math.abs(coeff), this._directivity_order);
 	  }
-	  var cosTheta = forward[0] * direction_to_listener[0] +
-	    forward[1] * direction_to_listener[1] +
-	    forward[2] * direction_to_listener[2];
-	  var gain = (1 - alpha) + alpha * cosTheta;
 
-	  //TODO(bitllama): This ignores phase. Consider re-introducing.
-	  return Math.pow(Math.abs(gain), order);
+	  // Apply low-pass filter.
+	  this._directivity.frequency.value =
+	    this._listener._context.sampleRate * 0.5 * coeff;
 	}
 
+	// Determine the distance a source is outside of a room. Attenuate gain going
+	// to the reflections and reverb when the source is outside of the room.
+	Source.prototype._computeDistanceOutsideRoom = function ()
+	{
+	  var dx = Math.max(0,
+	    -this._listener._room.early._halfDimensions['width'] - this._position[0],
+	    this._position[0] - this._listener._room.early._halfDimensions['width']);
+	  var dy = Math.max(0,
+	    -this._listener._room.early._halfDimensions['height'] - this._position[1],
+	    this._position[1] - this._listener._room.early._halfDimensions['height']);
+	  var dz = Math.max(0,
+	    -this._listener._room.early._halfDimensions['depth'] - this._position[2],
+	    this._position[2] - this._listener._room.early._halfDimensions['depth']);
+	  var distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+	  // We apply a linear ramp from 1 to 0 as the source is up to 1m outside.
+	  var gain = 1;
+	  if (distance > Global.EPSILON_FLOAT) {
+	    gain = Math.max(1, 1 - distance);
+	  }
+	  this._toLate.gain.value = gain;
+	  this._toEarly.gain.value = gain;
+	}
+
+	/** @type {Number} */
+	Source.DEFAULT_DISTANCE = 1;
+
 	module.exports = Source;
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	/**
+	 * @license
+	 * Copyright 2016 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Distance-based attenuation filter.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	// Internal dependencies.
+	var Global = __webpack_require__(3);
+	var Utils = __webpack_require__(4);
+
+	/**
+	 * @class Attenuation
+	 * @description Distance-based attenuation filter.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @param {Object} options
+	 * @param {Number} options.minDistance
+	 * Min. distance (in meters). Defaults to
+	 * {@link Attenuation.MIN_DISTANCE MIN_DISTANCE}.
+	 * @param {Number} options.maxDistance
+	 * Max. distance (in meters). Defaults to
+	 * {@link Attenuation.MAX_DISTANCE MAX_DISTANCE}.
+	 * @param {string} options.rolloff
+	 * Rolloff model to use, chosen from options in
+	 * {@link Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+	 * {@link Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+	 */
+	function Attenuation (context, options) {
+	  // Public variables.
+	  /**
+	   * Min. distance (in meters).
+	   * @member {Number} minDistance
+	   * @memberof Attenuation
+	   * @instance
+	   */
+	  /**
+	   * Max. distance (in meters).
+	   * @member {Number} maxDistance
+	   * @memberof Attenuation
+	   * @instance
+	   */
+	  /**
+	   * Input {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} input
+	   * @memberof Attenuation
+	   * @instance
+	   */
+	  /**
+	   * Output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} output
+	   * @memberof Attenuation
+	   * @instance
+	   */
+
+	   // Use defaults for undefined arguments
+	  if (options == undefined) {
+	    options = new Object();
+	  }
+	  if (options.minDistance == undefined) {
+	    options.minDistance = Attenuation.MIN_DISTANCE;
+	  }
+	  if (options.maxDistance == undefined) {
+	    options.maxDistance = Attenuation.MAX_DISTANCE;
+	  }
+	  if (options.rolloff == undefined) {
+	    options.rolloff = Attenuation.DEFAULT_ROLLOFF;
+	  }
+
+	  // Assign values.
+	  this.minDistance = options.minDistance;
+	  this.maxDistance = options.maxDistance;
+	  this.setRolloff(options.rolloff);
+
+	  // Create node.
+	  this._gainNode = context.createGain();
+
+	  // Initialize distance to max distance.
+	  this.setDistance(options.maxDistance);
+
+	  // Input/Output proxy.
+	  this.input = this._gainNode;
+	  this.output = this._gainNode;
+	}
+
+	/**
+	 * Set distance from the listener.
+	 * @param {Number} distance Distance (in meters).
+	 */
+	Attenuation.prototype.setDistance = function (distance) {
+	  var gain = 1;
+	  if (this._rolloff == 'logarithmic') {
+	    if (distance > this.maxDistance) {
+	      gain = 0;
+	    } else if (distance > this.minDistance) {
+	      var range = this.maxDistance - this.minDistance;
+	      if (range > Global.EPSILON_FLOAT) {
+	        // Compute the distance attenuation value by the logarithmic curve
+	        // "1 / (d + 1)" with an offset of |minDistance|.
+	        var relativeDistance = distance - this.minDistance;
+	        var attenuation = 1 / (relativeDistance + 1);
+	        var attenuationMax = 1 / (range + 1);
+	        gain = (attenuation - attenuationMax) / (1 - attenuationMax);
+	      }
+	    }
+	  } else if (this._rolloff == 'linear') {
+	    if (distance > this.maxDistance) {
+	      gain = 0;
+	    } else if (distance > this.minDistance) {
+	      var range = this.maxDistance - this.minDistance;
+	      if (range > Global.EPSILON_FLOAT) {
+	        gain = (this.maxDistance - distance) / range;
+	      }
+	    }
+	  }
+	  this._gainNode.gain.value = gain;
+	}
+
+	/**
+	 * Set rolloff.
+	 * @param {string} rolloff
+	 * Rolloff model to use, chosen from options in
+	 * {@link Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+	 * {@link Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+	 */
+	Attenuation.prototype.setRolloff = function (rolloff) {
+	  var isValidModel = ~Attenuation.ROLLOFFS.indexOf(rolloff);
+	  if (rolloff == undefined || !isValidModel) {
+	    if (!isValidModel) {
+	      Utils.log('Invalid rolloff model (\"' + rolloff +
+	        '\"). Using default: \"' + Attenuation.DEFAULT_ROLLOFF + '\".');
+	    }
+	    rolloff = Attenuation.DEFAULT_ROLLOFF;
+	  } else {
+	    rolloff = rolloff.toString().toLowerCase();
+	  }
+	  this._rolloff = rolloff;
+	}
+
+	/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none').
+	 * @type {Array}
+	 */
+	Attenuation.ROLLOFFS = ['logarithmic', 'linear', 'none'];
+	/** Default rolloff model ('logarithmic').
+	 * @type {string}
+	 */
+	Attenuation.DEFAULT_ROLLOFF = 'logarithmic';
+	/** @type {Number} */
+	Attenuation.MIN_DISTANCE = 1;
+	/** @type {Number} */
+	Attenuation.MAX_DISTANCE = 1000;
+
+
+	module.exports = Attenuation;
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	/**
+	 * @license
+	 * Copyright 2016 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Spatially encodes input using spherical harmonics.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	// Internal dependencies.
+	var Tables = __webpack_require__(10);
+	var Utils = __webpack_require__(4);
+
+	/**
+	 * @class Encoder
+	 * @description Spatially encodes input using weighted spherical harmonics.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @param {Object} options
+	 * @param {Number} options.ambisonicOrder
+	 * Desired ambisonic Order. Defaults to
+	 * {@link DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
+	 * @param {Number} options.azimuth
+	 * Azimuth (in degrees). Defaults to
+	 * {@link Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+	 * @param {Number} options.elevation
+	 * Elevation (in degrees). Defaults to
+	 * {@link Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+	 */
+	function Encoder (context, ambisonicOrder) {
+	  // Public variables.
+	  /**
+	   * Input {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} input
+	   * @memberof Encoder
+	   * @instance
+	   */
+	  /**
+	   * Output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} output
+	   * @memberof Encoder
+	   * @instance
+	   */
+	  this._ambisonicOrder = ambisonicOrder;
+	  if (this._ambisonicOrder > Encoder.MAX_ORDER) {
+	    Utils.log('(Error):\nUnable to render ambisonic order',
+	      ambisonic_order, '(Max order is', Encoder.MAX_ORDER,
+	      ')\nUsing max order instead.');
+	    this._ambisonicOrder = Encoder.MAX_ORDER;
+	  }
+
+	  var num_channels = (this._ambisonicOrder + 1) * (this._ambisonicOrder + 1);
+	  this._merger = context.createChannelMerger(num_channels);
+	  this._masterGain = context.createGain();
+	  this._channelGain = new Array(num_channels);
+	  for (var i = 0; i < num_channels; i++) {
+	    this._channelGain[i] = context.createGain();
+	    this._masterGain.connect(this._channelGain[i]);
+	    this._channelGain[i].connect(this._merger, 0, i);
+	  }
+
+	  // Input/Output proxy.
+	  this.input = this._masterGain;
+	  this.output = this._merger;
+	}
+
+	/**
+	 * Set the direction of the encoded source signal.
+	 * @param {Number} azimuth
+	 * Azimuth (in degrees). Defaults to
+	 * {@link Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+	 * @param {Number} elevation
+	 * Elevation (in degrees). Defaults to
+	 * {@link Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+	 */
+	Encoder.prototype.setDirection = function (azimuth, elevation) {
+	  // Format input direction to nearest indices.
+	  if (azimuth == undefined || isNaN(azimuth)) {
+	    azimuth = Encoder.DEFAULT_AZIMUTH;
+	  }
+	  if (elevation == undefined || isNaN(elevation)) {
+	    elevation = Encoder.DEFAULT_ELEVATION;
+	  }
+
+	  azimuth = Math.round(azimuth % 360);
+	  if (azimuth < 0) {
+	    azimuth += 360;
+	  }
+	  elevation = Math.round(Math.min(90, Math.max(-90, elevation))) + 90;
+
+	  // Assign gains to each output.
+	  for (var i = 1; i <= this._ambisonicOrder; i++) {
+	    for (var j = -i; j <= i; j++) {
+	      var acnChannel = (i * i) + i + j;
+	      var elevationIndex = i * (i + 1) / 2 + Math.abs(j) - 1;
+	      var val = Tables.SPHERICAL_HARMONICS[1][elevation][elevationIndex];
+	      if (j != 0) {
+	        var azimuthIndex = Encoder.MAX_ORDER + j - 1;
+	        if (j < 0) {
+	          azimuthIndex = Encoder.MAX_ORDER + j;
+	        }
+	        val *= Tables.SPHERICAL_HARMONICS[0][azimuth][azimuthIndex];
+	      }
+	      this._channelGain[acnChannel].gain.value = val;
+	    }
+	  }
+	}
+
+	//TODO(bitllama): finish spread function!!!
+	Encoder.prototype.setSpread = function (spread) {
+	  spread = Math.min(360, Math.max(0, spread));
+	  if (spread > Globals.MinSpreadPerAmbisonicOrder[this._ambisonicOrder]) {
+
+	  }
+	}
+
+	/** @type {Number} */
+	Encoder.DEFAULT_AZIMUTH = 0;
+	/** @type {Number} */
+	Encoder.DEFAULT_ELEVATION = 0;
+	/** @type {Number} */
+	Encoder.MAX_ORDER = Tables.SPHERICAL_HARMONICS[0][0].length / 2;
+
+	module.exports = Encoder;
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports) {
+
+	/**
+	 * Copyright 2017 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Pre-computed lookup tables for encoding ambisonic sources.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	/**
+	 * Pre-computed Spherical Harmonics Coefficients.
+	 *
+	 * This function generates an efficient lookup table of SH coefficients. It
+	 * exploits the way SHs are generated (i.e. Ylm = Nlm * Plm * Em). Since Nlm
+	 * & Plm coefficients only depend on theta, and Em only depends on phi, we
+	 * can separate the equation along these lines. Em does not depend on
+	 * degree, so we only need to compute (2 * l) per azimuth Em total and
+	 * Nlm * Plm is symmetrical across indexes, so only positive indexes are
+	 * computed (l * (l + 1) / 2) per elevation.
+	 * @type {Float32Array}
+	 */
+	exports.SPHERICAL_HARMONICS =
+	[
+	  [
+	    [
+	      0,
+	      0,
+	      0,
+	      1,
+	      1,
+	      1
+	    ],
+	    [
+	      0.0523359552,
+	      0.0348994955,
+	      0.0174524058,
+	      0.99984771,
+	      0.999390841,
+	      0.99862951
+	    ],
+	    [
+	      0.104528464,
+	      0.0697564706,
+	      0.0348994955,
+	      0.999390841,
+	      0.997564077,
+	      0.994521916
+	    ],
+	    [
+	      0.156434461,
+	      0.104528464,
+	      0.0523359552,
+	      0.99862951,
+	      0.994521916,
+	      0.987688363
+	    ],
+	    [
+	      0.207911685,
+	      0.139173105,
+	      0.0697564706,
+	      0.997564077,
+	      0.990268052,
+	      0.978147626
+	    ],
+	    [
+	      0.258819044,
+	      0.173648179,
+	      0.0871557444,
+	      0.99619472,
+	      0.98480773,
+	      0.965925813
+	    ],
+	    [
+	      0.309017,
+	      0.207911685,
+	      0.104528464,
+	      0.994521916,
+	      0.978147626,
+	      0.95105654
+	    ],
+	    [
+	      0.35836795,
+	      0.241921902,
+	      0.121869341,
+	      0.992546141,
+	      0.970295727,
+	      0.933580399
+	    ],
+	    [
+	      0.406736642,
+	      0.275637358,
+	      0.139173105,
+	      0.990268052,
+	      0.96126169,
+	      0.91354543
+	    ],
+	    [
+	      0.453990489,
+	      0.309017,
+	      0.156434461,
+	      0.987688363,
+	      0.95105654,
+	      0.891006529
+	    ],
+	    [
+	      0.5,
+	      0.342020154,
+	      0.173648179,
+	      0.98480773,
+	      0.939692616,
+	      0.866025388
+	    ],
+	    [
+	      0.544639051,
+	      0.37460658,
+	      0.190809,
+	      0.981627166,
+	      0.927183867,
+	      0.838670552
+	    ],
+	    [
+	      0.587785244,
+	      0.406736642,
+	      0.207911685,
+	      0.978147626,
+	      0.91354543,
+	      0.809017
+	    ],
+	    [
+	      0.629320383,
+	      0.438371152,
+	      0.224951059,
+	      0.974370062,
+	      0.898794055,
+	      0.777146
+	    ],
+	    [
+	      0.669130623,
+	      0.469471574,
+	      0.241921902,
+	      0.970295727,
+	      0.882947564,
+	      0.74314481
+	    ],
+	    [
+	      0.707106769,
+	      0.5,
+	      0.258819044,
+	      0.965925813,
+	      0.866025388,
+	      0.707106769
+	    ],
+	    [
+	      0.74314481,
+	      0.529919267,
+	      0.275637358,
+	      0.96126169,
+	      0.848048091,
+	      0.669130623
+	    ],
+	    [
+	      0.777146,
+	      0.559192896,
+	      0.29237169,
+	      0.956304729,
+	      0.829037547,
+	      0.629320383
+	    ],
+	    [
+	      0.809017,
+	      0.587785244,
+	      0.309017,
+	      0.95105654,
+	      0.809017,
+	      0.587785244
+	    ],
+	    [
+	      0.838670552,
+	      0.615661502,
+	      0.325568169,
+	      0.945518553,
+	      0.788010776,
+	      0.544639051
+	    ],
+	    [
+	      0.866025388,
+	      0.642787635,
+	      0.342020154,
+	      0.939692616,
+	      0.766044438,
+	      0.5
+	    ],
+	    [
+	      0.891006529,
+	      0.669130623,
+	      0.35836795,
+	      0.933580399,
+	      0.74314481,
+	      0.453990489
+	    ],
+	    [
+	      0.91354543,
+	      0.694658399,
+	      0.37460658,
+	      0.927183867,
+	      0.719339788,
+	      0.406736642
+	    ],
+	    [
+	      0.933580399,
+	      0.719339788,
+	      0.390731126,
+	      0.920504868,
+	      0.694658399,
+	      0.35836795
+	    ],
+	    [
+	      0.95105654,
+	      0.74314481,
+	      0.406736642,
+	      0.91354543,
+	      0.669130623,
+	      0.309017
+	    ],
+	    [
+	      0.965925813,
+	      0.766044438,
+	      0.42261827,
+	      0.906307817,
+	      0.642787635,
+	      0.258819044
+	    ],
+	    [
+	      0.978147626,
+	      0.788010776,
+	      0.438371152,
+	      0.898794055,
+	      0.615661502,
+	      0.207911685
+	    ],
+	    [
+	      0.987688363,
+	      0.809017,
+	      0.453990489,
+	      0.891006529,
+	      0.587785244,
+	      0.156434461
+	    ],
+	    [
+	      0.994521916,
+	      0.829037547,
+	      0.469471574,
+	      0.882947564,
+	      0.559192896,
+	      0.104528464
+	    ],
+	    [
+	      0.99862951,
+	      0.848048091,
+	      0.484809607,
+	      0.874619722,
+	      0.529919267,
+	      0.0523359552
+	    ],
+	    [
+	      1,
+	      0.866025388,
+	      0.5,
+	      0.866025388,
+	      0.5,
+	      6.12323426e-17
+	    ],
+	    [
+	      0.99862951,
+	      0.882947564,
+	      0.515038073,
+	      0.857167304,
+	      0.469471574,
+	      -0.0523359552
+	    ],
+	    [
+	      0.994521916,
+	      0.898794055,
+	      0.529919267,
+	      0.848048091,
+	      0.438371152,
+	      -0.104528464
+	    ],
+	    [
+	      0.987688363,
+	      0.91354543,
+	      0.544639051,
+	      0.838670552,
+	      0.406736642,
+	      -0.156434461
+	    ],
+	    [
+	      0.978147626,
+	      0.927183867,
+	      0.559192896,
+	      0.829037547,
+	      0.37460658,
+	      -0.207911685
+	    ],
+	    [
+	      0.965925813,
+	      0.939692616,
+	      0.57357645,
+	      0.819152057,
+	      0.342020154,
+	      -0.258819044
+	    ],
+	    [
+	      0.95105654,
+	      0.95105654,
+	      0.587785244,
+	      0.809017,
+	      0.309017,
+	      -0.309017
+	    ],
+	    [
+	      0.933580399,
+	      0.96126169,
+	      0.601815045,
+	      0.798635483,
+	      0.275637358,
+	      -0.35836795
+	    ],
+	    [
+	      0.91354543,
+	      0.970295727,
+	      0.615661502,
+	      0.788010776,
+	      0.241921902,
+	      -0.406736642
+	    ],
+	    [
+	      0.891006529,
+	      0.978147626,
+	      0.629320383,
+	      0.777146,
+	      0.207911685,
+	      -0.453990489
+	    ],
+	    [
+	      0.866025388,
+	      0.98480773,
+	      0.642787635,
+	      0.766044438,
+	      0.173648179,
+	      -0.5
+	    ],
+	    [
+	      0.838670552,
+	      0.990268052,
+	      0.656059,
+	      0.754709601,
+	      0.139173105,
+	      -0.544639051
+	    ],
+	    [
+	      0.809017,
+	      0.994521916,
+	      0.669130623,
+	      0.74314481,
+	      0.104528464,
+	      -0.587785244
+	    ],
+	    [
+	      0.777146,
+	      0.997564077,
+	      0.681998372,
+	      0.7313537,
+	      0.0697564706,
+	      -0.629320383
+	    ],
+	    [
+	      0.74314481,
+	      0.999390841,
+	      0.694658399,
+	      0.719339788,
+	      0.0348994955,
+	      -0.669130623
+	    ],
+	    [
+	      0.707106769,
+	      1,
+	      0.707106769,
+	      0.707106769,
+	      6.12323426e-17,
+	      -0.707106769
+	    ],
+	    [
+	      0.669130623,
+	      0.999390841,
+	      0.719339788,
+	      0.694658399,
+	      -0.0348994955,
+	      -0.74314481
+	    ],
+	    [
+	      0.629320383,
+	      0.997564077,
+	      0.7313537,
+	      0.681998372,
+	      -0.0697564706,
+	      -0.777146
+	    ],
+	    [
+	      0.587785244,
+	      0.994521916,
+	      0.74314481,
+	      0.669130623,
+	      -0.104528464,
+	      -0.809017
+	    ],
+	    [
+	      0.544639051,
+	      0.990268052,
+	      0.754709601,
+	      0.656059,
+	      -0.139173105,
+	      -0.838670552
+	    ],
+	    [
+	      0.5,
+	      0.98480773,
+	      0.766044438,
+	      0.642787635,
+	      -0.173648179,
+	      -0.866025388
+	    ],
+	    [
+	      0.453990489,
+	      0.978147626,
+	      0.777146,
+	      0.629320383,
+	      -0.207911685,
+	      -0.891006529
+	    ],
+	    [
+	      0.406736642,
+	      0.970295727,
+	      0.788010776,
+	      0.615661502,
+	      -0.241921902,
+	      -0.91354543
+	    ],
+	    [
+	      0.35836795,
+	      0.96126169,
+	      0.798635483,
+	      0.601815045,
+	      -0.275637358,
+	      -0.933580399
+	    ],
+	    [
+	      0.309017,
+	      0.95105654,
+	      0.809017,
+	      0.587785244,
+	      -0.309017,
+	      -0.95105654
+	    ],
+	    [
+	      0.258819044,
+	      0.939692616,
+	      0.819152057,
+	      0.57357645,
+	      -0.342020154,
+	      -0.965925813
+	    ],
+	    [
+	      0.207911685,
+	      0.927183867,
+	      0.829037547,
+	      0.559192896,
+	      -0.37460658,
+	      -0.978147626
+	    ],
+	    [
+	      0.156434461,
+	      0.91354543,
+	      0.838670552,
+	      0.544639051,
+	      -0.406736642,
+	      -0.987688363
+	    ],
+	    [
+	      0.104528464,
+	      0.898794055,
+	      0.848048091,
+	      0.529919267,
+	      -0.438371152,
+	      -0.994521916
+	    ],
+	    [
+	      0.0523359552,
+	      0.882947564,
+	      0.857167304,
+	      0.515038073,
+	      -0.469471574,
+	      -0.99862951
+	    ],
+	    [
+	      1.22464685e-16,
+	      0.866025388,
+	      0.866025388,
+	      0.5,
+	      -0.5,
+	      -1
+	    ],
+	    [
+	      -0.0523359552,
+	      0.848048091,
+	      0.874619722,
+	      0.484809607,
+	      -0.529919267,
+	      -0.99862951
+	    ],
+	    [
+	      -0.104528464,
+	      0.829037547,
+	      0.882947564,
+	      0.469471574,
+	      -0.559192896,
+	      -0.994521916
+	    ],
+	    [
+	      -0.156434461,
+	      0.809017,
+	      0.891006529,
+	      0.453990489,
+	      -0.587785244,
+	      -0.987688363
+	    ],
+	    [
+	      -0.207911685,
+	      0.788010776,
+	      0.898794055,
+	      0.438371152,
+	      -0.615661502,
+	      -0.978147626
+	    ],
+	    [
+	      -0.258819044,
+	      0.766044438,
+	      0.906307817,
+	      0.42261827,
+	      -0.642787635,
+	      -0.965925813
+	    ],
+	    [
+	      -0.309017,
+	      0.74314481,
+	      0.91354543,
+	      0.406736642,
+	      -0.669130623,
+	      -0.95105654
+	    ],
+	    [
+	      -0.35836795,
+	      0.719339788,
+	      0.920504868,
+	      0.390731126,
+	      -0.694658399,
+	      -0.933580399
+	    ],
+	    [
+	      -0.406736642,
+	      0.694658399,
+	      0.927183867,
+	      0.37460658,
+	      -0.719339788,
+	      -0.91354543
+	    ],
+	    [
+	      -0.453990489,
+	      0.669130623,
+	      0.933580399,
+	      0.35836795,
+	      -0.74314481,
+	      -0.891006529
+	    ],
+	    [
+	      -0.5,
+	      0.642787635,
+	      0.939692616,
+	      0.342020154,
+	      -0.766044438,
+	      -0.866025388
+	    ],
+	    [
+	      -0.544639051,
+	      0.615661502,
+	      0.945518553,
+	      0.325568169,
+	      -0.788010776,
+	      -0.838670552
+	    ],
+	    [
+	      -0.587785244,
+	      0.587785244,
+	      0.95105654,
+	      0.309017,
+	      -0.809017,
+	      -0.809017
+	    ],
+	    [
+	      -0.629320383,
+	      0.559192896,
+	      0.956304729,
+	      0.29237169,
+	      -0.829037547,
+	      -0.777146
+	    ],
+	    [
+	      -0.669130623,
+	      0.529919267,
+	      0.96126169,
+	      0.275637358,
+	      -0.848048091,
+	      -0.74314481
+	    ],
+	    [
+	      -0.707106769,
+	      0.5,
+	      0.965925813,
+	      0.258819044,
+	      -0.866025388,
+	      -0.707106769
+	    ],
+	    [
+	      -0.74314481,
+	      0.469471574,
+	      0.970295727,
+	      0.241921902,
+	      -0.882947564,
+	      -0.669130623
+	    ],
+	    [
+	      -0.777146,
+	      0.438371152,
+	      0.974370062,
+	      0.224951059,
+	      -0.898794055,
+	      -0.629320383
+	    ],
+	    [
+	      -0.809017,
+	      0.406736642,
+	      0.978147626,
+	      0.207911685,
+	      -0.91354543,
+	      -0.587785244
+	    ],
+	    [
+	      -0.838670552,
+	      0.37460658,
+	      0.981627166,
+	      0.190809,
+	      -0.927183867,
+	      -0.544639051
+	    ],
+	    [
+	      -0.866025388,
+	      0.342020154,
+	      0.98480773,
+	      0.173648179,
+	      -0.939692616,
+	      -0.5
+	    ],
+	    [
+	      -0.891006529,
+	      0.309017,
+	      0.987688363,
+	      0.156434461,
+	      -0.95105654,
+	      -0.453990489
+	    ],
+	    [
+	      -0.91354543,
+	      0.275637358,
+	      0.990268052,
+	      0.139173105,
+	      -0.96126169,
+	      -0.406736642
+	    ],
+	    [
+	      -0.933580399,
+	      0.241921902,
+	      0.992546141,
+	      0.121869341,
+	      -0.970295727,
+	      -0.35836795
+	    ],
+	    [
+	      -0.95105654,
+	      0.207911685,
+	      0.994521916,
+	      0.104528464,
+	      -0.978147626,
+	      -0.309017
+	    ],
+	    [
+	      -0.965925813,
+	      0.173648179,
+	      0.99619472,
+	      0.0871557444,
+	      -0.98480773,
+	      -0.258819044
+	    ],
+	    [
+	      -0.978147626,
+	      0.139173105,
+	      0.997564077,
+	      0.0697564706,
+	      -0.990268052,
+	      -0.207911685
+	    ],
+	    [
+	      -0.987688363,
+	      0.104528464,
+	      0.99862951,
+	      0.0523359552,
+	      -0.994521916,
+	      -0.156434461
+	    ],
+	    [
+	      -0.994521916,
+	      0.0697564706,
+	      0.999390841,
+	      0.0348994955,
+	      -0.997564077,
+	      -0.104528464
+	    ],
+	    [
+	      -0.99862951,
+	      0.0348994955,
+	      0.99984771,
+	      0.0174524058,
+	      -0.999390841,
+	      -0.0523359552
+	    ],
+	    [
+	      -1,
+	      1.22464685e-16,
+	      1,
+	      6.12323426e-17,
+	      -1,
+	      -1.83697015e-16
+	    ],
+	    [
+	      -0.99862951,
+	      -0.0348994955,
+	      0.99984771,
+	      -0.0174524058,
+	      -0.999390841,
+	      0.0523359552
+	    ],
+	    [
+	      -0.994521916,
+	      -0.0697564706,
+	      0.999390841,
+	      -0.0348994955,
+	      -0.997564077,
+	      0.104528464
+	    ],
+	    [
+	      -0.987688363,
+	      -0.104528464,
+	      0.99862951,
+	      -0.0523359552,
+	      -0.994521916,
+	      0.156434461
+	    ],
+	    [
+	      -0.978147626,
+	      -0.139173105,
+	      0.997564077,
+	      -0.0697564706,
+	      -0.990268052,
+	      0.207911685
+	    ],
+	    [
+	      -0.965925813,
+	      -0.173648179,
+	      0.99619472,
+	      -0.0871557444,
+	      -0.98480773,
+	      0.258819044
+	    ],
+	    [
+	      -0.95105654,
+	      -0.207911685,
+	      0.994521916,
+	      -0.104528464,
+	      -0.978147626,
+	      0.309017
+	    ],
+	    [
+	      -0.933580399,
+	      -0.241921902,
+	      0.992546141,
+	      -0.121869341,
+	      -0.970295727,
+	      0.35836795
+	    ],
+	    [
+	      -0.91354543,
+	      -0.275637358,
+	      0.990268052,
+	      -0.139173105,
+	      -0.96126169,
+	      0.406736642
+	    ],
+	    [
+	      -0.891006529,
+	      -0.309017,
+	      0.987688363,
+	      -0.156434461,
+	      -0.95105654,
+	      0.453990489
+	    ],
+	    [
+	      -0.866025388,
+	      -0.342020154,
+	      0.98480773,
+	      -0.173648179,
+	      -0.939692616,
+	      0.5
+	    ],
+	    [
+	      -0.838670552,
+	      -0.37460658,
+	      0.981627166,
+	      -0.190809,
+	      -0.927183867,
+	      0.544639051
+	    ],
+	    [
+	      -0.809017,
+	      -0.406736642,
+	      0.978147626,
+	      -0.207911685,
+	      -0.91354543,
+	      0.587785244
+	    ],
+	    [
+	      -0.777146,
+	      -0.438371152,
+	      0.974370062,
+	      -0.224951059,
+	      -0.898794055,
+	      0.629320383
+	    ],
+	    [
+	      -0.74314481,
+	      -0.469471574,
+	      0.970295727,
+	      -0.241921902,
+	      -0.882947564,
+	      0.669130623
+	    ],
+	    [
+	      -0.707106769,
+	      -0.5,
+	      0.965925813,
+	      -0.258819044,
+	      -0.866025388,
+	      0.707106769
+	    ],
+	    [
+	      -0.669130623,
+	      -0.529919267,
+	      0.96126169,
+	      -0.275637358,
+	      -0.848048091,
+	      0.74314481
+	    ],
+	    [
+	      -0.629320383,
+	      -0.559192896,
+	      0.956304729,
+	      -0.29237169,
+	      -0.829037547,
+	      0.777146
+	    ],
+	    [
+	      -0.587785244,
+	      -0.587785244,
+	      0.95105654,
+	      -0.309017,
+	      -0.809017,
+	      0.809017
+	    ],
+	    [
+	      -0.544639051,
+	      -0.615661502,
+	      0.945518553,
+	      -0.325568169,
+	      -0.788010776,
+	      0.838670552
+	    ],
+	    [
+	      -0.5,
+	      -0.642787635,
+	      0.939692616,
+	      -0.342020154,
+	      -0.766044438,
+	      0.866025388
+	    ],
+	    [
+	      -0.453990489,
+	      -0.669130623,
+	      0.933580399,
+	      -0.35836795,
+	      -0.74314481,
+	      0.891006529
+	    ],
+	    [
+	      -0.406736642,
+	      -0.694658399,
+	      0.927183867,
+	      -0.37460658,
+	      -0.719339788,
+	      0.91354543
+	    ],
+	    [
+	      -0.35836795,
+	      -0.719339788,
+	      0.920504868,
+	      -0.390731126,
+	      -0.694658399,
+	      0.933580399
+	    ],
+	    [
+	      -0.309017,
+	      -0.74314481,
+	      0.91354543,
+	      -0.406736642,
+	      -0.669130623,
+	      0.95105654
+	    ],
+	    [
+	      -0.258819044,
+	      -0.766044438,
+	      0.906307817,
+	      -0.42261827,
+	      -0.642787635,
+	      0.965925813
+	    ],
+	    [
+	      -0.207911685,
+	      -0.788010776,
+	      0.898794055,
+	      -0.438371152,
+	      -0.615661502,
+	      0.978147626
+	    ],
+	    [
+	      -0.156434461,
+	      -0.809017,
+	      0.891006529,
+	      -0.453990489,
+	      -0.587785244,
+	      0.987688363
+	    ],
+	    [
+	      -0.104528464,
+	      -0.829037547,
+	      0.882947564,
+	      -0.469471574,
+	      -0.559192896,
+	      0.994521916
+	    ],
+	    [
+	      -0.0523359552,
+	      -0.848048091,
+	      0.874619722,
+	      -0.484809607,
+	      -0.529919267,
+	      0.99862951
+	    ],
+	    [
+	      -2.44929371e-16,
+	      -0.866025388,
+	      0.866025388,
+	      -0.5,
+	      -0.5,
+	      1
+	    ],
+	    [
+	      0.0523359552,
+	      -0.882947564,
+	      0.857167304,
+	      -0.515038073,
+	      -0.469471574,
+	      0.99862951
+	    ],
+	    [
+	      0.104528464,
+	      -0.898794055,
+	      0.848048091,
+	      -0.529919267,
+	      -0.438371152,
+	      0.994521916
+	    ],
+	    [
+	      0.156434461,
+	      -0.91354543,
+	      0.838670552,
+	      -0.544639051,
+	      -0.406736642,
+	      0.987688363
+	    ],
+	    [
+	      0.207911685,
+	      -0.927183867,
+	      0.829037547,
+	      -0.559192896,
+	      -0.37460658,
+	      0.978147626
+	    ],
+	    [
+	      0.258819044,
+	      -0.939692616,
+	      0.819152057,
+	      -0.57357645,
+	      -0.342020154,
+	      0.965925813
+	    ],
+	    [
+	      0.309017,
+	      -0.95105654,
+	      0.809017,
+	      -0.587785244,
+	      -0.309017,
+	      0.95105654
+	    ],
+	    [
+	      0.35836795,
+	      -0.96126169,
+	      0.798635483,
+	      -0.601815045,
+	      -0.275637358,
+	      0.933580399
+	    ],
+	    [
+	      0.406736642,
+	      -0.970295727,
+	      0.788010776,
+	      -0.615661502,
+	      -0.241921902,
+	      0.91354543
+	    ],
+	    [
+	      0.453990489,
+	      -0.978147626,
+	      0.777146,
+	      -0.629320383,
+	      -0.207911685,
+	      0.891006529
+	    ],
+	    [
+	      0.5,
+	      -0.98480773,
+	      0.766044438,
+	      -0.642787635,
+	      -0.173648179,
+	      0.866025388
+	    ],
+	    [
+	      0.544639051,
+	      -0.990268052,
+	      0.754709601,
+	      -0.656059,
+	      -0.139173105,
+	      0.838670552
+	    ],
+	    [
+	      0.587785244,
+	      -0.994521916,
+	      0.74314481,
+	      -0.669130623,
+	      -0.104528464,
+	      0.809017
+	    ],
+	    [
+	      0.629320383,
+	      -0.997564077,
+	      0.7313537,
+	      -0.681998372,
+	      -0.0697564706,
+	      0.777146
+	    ],
+	    [
+	      0.669130623,
+	      -0.999390841,
+	      0.719339788,
+	      -0.694658399,
+	      -0.0348994955,
+	      0.74314481
+	    ],
+	    [
+	      0.707106769,
+	      -1,
+	      0.707106769,
+	      -0.707106769,
+	      -1.83697015e-16,
+	      0.707106769
+	    ],
+	    [
+	      0.74314481,
+	      -0.999390841,
+	      0.694658399,
+	      -0.719339788,
+	      0.0348994955,
+	      0.669130623
+	    ],
+	    [
+	      0.777146,
+	      -0.997564077,
+	      0.681998372,
+	      -0.7313537,
+	      0.0697564706,
+	      0.629320383
+	    ],
+	    [
+	      0.809017,
+	      -0.994521916,
+	      0.669130623,
+	      -0.74314481,
+	      0.104528464,
+	      0.587785244
+	    ],
+	    [
+	      0.838670552,
+	      -0.990268052,
+	      0.656059,
+	      -0.754709601,
+	      0.139173105,
+	      0.544639051
+	    ],
+	    [
+	      0.866025388,
+	      -0.98480773,
+	      0.642787635,
+	      -0.766044438,
+	      0.173648179,
+	      0.5
+	    ],
+	    [
+	      0.891006529,
+	      -0.978147626,
+	      0.629320383,
+	      -0.777146,
+	      0.207911685,
+	      0.453990489
+	    ],
+	    [
+	      0.91354543,
+	      -0.970295727,
+	      0.615661502,
+	      -0.788010776,
+	      0.241921902,
+	      0.406736642
+	    ],
+	    [
+	      0.933580399,
+	      -0.96126169,
+	      0.601815045,
+	      -0.798635483,
+	      0.275637358,
+	      0.35836795
+	    ],
+	    [
+	      0.95105654,
+	      -0.95105654,
+	      0.587785244,
+	      -0.809017,
+	      0.309017,
+	      0.309017
+	    ],
+	    [
+	      0.965925813,
+	      -0.939692616,
+	      0.57357645,
+	      -0.819152057,
+	      0.342020154,
+	      0.258819044
+	    ],
+	    [
+	      0.978147626,
+	      -0.927183867,
+	      0.559192896,
+	      -0.829037547,
+	      0.37460658,
+	      0.207911685
+	    ],
+	    [
+	      0.987688363,
+	      -0.91354543,
+	      0.544639051,
+	      -0.838670552,
+	      0.406736642,
+	      0.156434461
+	    ],
+	    [
+	      0.994521916,
+	      -0.898794055,
+	      0.529919267,
+	      -0.848048091,
+	      0.438371152,
+	      0.104528464
+	    ],
+	    [
+	      0.99862951,
+	      -0.882947564,
+	      0.515038073,
+	      -0.857167304,
+	      0.469471574,
+	      0.0523359552
+	    ],
+	    [
+	      1,
+	      -0.866025388,
+	      0.5,
+	      -0.866025388,
+	      0.5,
+	      3.061617e-16
+	    ],
+	    [
+	      0.99862951,
+	      -0.848048091,
+	      0.484809607,
+	      -0.874619722,
+	      0.529919267,
+	      -0.0523359552
+	    ],
+	    [
+	      0.994521916,
+	      -0.829037547,
+	      0.469471574,
+	      -0.882947564,
+	      0.559192896,
+	      -0.104528464
+	    ],
+	    [
+	      0.987688363,
+	      -0.809017,
+	      0.453990489,
+	      -0.891006529,
+	      0.587785244,
+	      -0.156434461
+	    ],
+	    [
+	      0.978147626,
+	      -0.788010776,
+	      0.438371152,
+	      -0.898794055,
+	      0.615661502,
+	      -0.207911685
+	    ],
+	    [
+	      0.965925813,
+	      -0.766044438,
+	      0.42261827,
+	      -0.906307817,
+	      0.642787635,
+	      -0.258819044
+	    ],
+	    [
+	      0.95105654,
+	      -0.74314481,
+	      0.406736642,
+	      -0.91354543,
+	      0.669130623,
+	      -0.309017
+	    ],
+	    [
+	      0.933580399,
+	      -0.719339788,
+	      0.390731126,
+	      -0.920504868,
+	      0.694658399,
+	      -0.35836795
+	    ],
+	    [
+	      0.91354543,
+	      -0.694658399,
+	      0.37460658,
+	      -0.927183867,
+	      0.719339788,
+	      -0.406736642
+	    ],
+	    [
+	      0.891006529,
+	      -0.669130623,
+	      0.35836795,
+	      -0.933580399,
+	      0.74314481,
+	      -0.453990489
+	    ],
+	    [
+	      0.866025388,
+	      -0.642787635,
+	      0.342020154,
+	      -0.939692616,
+	      0.766044438,
+	      -0.5
+	    ],
+	    [
+	      0.838670552,
+	      -0.615661502,
+	      0.325568169,
+	      -0.945518553,
+	      0.788010776,
+	      -0.544639051
+	    ],
+	    [
+	      0.809017,
+	      -0.587785244,
+	      0.309017,
+	      -0.95105654,
+	      0.809017,
+	      -0.587785244
+	    ],
+	    [
+	      0.777146,
+	      -0.559192896,
+	      0.29237169,
+	      -0.956304729,
+	      0.829037547,
+	      -0.629320383
+	    ],
+	    [
+	      0.74314481,
+	      -0.529919267,
+	      0.275637358,
+	      -0.96126169,
+	      0.848048091,
+	      -0.669130623
+	    ],
+	    [
+	      0.707106769,
+	      -0.5,
+	      0.258819044,
+	      -0.965925813,
+	      0.866025388,
+	      -0.707106769
+	    ],
+	    [
+	      0.669130623,
+	      -0.469471574,
+	      0.241921902,
+	      -0.970295727,
+	      0.882947564,
+	      -0.74314481
+	    ],
+	    [
+	      0.629320383,
+	      -0.438371152,
+	      0.224951059,
+	      -0.974370062,
+	      0.898794055,
+	      -0.777146
+	    ],
+	    [
+	      0.587785244,
+	      -0.406736642,
+	      0.207911685,
+	      -0.978147626,
+	      0.91354543,
+	      -0.809017
+	    ],
+	    [
+	      0.544639051,
+	      -0.37460658,
+	      0.190809,
+	      -0.981627166,
+	      0.927183867,
+	      -0.838670552
+	    ],
+	    [
+	      0.5,
+	      -0.342020154,
+	      0.173648179,
+	      -0.98480773,
+	      0.939692616,
+	      -0.866025388
+	    ],
+	    [
+	      0.453990489,
+	      -0.309017,
+	      0.156434461,
+	      -0.987688363,
+	      0.95105654,
+	      -0.891006529
+	    ],
+	    [
+	      0.406736642,
+	      -0.275637358,
+	      0.139173105,
+	      -0.990268052,
+	      0.96126169,
+	      -0.91354543
+	    ],
+	    [
+	      0.35836795,
+	      -0.241921902,
+	      0.121869341,
+	      -0.992546141,
+	      0.970295727,
+	      -0.933580399
+	    ],
+	    [
+	      0.309017,
+	      -0.207911685,
+	      0.104528464,
+	      -0.994521916,
+	      0.978147626,
+	      -0.95105654
+	    ],
+	    [
+	      0.258819044,
+	      -0.173648179,
+	      0.0871557444,
+	      -0.99619472,
+	      0.98480773,
+	      -0.965925813
+	    ],
+	    [
+	      0.207911685,
+	      -0.139173105,
+	      0.0697564706,
+	      -0.997564077,
+	      0.990268052,
+	      -0.978147626
+	    ],
+	    [
+	      0.156434461,
+	      -0.104528464,
+	      0.0523359552,
+	      -0.99862951,
+	      0.994521916,
+	      -0.987688363
+	    ],
+	    [
+	      0.104528464,
+	      -0.0697564706,
+	      0.0348994955,
+	      -0.999390841,
+	      0.997564077,
+	      -0.994521916
+	    ],
+	    [
+	      0.0523359552,
+	      -0.0348994955,
+	      0.0174524058,
+	      -0.99984771,
+	      0.999390841,
+	      -0.99862951
+	    ],
+	    [
+	      3.67394029e-16,
+	      -2.44929371e-16,
+	      1.22464685e-16,
+	      -1,
+	      1,
+	      -1
+	    ],
+	    [
+	      -0.0523359552,
+	      0.0348994955,
+	      -0.0174524058,
+	      -0.99984771,
+	      0.999390841,
+	      -0.99862951
+	    ],
+	    [
+	      -0.104528464,
+	      0.0697564706,
+	      -0.0348994955,
+	      -0.999390841,
+	      0.997564077,
+	      -0.994521916
+	    ],
+	    [
+	      -0.156434461,
+	      0.104528464,
+	      -0.0523359552,
+	      -0.99862951,
+	      0.994521916,
+	      -0.987688363
+	    ],
+	    [
+	      -0.207911685,
+	      0.139173105,
+	      -0.0697564706,
+	      -0.997564077,
+	      0.990268052,
+	      -0.978147626
+	    ],
+	    [
+	      -0.258819044,
+	      0.173648179,
+	      -0.0871557444,
+	      -0.99619472,
+	      0.98480773,
+	      -0.965925813
+	    ],
+	    [
+	      -0.309017,
+	      0.207911685,
+	      -0.104528464,
+	      -0.994521916,
+	      0.978147626,
+	      -0.95105654
+	    ],
+	    [
+	      -0.35836795,
+	      0.241921902,
+	      -0.121869341,
+	      -0.992546141,
+	      0.970295727,
+	      -0.933580399
+	    ],
+	    [
+	      -0.406736642,
+	      0.275637358,
+	      -0.139173105,
+	      -0.990268052,
+	      0.96126169,
+	      -0.91354543
+	    ],
+	    [
+	      -0.453990489,
+	      0.309017,
+	      -0.156434461,
+	      -0.987688363,
+	      0.95105654,
+	      -0.891006529
+	    ],
+	    [
+	      -0.5,
+	      0.342020154,
+	      -0.173648179,
+	      -0.98480773,
+	      0.939692616,
+	      -0.866025388
+	    ],
+	    [
+	      -0.544639051,
+	      0.37460658,
+	      -0.190809,
+	      -0.981627166,
+	      0.927183867,
+	      -0.838670552
+	    ],
+	    [
+	      -0.587785244,
+	      0.406736642,
+	      -0.207911685,
+	      -0.978147626,
+	      0.91354543,
+	      -0.809017
+	    ],
+	    [
+	      -0.629320383,
+	      0.438371152,
+	      -0.224951059,
+	      -0.974370062,
+	      0.898794055,
+	      -0.777146
+	    ],
+	    [
+	      -0.669130623,
+	      0.469471574,
+	      -0.241921902,
+	      -0.970295727,
+	      0.882947564,
+	      -0.74314481
+	    ],
+	    [
+	      -0.707106769,
+	      0.5,
+	      -0.258819044,
+	      -0.965925813,
+	      0.866025388,
+	      -0.707106769
+	    ],
+	    [
+	      -0.74314481,
+	      0.529919267,
+	      -0.275637358,
+	      -0.96126169,
+	      0.848048091,
+	      -0.669130623
+	    ],
+	    [
+	      -0.777146,
+	      0.559192896,
+	      -0.29237169,
+	      -0.956304729,
+	      0.829037547,
+	      -0.629320383
+	    ],
+	    [
+	      -0.809017,
+	      0.587785244,
+	      -0.309017,
+	      -0.95105654,
+	      0.809017,
+	      -0.587785244
+	    ],
+	    [
+	      -0.838670552,
+	      0.615661502,
+	      -0.325568169,
+	      -0.945518553,
+	      0.788010776,
+	      -0.544639051
+	    ],
+	    [
+	      -0.866025388,
+	      0.642787635,
+	      -0.342020154,
+	      -0.939692616,
+	      0.766044438,
+	      -0.5
+	    ],
+	    [
+	      -0.891006529,
+	      0.669130623,
+	      -0.35836795,
+	      -0.933580399,
+	      0.74314481,
+	      -0.453990489
+	    ],
+	    [
+	      -0.91354543,
+	      0.694658399,
+	      -0.37460658,
+	      -0.927183867,
+	      0.719339788,
+	      -0.406736642
+	    ],
+	    [
+	      -0.933580399,
+	      0.719339788,
+	      -0.390731126,
+	      -0.920504868,
+	      0.694658399,
+	      -0.35836795
+	    ],
+	    [
+	      -0.95105654,
+	      0.74314481,
+	      -0.406736642,
+	      -0.91354543,
+	      0.669130623,
+	      -0.309017
+	    ],
+	    [
+	      -0.965925813,
+	      0.766044438,
+	      -0.42261827,
+	      -0.906307817,
+	      0.642787635,
+	      -0.258819044
+	    ],
+	    [
+	      -0.978147626,
+	      0.788010776,
+	      -0.438371152,
+	      -0.898794055,
+	      0.615661502,
+	      -0.207911685
+	    ],
+	    [
+	      -0.987688363,
+	      0.809017,
+	      -0.453990489,
+	      -0.891006529,
+	      0.587785244,
+	      -0.156434461
+	    ],
+	    [
+	      -0.994521916,
+	      0.829037547,
+	      -0.469471574,
+	      -0.882947564,
+	      0.559192896,
+	      -0.104528464
+	    ],
+	    [
+	      -0.99862951,
+	      0.848048091,
+	      -0.484809607,
+	      -0.874619722,
+	      0.529919267,
+	      -0.0523359552
+	    ],
+	    [
+	      -1,
+	      0.866025388,
+	      -0.5,
+	      -0.866025388,
+	      0.5,
+	      1.34773043e-15
+	    ],
+	    [
+	      -0.99862951,
+	      0.882947564,
+	      -0.515038073,
+	      -0.857167304,
+	      0.469471574,
+	      0.0523359552
+	    ],
+	    [
+	      -0.994521916,
+	      0.898794055,
+	      -0.529919267,
+	      -0.848048091,
+	      0.438371152,
+	      0.104528464
+	    ],
+	    [
+	      -0.987688363,
+	      0.91354543,
+	      -0.544639051,
+	      -0.838670552,
+	      0.406736642,
+	      0.156434461
+	    ],
+	    [
+	      -0.978147626,
+	      0.927183867,
+	      -0.559192896,
+	      -0.829037547,
+	      0.37460658,
+	      0.207911685
+	    ],
+	    [
+	      -0.965925813,
+	      0.939692616,
+	      -0.57357645,
+	      -0.819152057,
+	      0.342020154,
+	      0.258819044
+	    ],
+	    [
+	      -0.95105654,
+	      0.95105654,
+	      -0.587785244,
+	      -0.809017,
+	      0.309017,
+	      0.309017
+	    ],
+	    [
+	      -0.933580399,
+	      0.96126169,
+	      -0.601815045,
+	      -0.798635483,
+	      0.275637358,
+	      0.35836795
+	    ],
+	    [
+	      -0.91354543,
+	      0.970295727,
+	      -0.615661502,
+	      -0.788010776,
+	      0.241921902,
+	      0.406736642
+	    ],
+	    [
+	      -0.891006529,
+	      0.978147626,
+	      -0.629320383,
+	      -0.777146,
+	      0.207911685,
+	      0.453990489
+	    ],
+	    [
+	      -0.866025388,
+	      0.98480773,
+	      -0.642787635,
+	      -0.766044438,
+	      0.173648179,
+	      0.5
+	    ],
+	    [
+	      -0.838670552,
+	      0.990268052,
+	      -0.656059,
+	      -0.754709601,
+	      0.139173105,
+	      0.544639051
+	    ],
+	    [
+	      -0.809017,
+	      0.994521916,
+	      -0.669130623,
+	      -0.74314481,
+	      0.104528464,
+	      0.587785244
+	    ],
+	    [
+	      -0.777146,
+	      0.997564077,
+	      -0.681998372,
+	      -0.7313537,
+	      0.0697564706,
+	      0.629320383
+	    ],
+	    [
+	      -0.74314481,
+	      0.999390841,
+	      -0.694658399,
+	      -0.719339788,
+	      0.0348994955,
+	      0.669130623
+	    ],
+	    [
+	      -0.707106769,
+	      1,
+	      -0.707106769,
+	      -0.707106769,
+	      3.061617e-16,
+	      0.707106769
+	    ],
+	    [
+	      -0.669130623,
+	      0.999390841,
+	      -0.719339788,
+	      -0.694658399,
+	      -0.0348994955,
+	      0.74314481
+	    ],
+	    [
+	      -0.629320383,
+	      0.997564077,
+	      -0.7313537,
+	      -0.681998372,
+	      -0.0697564706,
+	      0.777146
+	    ],
+	    [
+	      -0.587785244,
+	      0.994521916,
+	      -0.74314481,
+	      -0.669130623,
+	      -0.104528464,
+	      0.809017
+	    ],
+	    [
+	      -0.544639051,
+	      0.990268052,
+	      -0.754709601,
+	      -0.656059,
+	      -0.139173105,
+	      0.838670552
+	    ],
+	    [
+	      -0.5,
+	      0.98480773,
+	      -0.766044438,
+	      -0.642787635,
+	      -0.173648179,
+	      0.866025388
+	    ],
+	    [
+	      -0.453990489,
+	      0.978147626,
+	      -0.777146,
+	      -0.629320383,
+	      -0.207911685,
+	      0.891006529
+	    ],
+	    [
+	      -0.406736642,
+	      0.970295727,
+	      -0.788010776,
+	      -0.615661502,
+	      -0.241921902,
+	      0.91354543
+	    ],
+	    [
+	      -0.35836795,
+	      0.96126169,
+	      -0.798635483,
+	      -0.601815045,
+	      -0.275637358,
+	      0.933580399
+	    ],
+	    [
+	      -0.309017,
+	      0.95105654,
+	      -0.809017,
+	      -0.587785244,
+	      -0.309017,
+	      0.95105654
+	    ],
+	    [
+	      -0.258819044,
+	      0.939692616,
+	      -0.819152057,
+	      -0.57357645,
+	      -0.342020154,
+	      0.965925813
+	    ],
+	    [
+	      -0.207911685,
+	      0.927183867,
+	      -0.829037547,
+	      -0.559192896,
+	      -0.37460658,
+	      0.978147626
+	    ],
+	    [
+	      -0.156434461,
+	      0.91354543,
+	      -0.838670552,
+	      -0.544639051,
+	      -0.406736642,
+	      0.987688363
+	    ],
+	    [
+	      -0.104528464,
+	      0.898794055,
+	      -0.848048091,
+	      -0.529919267,
+	      -0.438371152,
+	      0.994521916
+	    ],
+	    [
+	      -0.0523359552,
+	      0.882947564,
+	      -0.857167304,
+	      -0.515038073,
+	      -0.469471574,
+	      0.99862951
+	    ],
+	    [
+	      -4.89858741e-16,
+	      0.866025388,
+	      -0.866025388,
+	      -0.5,
+	      -0.5,
+	      1
+	    ],
+	    [
+	      0.0523359552,
+	      0.848048091,
+	      -0.874619722,
+	      -0.484809607,
+	      -0.529919267,
+	      0.99862951
+	    ],
+	    [
+	      0.104528464,
+	      0.829037547,
+	      -0.882947564,
+	      -0.469471574,
+	      -0.559192896,
+	      0.994521916
+	    ],
+	    [
+	      0.156434461,
+	      0.809017,
+	      -0.891006529,
+	      -0.453990489,
+	      -0.587785244,
+	      0.987688363
+	    ],
+	    [
+	      0.207911685,
+	      0.788010776,
+	      -0.898794055,
+	      -0.438371152,
+	      -0.615661502,
+	      0.978147626
+	    ],
+	    [
+	      0.258819044,
+	      0.766044438,
+	      -0.906307817,
+	      -0.42261827,
+	      -0.642787635,
+	      0.965925813
+	    ],
+	    [
+	      0.309017,
+	      0.74314481,
+	      -0.91354543,
+	      -0.406736642,
+	      -0.669130623,
+	      0.95105654
+	    ],
+	    [
+	      0.35836795,
+	      0.719339788,
+	      -0.920504868,
+	      -0.390731126,
+	      -0.694658399,
+	      0.933580399
+	    ],
+	    [
+	      0.406736642,
+	      0.694658399,
+	      -0.927183867,
+	      -0.37460658,
+	      -0.719339788,
+	      0.91354543
+	    ],
+	    [
+	      0.453990489,
+	      0.669130623,
+	      -0.933580399,
+	      -0.35836795,
+	      -0.74314481,
+	      0.891006529
+	    ],
+	    [
+	      0.5,
+	      0.642787635,
+	      -0.939692616,
+	      -0.342020154,
+	      -0.766044438,
+	      0.866025388
+	    ],
+	    [
+	      0.544639051,
+	      0.615661502,
+	      -0.945518553,
+	      -0.325568169,
+	      -0.788010776,
+	      0.838670552
+	    ],
+	    [
+	      0.587785244,
+	      0.587785244,
+	      -0.95105654,
+	      -0.309017,
+	      -0.809017,
+	      0.809017
+	    ],
+	    [
+	      0.629320383,
+	      0.559192896,
+	      -0.956304729,
+	      -0.29237169,
+	      -0.829037547,
+	      0.777146
+	    ],
+	    [
+	      0.669130623,
+	      0.529919267,
+	      -0.96126169,
+	      -0.275637358,
+	      -0.848048091,
+	      0.74314481
+	    ],
+	    [
+	      0.707106769,
+	      0.5,
+	      -0.965925813,
+	      -0.258819044,
+	      -0.866025388,
+	      0.707106769
+	    ],
+	    [
+	      0.74314481,
+	      0.469471574,
+	      -0.970295727,
+	      -0.241921902,
+	      -0.882947564,
+	      0.669130623
+	    ],
+	    [
+	      0.777146,
+	      0.438371152,
+	      -0.974370062,
+	      -0.224951059,
+	      -0.898794055,
+	      0.629320383
+	    ],
+	    [
+	      0.809017,
+	      0.406736642,
+	      -0.978147626,
+	      -0.207911685,
+	      -0.91354543,
+	      0.587785244
+	    ],
+	    [
+	      0.838670552,
+	      0.37460658,
+	      -0.981627166,
+	      -0.190809,
+	      -0.927183867,
+	      0.544639051
+	    ],
+	    [
+	      0.866025388,
+	      0.342020154,
+	      -0.98480773,
+	      -0.173648179,
+	      -0.939692616,
+	      0.5
+	    ],
+	    [
+	      0.891006529,
+	      0.309017,
+	      -0.987688363,
+	      -0.156434461,
+	      -0.95105654,
+	      0.453990489
+	    ],
+	    [
+	      0.91354543,
+	      0.275637358,
+	      -0.990268052,
+	      -0.139173105,
+	      -0.96126169,
+	      0.406736642
+	    ],
+	    [
+	      0.933580399,
+	      0.241921902,
+	      -0.992546141,
+	      -0.121869341,
+	      -0.970295727,
+	      0.35836795
+	    ],
+	    [
+	      0.95105654,
+	      0.207911685,
+	      -0.994521916,
+	      -0.104528464,
+	      -0.978147626,
+	      0.309017
+	    ],
+	    [
+	      0.965925813,
+	      0.173648179,
+	      -0.99619472,
+	      -0.0871557444,
+	      -0.98480773,
+	      0.258819044
+	    ],
+	    [
+	      0.978147626,
+	      0.139173105,
+	      -0.997564077,
+	      -0.0697564706,
+	      -0.990268052,
+	      0.207911685
+	    ],
+	    [
+	      0.987688363,
+	      0.104528464,
+	      -0.99862951,
+	      -0.0523359552,
+	      -0.994521916,
+	      0.156434461
+	    ],
+	    [
+	      0.994521916,
+	      0.0697564706,
+	      -0.999390841,
+	      -0.0348994955,
+	      -0.997564077,
+	      0.104528464
+	    ],
+	    [
+	      0.99862951,
+	      0.0348994955,
+	      -0.99984771,
+	      -0.0174524058,
+	      -0.999390841,
+	      0.0523359552
+	    ],
+	    [
+	      1,
+	      3.67394029e-16,
+	      -1,
+	      -1.83697015e-16,
+	      -1,
+	      5.5109107e-16
+	    ],
+	    [
+	      0.99862951,
+	      -0.0348994955,
+	      -0.99984771,
+	      0.0174524058,
+	      -0.999390841,
+	      -0.0523359552
+	    ],
+	    [
+	      0.994521916,
+	      -0.0697564706,
+	      -0.999390841,
+	      0.0348994955,
+	      -0.997564077,
+	      -0.104528464
+	    ],
+	    [
+	      0.987688363,
+	      -0.104528464,
+	      -0.99862951,
+	      0.0523359552,
+	      -0.994521916,
+	      -0.156434461
+	    ],
+	    [
+	      0.978147626,
+	      -0.139173105,
+	      -0.997564077,
+	      0.0697564706,
+	      -0.990268052,
+	      -0.207911685
+	    ],
+	    [
+	      0.965925813,
+	      -0.173648179,
+	      -0.99619472,
+	      0.0871557444,
+	      -0.98480773,
+	      -0.258819044
+	    ],
+	    [
+	      0.95105654,
+	      -0.207911685,
+	      -0.994521916,
+	      0.104528464,
+	      -0.978147626,
+	      -0.309017
+	    ],
+	    [
+	      0.933580399,
+	      -0.241921902,
+	      -0.992546141,
+	      0.121869341,
+	      -0.970295727,
+	      -0.35836795
+	    ],
+	    [
+	      0.91354543,
+	      -0.275637358,
+	      -0.990268052,
+	      0.139173105,
+	      -0.96126169,
+	      -0.406736642
+	    ],
+	    [
+	      0.891006529,
+	      -0.309017,
+	      -0.987688363,
+	      0.156434461,
+	      -0.95105654,
+	      -0.453990489
+	    ],
+	    [
+	      0.866025388,
+	      -0.342020154,
+	      -0.98480773,
+	      0.173648179,
+	      -0.939692616,
+	      -0.5
+	    ],
+	    [
+	      0.838670552,
+	      -0.37460658,
+	      -0.981627166,
+	      0.190809,
+	      -0.927183867,
+	      -0.544639051
+	    ],
+	    [
+	      0.809017,
+	      -0.406736642,
+	      -0.978147626,
+	      0.207911685,
+	      -0.91354543,
+	      -0.587785244
+	    ],
+	    [
+	      0.777146,
+	      -0.438371152,
+	      -0.974370062,
+	      0.224951059,
+	      -0.898794055,
+	      -0.629320383
+	    ],
+	    [
+	      0.74314481,
+	      -0.469471574,
+	      -0.970295727,
+	      0.241921902,
+	      -0.882947564,
+	      -0.669130623
+	    ],
+	    [
+	      0.707106769,
+	      -0.5,
+	      -0.965925813,
+	      0.258819044,
+	      -0.866025388,
+	      -0.707106769
+	    ],
+	    [
+	      0.669130623,
+	      -0.529919267,
+	      -0.96126169,
+	      0.275637358,
+	      -0.848048091,
+	      -0.74314481
+	    ],
+	    [
+	      0.629320383,
+	      -0.559192896,
+	      -0.956304729,
+	      0.29237169,
+	      -0.829037547,
+	      -0.777146
+	    ],
+	    [
+	      0.587785244,
+	      -0.587785244,
+	      -0.95105654,
+	      0.309017,
+	      -0.809017,
+	      -0.809017
+	    ],
+	    [
+	      0.544639051,
+	      -0.615661502,
+	      -0.945518553,
+	      0.325568169,
+	      -0.788010776,
+	      -0.838670552
+	    ],
+	    [
+	      0.5,
+	      -0.642787635,
+	      -0.939692616,
+	      0.342020154,
+	      -0.766044438,
+	      -0.866025388
+	    ],
+	    [
+	      0.453990489,
+	      -0.669130623,
+	      -0.933580399,
+	      0.35836795,
+	      -0.74314481,
+	      -0.891006529
+	    ],
+	    [
+	      0.406736642,
+	      -0.694658399,
+	      -0.927183867,
+	      0.37460658,
+	      -0.719339788,
+	      -0.91354543
+	    ],
+	    [
+	      0.35836795,
+	      -0.719339788,
+	      -0.920504868,
+	      0.390731126,
+	      -0.694658399,
+	      -0.933580399
+	    ],
+	    [
+	      0.309017,
+	      -0.74314481,
+	      -0.91354543,
+	      0.406736642,
+	      -0.669130623,
+	      -0.95105654
+	    ],
+	    [
+	      0.258819044,
+	      -0.766044438,
+	      -0.906307817,
+	      0.42261827,
+	      -0.642787635,
+	      -0.965925813
+	    ],
+	    [
+	      0.207911685,
+	      -0.788010776,
+	      -0.898794055,
+	      0.438371152,
+	      -0.615661502,
+	      -0.978147626
+	    ],
+	    [
+	      0.156434461,
+	      -0.809017,
+	      -0.891006529,
+	      0.453990489,
+	      -0.587785244,
+	      -0.987688363
+	    ],
+	    [
+	      0.104528464,
+	      -0.829037547,
+	      -0.882947564,
+	      0.469471574,
+	      -0.559192896,
+	      -0.994521916
+	    ],
+	    [
+	      0.0523359552,
+	      -0.848048091,
+	      -0.874619722,
+	      0.484809607,
+	      -0.529919267,
+	      -0.99862951
+	    ],
+	    [
+	      6.123234e-16,
+	      -0.866025388,
+	      -0.866025388,
+	      0.5,
+	      -0.5,
+	      -1
+	    ],
+	    [
+	      -0.0523359552,
+	      -0.882947564,
+	      -0.857167304,
+	      0.515038073,
+	      -0.469471574,
+	      -0.99862951
+	    ],
+	    [
+	      -0.104528464,
+	      -0.898794055,
+	      -0.848048091,
+	      0.529919267,
+	      -0.438371152,
+	      -0.994521916
+	    ],
+	    [
+	      -0.156434461,
+	      -0.91354543,
+	      -0.838670552,
+	      0.544639051,
+	      -0.406736642,
+	      -0.987688363
+	    ],
+	    [
+	      -0.207911685,
+	      -0.927183867,
+	      -0.829037547,
+	      0.559192896,
+	      -0.37460658,
+	      -0.978147626
+	    ],
+	    [
+	      -0.258819044,
+	      -0.939692616,
+	      -0.819152057,
+	      0.57357645,
+	      -0.342020154,
+	      -0.965925813
+	    ],
+	    [
+	      -0.309017,
+	      -0.95105654,
+	      -0.809017,
+	      0.587785244,
+	      -0.309017,
+	      -0.95105654
+	    ],
+	    [
+	      -0.35836795,
+	      -0.96126169,
+	      -0.798635483,
+	      0.601815045,
+	      -0.275637358,
+	      -0.933580399
+	    ],
+	    [
+	      -0.406736642,
+	      -0.970295727,
+	      -0.788010776,
+	      0.615661502,
+	      -0.241921902,
+	      -0.91354543
+	    ],
+	    [
+	      -0.453990489,
+	      -0.978147626,
+	      -0.777146,
+	      0.629320383,
+	      -0.207911685,
+	      -0.891006529
+	    ],
+	    [
+	      -0.5,
+	      -0.98480773,
+	      -0.766044438,
+	      0.642787635,
+	      -0.173648179,
+	      -0.866025388
+	    ],
+	    [
+	      -0.544639051,
+	      -0.990268052,
+	      -0.754709601,
+	      0.656059,
+	      -0.139173105,
+	      -0.838670552
+	    ],
+	    [
+	      -0.587785244,
+	      -0.994521916,
+	      -0.74314481,
+	      0.669130623,
+	      -0.104528464,
+	      -0.809017
+	    ],
+	    [
+	      -0.629320383,
+	      -0.997564077,
+	      -0.7313537,
+	      0.681998372,
+	      -0.0697564706,
+	      -0.777146
+	    ],
+	    [
+	      -0.669130623,
+	      -0.999390841,
+	      -0.719339788,
+	      0.694658399,
+	      -0.0348994955,
+	      -0.74314481
+	    ],
+	    [
+	      -0.707106769,
+	      -1,
+	      -0.707106769,
+	      0.707106769,
+	      -4.28626385e-16,
+	      -0.707106769
+	    ],
+	    [
+	      -0.74314481,
+	      -0.999390841,
+	      -0.694658399,
+	      0.719339788,
+	      0.0348994955,
+	      -0.669130623
+	    ],
+	    [
+	      -0.777146,
+	      -0.997564077,
+	      -0.681998372,
+	      0.7313537,
+	      0.0697564706,
+	      -0.629320383
+	    ],
+	    [
+	      -0.809017,
+	      -0.994521916,
+	      -0.669130623,
+	      0.74314481,
+	      0.104528464,
+	      -0.587785244
+	    ],
+	    [
+	      -0.838670552,
+	      -0.990268052,
+	      -0.656059,
+	      0.754709601,
+	      0.139173105,
+	      -0.544639051
+	    ],
+	    [
+	      -0.866025388,
+	      -0.98480773,
+	      -0.642787635,
+	      0.766044438,
+	      0.173648179,
+	      -0.5
+	    ],
+	    [
+	      -0.891006529,
+	      -0.978147626,
+	      -0.629320383,
+	      0.777146,
+	      0.207911685,
+	      -0.453990489
+	    ],
+	    [
+	      -0.91354543,
+	      -0.970295727,
+	      -0.615661502,
+	      0.788010776,
+	      0.241921902,
+	      -0.406736642
+	    ],
+	    [
+	      -0.933580399,
+	      -0.96126169,
+	      -0.601815045,
+	      0.798635483,
+	      0.275637358,
+	      -0.35836795
+	    ],
+	    [
+	      -0.95105654,
+	      -0.95105654,
+	      -0.587785244,
+	      0.809017,
+	      0.309017,
+	      -0.309017
+	    ],
+	    [
+	      -0.965925813,
+	      -0.939692616,
+	      -0.57357645,
+	      0.819152057,
+	      0.342020154,
+	      -0.258819044
+	    ],
+	    [
+	      -0.978147626,
+	      -0.927183867,
+	      -0.559192896,
+	      0.829037547,
+	      0.37460658,
+	      -0.207911685
+	    ],
+	    [
+	      -0.987688363,
+	      -0.91354543,
+	      -0.544639051,
+	      0.838670552,
+	      0.406736642,
+	      -0.156434461
+	    ],
+	    [
+	      -0.994521916,
+	      -0.898794055,
+	      -0.529919267,
+	      0.848048091,
+	      0.438371152,
+	      -0.104528464
+	    ],
+	    [
+	      -0.99862951,
+	      -0.882947564,
+	      -0.515038073,
+	      0.857167304,
+	      0.469471574,
+	      -0.0523359552
+	    ],
+	    [
+	      -1,
+	      -0.866025388,
+	      -0.5,
+	      0.866025388,
+	      0.5,
+	      -2.44991257e-15
+	    ],
+	    [
+	      -0.99862951,
+	      -0.848048091,
+	      -0.484809607,
+	      0.874619722,
+	      0.529919267,
+	      0.0523359552
+	    ],
+	    [
+	      -0.994521916,
+	      -0.829037547,
+	      -0.469471574,
+	      0.882947564,
+	      0.559192896,
+	      0.104528464
+	    ],
+	    [
+	      -0.987688363,
+	      -0.809017,
+	      -0.453990489,
+	      0.891006529,
+	      0.587785244,
+	      0.156434461
+	    ],
+	    [
+	      -0.978147626,
+	      -0.788010776,
+	      -0.438371152,
+	      0.898794055,
+	      0.615661502,
+	      0.207911685
+	    ],
+	    [
+	      -0.965925813,
+	      -0.766044438,
+	      -0.42261827,
+	      0.906307817,
+	      0.642787635,
+	      0.258819044
+	    ],
+	    [
+	      -0.95105654,
+	      -0.74314481,
+	      -0.406736642,
+	      0.91354543,
+	      0.669130623,
+	      0.309017
+	    ],
+	    [
+	      -0.933580399,
+	      -0.719339788,
+	      -0.390731126,
+	      0.920504868,
+	      0.694658399,
+	      0.35836795
+	    ],
+	    [
+	      -0.91354543,
+	      -0.694658399,
+	      -0.37460658,
+	      0.927183867,
+	      0.719339788,
+	      0.406736642
+	    ],
+	    [
+	      -0.891006529,
+	      -0.669130623,
+	      -0.35836795,
+	      0.933580399,
+	      0.74314481,
+	      0.453990489
+	    ],
+	    [
+	      -0.866025388,
+	      -0.642787635,
+	      -0.342020154,
+	      0.939692616,
+	      0.766044438,
+	      0.5
+	    ],
+	    [
+	      -0.838670552,
+	      -0.615661502,
+	      -0.325568169,
+	      0.945518553,
+	      0.788010776,
+	      0.544639051
+	    ],
+	    [
+	      -0.809017,
+	      -0.587785244,
+	      -0.309017,
+	      0.95105654,
+	      0.809017,
+	      0.587785244
+	    ],
+	    [
+	      -0.777146,
+	      -0.559192896,
+	      -0.29237169,
+	      0.956304729,
+	      0.829037547,
+	      0.629320383
+	    ],
+	    [
+	      -0.74314481,
+	      -0.529919267,
+	      -0.275637358,
+	      0.96126169,
+	      0.848048091,
+	      0.669130623
+	    ],
+	    [
+	      -0.707106769,
+	      -0.5,
+	      -0.258819044,
+	      0.965925813,
+	      0.866025388,
+	      0.707106769
+	    ],
+	    [
+	      -0.669130623,
+	      -0.469471574,
+	      -0.241921902,
+	      0.970295727,
+	      0.882947564,
+	      0.74314481
+	    ],
+	    [
+	      -0.629320383,
+	      -0.438371152,
+	      -0.224951059,
+	      0.974370062,
+	      0.898794055,
+	      0.777146
+	    ],
+	    [
+	      -0.587785244,
+	      -0.406736642,
+	      -0.207911685,
+	      0.978147626,
+	      0.91354543,
+	      0.809017
+	    ],
+	    [
+	      -0.544639051,
+	      -0.37460658,
+	      -0.190809,
+	      0.981627166,
+	      0.927183867,
+	      0.838670552
+	    ],
+	    [
+	      -0.5,
+	      -0.342020154,
+	      -0.173648179,
+	      0.98480773,
+	      0.939692616,
+	      0.866025388
+	    ],
+	    [
+	      -0.453990489,
+	      -0.309017,
+	      -0.156434461,
+	      0.987688363,
+	      0.95105654,
+	      0.891006529
+	    ],
+	    [
+	      -0.406736642,
+	      -0.275637358,
+	      -0.139173105,
+	      0.990268052,
+	      0.96126169,
+	      0.91354543
+	    ],
+	    [
+	      -0.35836795,
+	      -0.241921902,
+	      -0.121869341,
+	      0.992546141,
+	      0.970295727,
+	      0.933580399
+	    ],
+	    [
+	      -0.309017,
+	      -0.207911685,
+	      -0.104528464,
+	      0.994521916,
+	      0.978147626,
+	      0.95105654
+	    ],
+	    [
+	      -0.258819044,
+	      -0.173648179,
+	      -0.0871557444,
+	      0.99619472,
+	      0.98480773,
+	      0.965925813
+	    ],
+	    [
+	      -0.207911685,
+	      -0.139173105,
+	      -0.0697564706,
+	      0.997564077,
+	      0.990268052,
+	      0.978147626
+	    ],
+	    [
+	      -0.156434461,
+	      -0.104528464,
+	      -0.0523359552,
+	      0.99862951,
+	      0.994521916,
+	      0.987688363
+	    ],
+	    [
+	      -0.104528464,
+	      -0.0697564706,
+	      -0.0348994955,
+	      0.999390841,
+	      0.997564077,
+	      0.994521916
+	    ],
+	    [
+	      -0.0523359552,
+	      -0.0348994955,
+	      -0.0174524058,
+	      0.99984771,
+	      0.999390841,
+	      0.99862951
+	    ]
+	  ],
+	  [
+	    [
+	      -1,
+	      0,
+	      1,
+	      0,
+	      0,
+	      -1,
+	      0,
+	      0,
+	      0
+	    ],
+	    [
+	      -0.99984771,
+	      0.0174524058,
+	      0.99954313,
+	      0.0302238502,
+	      0.000263779628,
+	      -0.99908632,
+	      0.0427332148,
+	      0.000589739357,
+	      0.00000420248307
+	    ],
+	    [
+	      -0.999390841,
+	      0.0348994955,
+	      0.998173058,
+	      0.0604108796,
+	      0.00105479721,
+	      -0.996347725,
+	      0.0853558108,
+	      0.00235716137,
+	      0.000033604505
+	    ],
+	    [
+	      -0.99862951,
+	      0.0523359552,
+	      0.995891392,
+	      0.0905243,
+	      0.00237208884,
+	      -0.991791308,
+	      0.12775746,
+	      0.00529688271,
+	      0.000113328853
+	    ],
+	    [
+	      -0.997564077,
+	      0.0697564706,
+	      0.992701054,
+	      0.120527439,
+	      0.00421405,
+	      -0.985428751,
+	      0.169828475,
+	      0.00939994864,
+	      0.000268345029
+	    ],
+	    [
+	      -0.99619472,
+	      0.0871557444,
+	      0.988605797,
+	      0.150383726,
+	      0.00657843612,
+	      -0.977276683,
+	      0.211460009,
+	      0.014653855,
+	      0.000523393159
+	    ],
+	    [
+	      -0.994521916,
+	      0.104528464,
+	      0.98361069,
+	      0.18005681,
+	      0.00946236681,
+	      -0.967356,
+	      0.252544463,
+	      0.0210425854,
+	      0.000902908447
+	    ],
+	    [
+	      -0.992546141,
+	      0.121869341,
+	      0.97772181,
+	      0.209510505,
+	      0.0128623275,
+	      -0.955692589,
+	      0.292975664,
+	      0.0285466593,
+	      0.00143094664
+	    ],
+	    [
+	      -0.990268052,
+	      0.139173105,
+	      0.970946252,
+	      0.238708958,
+	      0.0167741776,
+	      -0.942316413,
+	      0.33264932,
+	      0.0371431746,
+	      0.00213111029
+	    ],
+	    [
+	      -0.987688363,
+	      0.156434461,
+	      0.96329236,
+	      0.26761657,
+	      0.0211931504,
+	      -0.927262187,
+	      0.37146312,
+	      0.0468058847,
+	      0.0030264766
+	    ],
+	    [
+	      -0.98480773,
+	      0.173648179,
+	      0.954769492,
+	      0.29619813,
+	      0.0261138603,
+	      -0.910568774,
+	      0.409317106,
+	      0.0575052574,
+	      0.00413952675
+	    ],
+	    [
+	      -0.981627166,
+	      0.190809,
+	      0.9453879,
+	      0.324418813,
+	      0.0315303169,
+	      -0.892279327,
+	      0.446113944,
+	      0.0692085773,
+	      0.00549207628
+	    ],
+	    [
+	      -0.978147626,
+	      0.207911685,
+	      0.935159087,
+	      0.352244258,
+	      0.0374359153,
+	      -0.872441,
+	      0.481759191,
+	      0.08188,
+	      0.00710520707
+	    ],
+	    [
+	      -0.974370062,
+	      0.224951059,
+	      0.924095511,
+	      0.379640549,
+	      0.043823462,
+	      -0.851105,
+	      0.516161561,
+	      0.0954807103,
+	      0.00899920426
+	    ],
+	    [
+	      -0.970295727,
+	      0.241921902,
+	      0.912210703,
+	      0.406574309,
+	      0.0506851785,
+	      -0.828326404,
+	      0.549233,
+	      0.10996896,
+	      0.0111934906
+	    ],
+	    [
+	      -0.965925813,
+	      0.258819044,
+	      0.899519,
+	      0.433012694,
+	      0.0580127,
+	      -0.804163933,
+	      0.580889285,
+	      0.125300229,
+	      0.0137065668
+	    ],
+	    [
+	      -0.96126169,
+	      0.275637358,
+	      0.886036098,
+	      0.458923548,
+	      0.0657971054,
+	      -0.778679788,
+	      0.61104995,
+	      0.141427353,
+	      0.0165559556
+	    ],
+	    [
+	      -0.956304729,
+	      0.29237169,
+	      0.87177819,
+	      0.484275252,
+	      0.0740289,
+	      -0.751939535,
+	      0.639638543,
+	      0.158300623,
+	      0.0197581388
+	    ],
+	    [
+	      -0.95105654,
+	      0.309017,
+	      0.856762767,
+	      0.509036958,
+	      0.0826980695,
+	      -0.724011958,
+	      0.666583,
+	      0.175867945,
+	      0.0233285148
+	    ],
+	    [
+	      -0.945518553,
+	      0.325568169,
+	      0.841008067,
+	      0.533178449,
+	      0.0917940363,
+	      -0.694968879,
+	      0.691815674,
+	      0.194074973,
+	      0.0272813439
+	    ],
+	    [
+	      -0.939692616,
+	      0.342020154,
+	      0.824533343,
+	      0.556670427,
+	      0.101305731,
+	      -0.664884746,
+	      0.715273559,
+	      0.212865278,
+	      0.0316297
+	    ],
+	    [
+	      -0.933580399,
+	      0.35836795,
+	      0.807358623,
+	      0.579484105,
+	      0.111221552,
+	      -0.633836746,
+	      0.736898482,
+	      0.232180476,
+	      0.0363854282
+	    ],
+	    [
+	      -0.927183867,
+	      0.37460658,
+	      0.789504826,
+	      0.601591825,
+	      0.12152943,
+	      -0.601904333,
+	      0.756637275,
+	      0.251960427,
+	      0.0415591113
+	    ],
+	    [
+	      -0.920504868,
+	      0.390731126,
+	      0.770993769,
+	      0.622966528,
+	      0.132216811,
+	      -0.569169283,
+	      0.774441898,
+	      0.272143364,
+	      0.0471600257
+	    ],
+	    [
+	      -0.91354543,
+	      0.406736642,
+	      0.751848,
+	      0.643582284,
+	      0.143270656,
+	      -0.535715163,
+	      0.790269554,
+	      0.292666078,
+	      0.0531961136
+	    ],
+	    [
+	      -0.906307817,
+	      0.42261827,
+	      0.732090712,
+	      0.663413942,
+	      0.154677495,
+	      -0.501627326,
+	      0.80408287,
+	      0.313464135,
+	      0.0596739501
+	    ],
+	    [
+	      -0.898794055,
+	      0.438371152,
+	      0.711746097,
+	      0.68243736,
+	      0.16642347,
+	      -0.466992587,
+	      0.8158499,
+	      0.334471971,
+	      0.0665987208
+	    ],
+	    [
+	      -0.891006529,
+	      0.453990489,
+	      0.690838933,
+	      0.700629294,
+	      0.178494215,
+	      -0.431898981,
+	      0.825544238,
+	      0.355623156,
+	      0.073974207
+	    ],
+	    [
+	      -0.882947564,
+	      0.469471574,
+	      0.669394672,
+	      0.71796757,
+	      0.190875068,
+	      -0.396435648,
+	      0.833145082,
+	      0.376850545,
+	      0.0818027481
+	    ],
+	    [
+	      -0.874619722,
+	      0.484809607,
+	      0.64743942,
+	      0.734431207,
+	      0.203550935,
+	      -0.360692352,
+	      0.838637531,
+	      0.398086399,
+	      0.0900852531
+	    ],
+	    [
+	      -0.866025388,
+	      0.5,
+	      0.625,
+	      0.75,
+	      0.216506347,
+	      -0.324759513,
+	      0.842012107,
+	      0.419262737,
+	      0.0988211781
+	    ],
+	    [
+	      -0.857167304,
+	      0.515038073,
+	      0.602103651,
+	      0.764655054,
+	      0.229725555,
+	      -0.28872776,
+	      0.843265295,
+	      0.440311372,
+	      0.108008519
+	    ],
+	    [
+	      -0.848048091,
+	      0.529919267,
+	      0.578778386,
+	      0.778378487,
+	      0.243192434,
+	      -0.252687752,
+	      0.84239924,
+	      0.461164147,
+	      0.117643826
+	    ],
+	    [
+	      -0.838670552,
+	      0.544639051,
+	      0.555052459,
+	      0.79115355,
+	      0.256890565,
+	      -0.216729924,
+	      0.839421868,
+	      0.481753141,
+	      0.127722174
+	    ],
+	    [
+	      -0.829037547,
+	      0.559192896,
+	      0.530954957,
+	      0.802964747,
+	      0.270803303,
+	      -0.180944279,
+	      0.83434689,
+	      0.502010882,
+	      0.138237208
+	    ],
+	    [
+	      -0.819152057,
+	      0.57357645,
+	      0.506515086,
+	      0.813797653,
+	      0.284913629,
+	      -0.145420119,
+	      0.827193558,
+	      0.521870494,
+	      0.149181142
+	    ],
+	    [
+	      -0.809017,
+	      0.587785244,
+	      0.481762737,
+	      0.823639095,
+	      0.299204409,
+	      -0.110245749,
+	      0.817986846,
+	      0.541265905,
+	      0.160544738
+	    ],
+	    [
+	      -0.798635483,
+	      0.601815045,
+	      0.456728,
+	      0.832477033,
+	      0.313658237,
+	      -0.0755083486,
+	      0.80675739,
+	      0.560131907,
+	      0.172317386
+	    ],
+	    [
+	      -0.788010776,
+	      0.615661502,
+	      0.431441426,
+	      0.840300739,
+	      0.328257442,
+	      -0.0412936322,
+	      0.793541074,
+	      0.578404605,
+	      0.184487075
+	    ],
+	    [
+	      -0.777146,
+	      0.629320383,
+	      0.405933768,
+	      0.847100675,
+	      0.342984289,
+	      -0.00768567342,
+	      0.778379381,
+	      0.596021354,
+	      0.197040468
+	    ],
+	    [
+	      -0.766044438,
+	      0.642787635,
+	      0.380236119,
+	      0.852868557,
+	      0.357820839,
+	      0.0252333339,
+	      0.761319,
+	      0.612921119,
+	      0.209962875
+	    ],
+	    [
+	      -0.754709601,
+	      0.656059,
+	      0.354379833,
+	      0.857597291,
+	      0.372748971,
+	      0.0573833026,
+	      0.742411554,
+	      0.629044473,
+	      0.223238334
+	    ],
+	    [
+	      -0.74314481,
+	      0.669130623,
+	      0.32839635,
+	      0.861281216,
+	      0.387750536,
+	      0.0886864737,
+	      0.721713901,
+	      0.64433378,
+	      0.236849621
+	    ],
+	    [
+	      -0.7313537,
+	      0.681998372,
+	      0.302317351,
+	      0.863915801,
+	      0.402807266,
+	      0.119067609,
+	      0.699287713,
+	      0.658733487,
+	      0.250778317
+	    ],
+	    [
+	      -0.719339788,
+	      0.694658399,
+	      0.276174635,
+	      0.865497828,
+	      0.417900771,
+	      0.148454204,
+	      0.675199151,
+	      0.672190368,
+	      0.265004843
+	    ],
+	    [
+	      -0.707106769,
+	      0.707106769,
+	      0.25,
+	      0.866025388,
+	      0.433012694,
+	      0.176776692,
+	      0.649519,
+	      0.684653223,
+	      0.279508501
+	    ],
+	    [
+	      -0.694658399,
+	      0.719339788,
+	      0.22382538,
+	      0.865497828,
+	      0.448124617,
+	      0.203968629,
+	      0.622322381,
+	      0.696073472,
+	      0.294267476
+	    ],
+	    [
+	      -0.681998372,
+	      0.7313537,
+	      0.197682649,
+	      0.863915801,
+	      0.463218153,
+	      0.229966834,
+	      0.593688309,
+	      0.706405222,
+	      0.309259027
+	    ],
+	    [
+	      -0.669130623,
+	      0.74314481,
+	      0.17160365,
+	      0.861281216,
+	      0.478274852,
+	      0.254711658,
+	      0.563699722,
+	      0.71560514,
+	      0.324459404
+	    ],
+	    [
+	      -0.656059,
+	      0.754709601,
+	      0.145620167,
+	      0.857597291,
+	      0.493276417,
+	      0.278146982,
+	      0.532443225,
+	      0.723632872,
+	      0.339844
+	    ],
+	    [
+	      -0.642787635,
+	      0.766044438,
+	      0.119763866,
+	      0.852868557,
+	      0.508204579,
+	      0.300220519,
+	      0.500008881,
+	      0.730451,
+	      0.3553873
+	    ],
+	    [
+	      -0.629320383,
+	      0.777146,
+	      0.0940662324,
+	      0.847100675,
+	      0.523041129,
+	      0.32088393,
+	      0.466489762,
+	      0.736025095,
+	      0.371063113
+	    ],
+	    [
+	      -0.615661502,
+	      0.788010776,
+	      0.0685585812,
+	      0.840300739,
+	      0.537767947,
+	      0.340092868,
+	      0.431981891,
+	      0.74032414,
+	      0.386844516
+	    ],
+	    [
+	      -0.601815045,
+	      0.798635483,
+	      0.0432719849,
+	      0.832477033,
+	      0.552367151,
+	      0.35780713,
+	      0.396583915,
+	      0.743320107,
+	      0.402703911
+	    ],
+	    [
+	      -0.587785244,
+	      0.809017,
+	      0.0182372537,
+	      0.823639095,
+	      0.566821,
+	      0.373990864,
+	      0.360396802,
+	      0.744988561,
+	      0.418613225
+	    ],
+	    [
+	      -0.57357645,
+	      0.819152057,
+	      -0.00651510758,
+	      0.813797653,
+	      0.581111789,
+	      0.388612479,
+	      0.323523581,
+	      0.74530834,
+	      0.434543818
+	    ],
+	    [
+	      -0.559192896,
+	      0.829037547,
+	      -0.0309549458,
+	      0.802964747,
+	      0.595222116,
+	      0.401644915,
+	      0.286069185,
+	      0.744261742,
+	      0.450466663
+	    ],
+	    [
+	      -0.544639051,
+	      0.838670552,
+	      -0.0550524816,
+	      0.79115355,
+	      0.609134853,
+	      0.413065583,
+	      0.248139873,
+	      0.741834819,
+	      0.466352403
+	    ],
+	    [
+	      -0.529919267,
+	      0.848048091,
+	      -0.0787783638,
+	      0.778378487,
+	      0.622832954,
+	      0.42285645,
+	      0.209843263,
+	      0.738016903,
+	      0.482171416
+	    ],
+	    [
+	      -0.515038073,
+	      0.857167304,
+	      -0.102103673,
+	      0.764655054,
+	      0.636299849,
+	      0.431004167,
+	      0.171287775,
+	      0.732801199,
+	      0.4978939
+	    ],
+	    [
+	      -0.5,
+	      0.866025388,
+	      -0.125,
+	      0.75,
+	      0.649519,
+	      0.4375,
+	      0.132582515,
+	      0.726184368,
+	      0.513489902
+	    ],
+	    [
+	      -0.484809607,
+	      0.874619722,
+	      -0.14743945,
+	      0.734431207,
+	      0.662474453,
+	      0.442339838,
+	      0.0938368812,
+	      0.718166888,
+	      0.528929472
+	    ],
+	    [
+	      -0.469471574,
+	      0.882947564,
+	      -0.169394672,
+	      0.71796757,
+	      0.675150335,
+	      0.445524335,
+	      0.0551602542,
+	      0.708752811,
+	      0.544182777
+	    ],
+	    [
+	      -0.453990489,
+	      0.891006529,
+	      -0.190838933,
+	      0.700629294,
+	      0.687531173,
+	      0.447058767,
+	      0.0166617651,
+	      0.697949767,
+	      0.559219956
+	    ],
+	    [
+	      -0.438371152,
+	      0.898794055,
+	      -0.211746112,
+	      0.68243736,
+	      0.699601948,
+	      0.446953058,
+	      -0.0215500612,
+	      0.6857692,
+	      0.574011445
+	    ],
+	    [
+	      -0.42261827,
+	      0.906307817,
+	      -0.232090712,
+	      0.663413942,
+	      0.711347878,
+	      0.445221782,
+	      -0.0593675859,
+	      0.672226,
+	      0.588528037
+	    ],
+	    [
+	      -0.406736642,
+	      0.91354543,
+	      -0.251847953,
+	      0.643582284,
+	      0.722754776,
+	      0.441884071,
+	      -0.0966843441,
+	      0.657338798,
+	      0.602740645
+	    ],
+	    [
+	      -0.390731126,
+	      0.920504868,
+	      -0.270993769,
+	      0.622966528,
+	      0.733808577,
+	      0.436963588,
+	      -0.133395374,
+	      0.641129553,
+	      0.616620898
+	    ],
+	    [
+	      -0.37460658,
+	      0.927183867,
+	      -0.289504856,
+	      0.601591825,
+	      0.744496,
+	      0.430488437,
+	      -0.169397429,
+	      0.623623908,
+	      0.630140781
+	    ],
+	    [
+	      -0.35836795,
+	      0.933580399,
+	      -0.307358623,
+	      0.579484105,
+	      0.754803836,
+	      0.422491103,
+	      -0.204589352,
+	      0.604850829,
+	      0.643272877
+	    ],
+	    [
+	      -0.342020154,
+	      0.939692616,
+	      -0.324533343,
+	      0.556670427,
+	      0.764719665,
+	      0.413008332,
+	      -0.238872305,
+	      0.584842563,
+	      0.655990362
+	    ],
+	    [
+	      -0.325568169,
+	      0.945518553,
+	      -0.341008067,
+	      0.533178449,
+	      0.774231374,
+	      0.402081043,
+	      -0.27215004,
+	      0.563634634,
+	      0.66826731
+	    ],
+	    [
+	      -0.309017,
+	      0.95105654,
+	      -0.356762737,
+	      0.509036958,
+	      0.783327341,
+	      0.389754236,
+	      -0.304329157,
+	      0.541265905,
+	      0.680078387
+	    ],
+	    [
+	      -0.29237169,
+	      0.956304729,
+	      -0.37177819,
+	      0.484275252,
+	      0.791996479,
+	      0.376076847,
+	      -0.3353194,
+	      0.517778039,
+	      0.691399336
+	    ],
+	    [
+	      -0.275637358,
+	      0.96126169,
+	      -0.386036068,
+	      0.458923548,
+	      0.800228298,
+	      0.361101508,
+	      -0.365033895,
+	      0.493215799,
+	      0.702206612
+	    ],
+	    [
+	      -0.258819044,
+	      0.965925813,
+	      -0.399519056,
+	      0.433012694,
+	      0.808012724,
+	      0.344884604,
+	      -0.393389285,
+	      0.46762684,
+	      0.712477803
+	    ],
+	    [
+	      -0.241921902,
+	      0.970295727,
+	      -0.412210703,
+	      0.406574309,
+	      0.815340221,
+	      0.327485919,
+	      -0.420306176,
+	      0.441061407,
+	      0.722191513
+	    ],
+	    [
+	      -0.224951059,
+	      0.974370062,
+	      -0.424095541,
+	      0.379640549,
+	      0.822201967,
+	      0.308968604,
+	      -0.445709109,
+	      0.413572371,
+	      0.731327355
+	    ],
+	    [
+	      -0.207911685,
+	      0.978147626,
+	      -0.435159087,
+	      0.352244258,
+	      0.828589499,
+	      0.289398909,
+	      -0.469526976,
+	      0.385215133,
+	      0.739866197
+	    ],
+	    [
+	      -0.190809,
+	      0.981627166,
+	      -0.4453879,
+	      0.324418813,
+	      0.834495068,
+	      0.268846035,
+	      -0.491693079,
+	      0.356047243,
+	      0.747790158
+	    ],
+	    [
+	      -0.173648179,
+	      0.98480773,
+	      -0.454769462,
+	      0.29619813,
+	      0.83991152,
+	      0.24738194,
+	      -0.51214534,
+	      0.326128513,
+	      0.755082488
+	    ],
+	    [
+	      -0.156434461,
+	      0.987688363,
+	      -0.46329239,
+	      0.26761657,
+	      0.844832242,
+	      0.225081131,
+	      -0.530826509,
+	      0.295520723,
+	      0.76172775
+	    ],
+	    [
+	      -0.139173105,
+	      0.990268052,
+	      -0.470946282,
+	      0.238708958,
+	      0.849251211,
+	      0.202020496,
+	      -0.547684371,
+	      0.264287412,
+	      0.767712
+	    ],
+	    [
+	      -0.121869341,
+	      0.992546141,
+	      -0.477721781,
+	      0.209510505,
+	      0.853163064,
+	      0.178278968,
+	      -0.562671661,
+	      0.232493877,
+	      0.773022532
+	    ],
+	    [
+	      -0.104528464,
+	      0.994521916,
+	      -0.48361069,
+	      0.18005681,
+	      0.856563032,
+	      0.153937444,
+	      -0.575746536,
+	      0.200206831,
+	      0.777648
+	    ],
+	    [
+	      -0.0871557444,
+	      0.99619472,
+	      -0.488605827,
+	      0.150383726,
+	      0.859446943,
+	      0.129078493,
+	      -0.586872399,
+	      0.167494327,
+	      0.78157866
+	    ],
+	    [
+	      -0.0697564706,
+	      0.997564077,
+	      -0.492701054,
+	      0.120527439,
+	      0.86181134,
+	      0.103786126,
+	      -0.596018076,
+	      0.134425521,
+	      0.784806132
+	    ],
+	    [
+	      -0.0523359552,
+	      0.99862951,
+	      -0.495891422,
+	      0.0905243,
+	      0.863653302,
+	      0.0781455562,
+	      -0.603158116,
+	      0.101070546,
+	      0.787323534
+	    ],
+	    [
+	      -0.0348994955,
+	      0.999390841,
+	      -0.498173028,
+	      0.0604108796,
+	      0.864970624,
+	      0.0522429794,
+	      -0.608272374,
+	      0.0675002709,
+	      0.789125502
+	    ],
+	    [
+	      -0.0174524058,
+	      0.99984771,
+	      -0.49954313,
+	      0.0302238502,
+	      0.865761638,
+	      0.0261653196,
+	      -0.611346722,
+	      0.0337861441,
+	      0.79020822
+	    ],
+	    [
+	      0,
+	      1,
+	      -0.5,
+	      0,
+	      0.866025388,
+	      0,
+	      -0.612372458,
+	      0,
+	      0.790569425
+	    ],
+	    [
+	      0.0174524058,
+	      0.99984771,
+	      -0.49954313,
+	      -0.0302238502,
+	      0.865761638,
+	      -0.0261653196,
+	      -0.611346722,
+	      -0.0337861441,
+	      0.79020822
+	    ],
+	    [
+	      0.0348994955,
+	      0.999390841,
+	      -0.498173028,
+	      -0.0604108796,
+	      0.864970624,
+	      -0.0522429794,
+	      -0.608272374,
+	      -0.0675002709,
+	      0.789125502
+	    ],
+	    [
+	      0.0523359552,
+	      0.99862951,
+	      -0.495891422,
+	      -0.0905243,
+	      0.863653302,
+	      -0.0781455562,
+	      -0.603158116,
+	      -0.101070546,
+	      0.787323534
+	    ],
+	    [
+	      0.0697564706,
+	      0.997564077,
+	      -0.492701054,
+	      -0.120527439,
+	      0.86181134,
+	      -0.103786126,
+	      -0.596018076,
+	      -0.134425521,
+	      0.784806132
+	    ],
+	    [
+	      0.0871557444,
+	      0.99619472,
+	      -0.488605827,
+	      -0.150383726,
+	      0.859446943,
+	      -0.129078493,
+	      -0.586872399,
+	      -0.167494327,
+	      0.78157866
+	    ],
+	    [
+	      0.104528464,
+	      0.994521916,
+	      -0.48361069,
+	      -0.18005681,
+	      0.856563032,
+	      -0.153937444,
+	      -0.575746536,
+	      -0.200206831,
+	      0.777648
+	    ],
+	    [
+	      0.121869341,
+	      0.992546141,
+	      -0.477721781,
+	      -0.209510505,
+	      0.853163064,
+	      -0.178278968,
+	      -0.562671661,
+	      -0.232493877,
+	      0.773022532
+	    ],
+	    [
+	      0.139173105,
+	      0.990268052,
+	      -0.470946282,
+	      -0.238708958,
+	      0.849251211,
+	      -0.202020496,
+	      -0.547684371,
+	      -0.264287412,
+	      0.767712
+	    ],
+	    [
+	      0.156434461,
+	      0.987688363,
+	      -0.46329239,
+	      -0.26761657,
+	      0.844832242,
+	      -0.225081131,
+	      -0.530826509,
+	      -0.295520723,
+	      0.76172775
+	    ],
+	    [
+	      0.173648179,
+	      0.98480773,
+	      -0.454769462,
+	      -0.29619813,
+	      0.83991152,
+	      -0.24738194,
+	      -0.51214534,
+	      -0.326128513,
+	      0.755082488
+	    ],
+	    [
+	      0.190809,
+	      0.981627166,
+	      -0.4453879,
+	      -0.324418813,
+	      0.834495068,
+	      -0.268846035,
+	      -0.491693079,
+	      -0.356047243,
+	      0.747790158
+	    ],
+	    [
+	      0.207911685,
+	      0.978147626,
+	      -0.435159087,
+	      -0.352244258,
+	      0.828589499,
+	      -0.289398909,
+	      -0.469526976,
+	      -0.385215133,
+	      0.739866197
+	    ],
+	    [
+	      0.224951059,
+	      0.974370062,
+	      -0.424095541,
+	      -0.379640549,
+	      0.822201967,
+	      -0.308968604,
+	      -0.445709109,
+	      -0.413572371,
+	      0.731327355
+	    ],
+	    [
+	      0.241921902,
+	      0.970295727,
+	      -0.412210703,
+	      -0.406574309,
+	      0.815340221,
+	      -0.327485919,
+	      -0.420306176,
+	      -0.441061407,
+	      0.722191513
+	    ],
+	    [
+	      0.258819044,
+	      0.965925813,
+	      -0.399519056,
+	      -0.433012694,
+	      0.808012724,
+	      -0.344884604,
+	      -0.393389285,
+	      -0.46762684,
+	      0.712477803
+	    ],
+	    [
+	      0.275637358,
+	      0.96126169,
+	      -0.386036068,
+	      -0.458923548,
+	      0.800228298,
+	      -0.361101508,
+	      -0.365033895,
+	      -0.493215799,
+	      0.702206612
+	    ],
+	    [
+	      0.29237169,
+	      0.956304729,
+	      -0.37177819,
+	      -0.484275252,
+	      0.791996479,
+	      -0.376076847,
+	      -0.3353194,
+	      -0.517778039,
+	      0.691399336
+	    ],
+	    [
+	      0.309017,
+	      0.95105654,
+	      -0.356762737,
+	      -0.509036958,
+	      0.783327341,
+	      -0.389754236,
+	      -0.304329157,
+	      -0.541265905,
+	      0.680078387
+	    ],
+	    [
+	      0.325568169,
+	      0.945518553,
+	      -0.341008067,
+	      -0.533178449,
+	      0.774231374,
+	      -0.402081043,
+	      -0.27215004,
+	      -0.563634634,
+	      0.66826731
+	    ],
+	    [
+	      0.342020154,
+	      0.939692616,
+	      -0.324533343,
+	      -0.556670427,
+	      0.764719665,
+	      -0.413008332,
+	      -0.238872305,
+	      -0.584842563,
+	      0.655990362
+	    ],
+	    [
+	      0.35836795,
+	      0.933580399,
+	      -0.307358623,
+	      -0.579484105,
+	      0.754803836,
+	      -0.422491103,
+	      -0.204589352,
+	      -0.604850829,
+	      0.643272877
+	    ],
+	    [
+	      0.37460658,
+	      0.927183867,
+	      -0.289504856,
+	      -0.601591825,
+	      0.744496,
+	      -0.430488437,
+	      -0.169397429,
+	      -0.623623908,
+	      0.630140781
+	    ],
+	    [
+	      0.390731126,
+	      0.920504868,
+	      -0.270993769,
+	      -0.622966528,
+	      0.733808577,
+	      -0.436963588,
+	      -0.133395374,
+	      -0.641129553,
+	      0.616620898
+	    ],
+	    [
+	      0.406736642,
+	      0.91354543,
+	      -0.251847953,
+	      -0.643582284,
+	      0.722754776,
+	      -0.441884071,
+	      -0.0966843441,
+	      -0.657338798,
+	      0.602740645
+	    ],
+	    [
+	      0.42261827,
+	      0.906307817,
+	      -0.232090712,
+	      -0.663413942,
+	      0.711347878,
+	      -0.445221782,
+	      -0.0593675859,
+	      -0.672226,
+	      0.588528037
+	    ],
+	    [
+	      0.438371152,
+	      0.898794055,
+	      -0.211746112,
+	      -0.68243736,
+	      0.699601948,
+	      -0.446953058,
+	      -0.0215500612,
+	      -0.6857692,
+	      0.574011445
+	    ],
+	    [
+	      0.453990489,
+	      0.891006529,
+	      -0.190838933,
+	      -0.700629294,
+	      0.687531173,
+	      -0.447058767,
+	      0.0166617651,
+	      -0.697949767,
+	      0.559219956
+	    ],
+	    [
+	      0.469471574,
+	      0.882947564,
+	      -0.169394672,
+	      -0.71796757,
+	      0.675150335,
+	      -0.445524335,
+	      0.0551602542,
+	      -0.708752811,
+	      0.544182777
+	    ],
+	    [
+	      0.484809607,
+	      0.874619722,
+	      -0.14743945,
+	      -0.734431207,
+	      0.662474453,
+	      -0.442339838,
+	      0.0938368812,
+	      -0.718166888,
+	      0.528929472
+	    ],
+	    [
+	      0.5,
+	      0.866025388,
+	      -0.125,
+	      -0.75,
+	      0.649519,
+	      -0.4375,
+	      0.132582515,
+	      -0.726184368,
+	      0.513489902
+	    ],
+	    [
+	      0.515038073,
+	      0.857167304,
+	      -0.102103673,
+	      -0.764655054,
+	      0.636299849,
+	      -0.431004167,
+	      0.171287775,
+	      -0.732801199,
+	      0.4978939
+	    ],
+	    [
+	      0.529919267,
+	      0.848048091,
+	      -0.0787783638,
+	      -0.778378487,
+	      0.622832954,
+	      -0.42285645,
+	      0.209843263,
+	      -0.738016903,
+	      0.482171416
+	    ],
+	    [
+	      0.544639051,
+	      0.838670552,
+	      -0.0550524816,
+	      -0.79115355,
+	      0.609134853,
+	      -0.413065583,
+	      0.248139873,
+	      -0.741834819,
+	      0.466352403
+	    ],
+	    [
+	      0.559192896,
+	      0.829037547,
+	      -0.0309549458,
+	      -0.802964747,
+	      0.595222116,
+	      -0.401644915,
+	      0.286069185,
+	      -0.744261742,
+	      0.450466663
+	    ],
+	    [
+	      0.57357645,
+	      0.819152057,
+	      -0.00651510758,
+	      -0.813797653,
+	      0.581111789,
+	      -0.388612479,
+	      0.323523581,
+	      -0.74530834,
+	      0.434543818
+	    ],
+	    [
+	      0.587785244,
+	      0.809017,
+	      0.0182372537,
+	      -0.823639095,
+	      0.566821,
+	      -0.373990864,
+	      0.360396802,
+	      -0.744988561,
+	      0.418613225
+	    ],
+	    [
+	      0.601815045,
+	      0.798635483,
+	      0.0432719849,
+	      -0.832477033,
+	      0.552367151,
+	      -0.35780713,
+	      0.396583915,
+	      -0.743320107,
+	      0.402703911
+	    ],
+	    [
+	      0.615661502,
+	      0.788010776,
+	      0.0685585812,
+	      -0.840300739,
+	      0.537767947,
+	      -0.340092868,
+	      0.431981891,
+	      -0.74032414,
+	      0.386844516
+	    ],
+	    [
+	      0.629320383,
+	      0.777146,
+	      0.0940662324,
+	      -0.847100675,
+	      0.523041129,
+	      -0.32088393,
+	      0.466489762,
+	      -0.736025095,
+	      0.371063113
+	    ],
+	    [
+	      0.642787635,
+	      0.766044438,
+	      0.119763866,
+	      -0.852868557,
+	      0.508204579,
+	      -0.300220519,
+	      0.500008881,
+	      -0.730451,
+	      0.3553873
+	    ],
+	    [
+	      0.656059,
+	      0.754709601,
+	      0.145620167,
+	      -0.857597291,
+	      0.493276417,
+	      -0.278146982,
+	      0.532443225,
+	      -0.723632872,
+	      0.339844
+	    ],
+	    [
+	      0.669130623,
+	      0.74314481,
+	      0.17160365,
+	      -0.861281216,
+	      0.478274852,
+	      -0.254711658,
+	      0.563699722,
+	      -0.71560514,
+	      0.324459404
+	    ],
+	    [
+	      0.681998372,
+	      0.7313537,
+	      0.197682649,
+	      -0.863915801,
+	      0.463218153,
+	      -0.229966834,
+	      0.593688309,
+	      -0.706405222,
+	      0.309259027
+	    ],
+	    [
+	      0.694658399,
+	      0.719339788,
+	      0.22382538,
+	      -0.865497828,
+	      0.448124617,
+	      -0.203968629,
+	      0.622322381,
+	      -0.696073472,
+	      0.294267476
+	    ],
+	    [
+	      0.707106769,
+	      0.707106769,
+	      0.25,
+	      -0.866025388,
+	      0.433012694,
+	      -0.176776692,
+	      0.649519,
+	      -0.684653223,
+	      0.279508501
+	    ],
+	    [
+	      0.719339788,
+	      0.694658399,
+	      0.276174635,
+	      -0.865497828,
+	      0.417900771,
+	      -0.148454204,
+	      0.675199151,
+	      -0.672190368,
+	      0.265004843
+	    ],
+	    [
+	      0.7313537,
+	      0.681998372,
+	      0.302317351,
+	      -0.863915801,
+	      0.402807266,
+	      -0.119067609,
+	      0.699287713,
+	      -0.658733487,
+	      0.250778317
+	    ],
+	    [
+	      0.74314481,
+	      0.669130623,
+	      0.32839635,
+	      -0.861281216,
+	      0.387750536,
+	      -0.0886864737,
+	      0.721713901,
+	      -0.64433378,
+	      0.236849621
+	    ],
+	    [
+	      0.754709601,
+	      0.656059,
+	      0.354379833,
+	      -0.857597291,
+	      0.372748971,
+	      -0.0573833026,
+	      0.742411554,
+	      -0.629044473,
+	      0.223238334
+	    ],
+	    [
+	      0.766044438,
+	      0.642787635,
+	      0.380236119,
+	      -0.852868557,
+	      0.357820839,
+	      -0.0252333339,
+	      0.761319,
+	      -0.612921119,
+	      0.209962875
+	    ],
+	    [
+	      0.777146,
+	      0.629320383,
+	      0.405933768,
+	      -0.847100675,
+	      0.342984289,
+	      0.00768567342,
+	      0.778379381,
+	      -0.596021354,
+	      0.197040468
+	    ],
+	    [
+	      0.788010776,
+	      0.615661502,
+	      0.431441426,
+	      -0.840300739,
+	      0.328257442,
+	      0.0412936322,
+	      0.793541074,
+	      -0.578404605,
+	      0.184487075
+	    ],
+	    [
+	      0.798635483,
+	      0.601815045,
+	      0.456728,
+	      -0.832477033,
+	      0.313658237,
+	      0.0755083486,
+	      0.80675739,
+	      -0.560131907,
+	      0.172317386
+	    ],
+	    [
+	      0.809017,
+	      0.587785244,
+	      0.481762737,
+	      -0.823639095,
+	      0.299204409,
+	      0.110245749,
+	      0.817986846,
+	      -0.541265905,
+	      0.160544738
+	    ],
+	    [
+	      0.819152057,
+	      0.57357645,
+	      0.506515086,
+	      -0.813797653,
+	      0.284913629,
+	      0.145420119,
+	      0.827193558,
+	      -0.521870494,
+	      0.149181142
+	    ],
+	    [
+	      0.829037547,
+	      0.559192896,
+	      0.530954957,
+	      -0.802964747,
+	      0.270803303,
+	      0.180944279,
+	      0.83434689,
+	      -0.502010882,
+	      0.138237208
+	    ],
+	    [
+	      0.838670552,
+	      0.544639051,
+	      0.555052459,
+	      -0.79115355,
+	      0.256890565,
+	      0.216729924,
+	      0.839421868,
+	      -0.481753141,
+	      0.127722174
+	    ],
+	    [
+	      0.848048091,
+	      0.529919267,
+	      0.578778386,
+	      -0.778378487,
+	      0.243192434,
+	      0.252687752,
+	      0.84239924,
+	      -0.461164147,
+	      0.117643826
+	    ],
+	    [
+	      0.857167304,
+	      0.515038073,
+	      0.602103651,
+	      -0.764655054,
+	      0.229725555,
+	      0.28872776,
+	      0.843265295,
+	      -0.440311372,
+	      0.108008519
+	    ],
+	    [
+	      0.866025388,
+	      0.5,
+	      0.625,
+	      -0.75,
+	      0.216506347,
+	      0.324759513,
+	      0.842012107,
+	      -0.419262737,
+	      0.0988211781
+	    ],
+	    [
+	      0.874619722,
+	      0.484809607,
+	      0.64743942,
+	      -0.734431207,
+	      0.203550935,
+	      0.360692352,
+	      0.838637531,
+	      -0.398086399,
+	      0.0900852531
+	    ],
+	    [
+	      0.882947564,
+	      0.469471574,
+	      0.669394672,
+	      -0.71796757,
+	      0.190875068,
+	      0.396435648,
+	      0.833145082,
+	      -0.376850545,
+	      0.0818027481
+	    ],
+	    [
+	      0.891006529,
+	      0.453990489,
+	      0.690838933,
+	      -0.700629294,
+	      0.178494215,
+	      0.431898981,
+	      0.825544238,
+	      -0.355623156,
+	      0.073974207
+	    ],
+	    [
+	      0.898794055,
+	      0.438371152,
+	      0.711746097,
+	      -0.68243736,
+	      0.16642347,
+	      0.466992587,
+	      0.8158499,
+	      -0.334471971,
+	      0.0665987208
+	    ],
+	    [
+	      0.906307817,
+	      0.42261827,
+	      0.732090712,
+	      -0.663413942,
+	      0.154677495,
+	      0.501627326,
+	      0.80408287,
+	      -0.313464135,
+	      0.0596739501
+	    ],
+	    [
+	      0.91354543,
+	      0.406736642,
+	      0.751848,
+	      -0.643582284,
+	      0.143270656,
+	      0.535715163,
+	      0.790269554,
+	      -0.292666078,
+	      0.0531961136
+	    ],
+	    [
+	      0.920504868,
+	      0.390731126,
+	      0.770993769,
+	      -0.622966528,
+	      0.132216811,
+	      0.569169283,
+	      0.774441898,
+	      -0.272143364,
+	      0.0471600257
+	    ],
+	    [
+	      0.927183867,
+	      0.37460658,
+	      0.789504826,
+	      -0.601591825,
+	      0.12152943,
+	      0.601904333,
+	      0.756637275,
+	      -0.251960427,
+	      0.0415591113
+	    ],
+	    [
+	      0.933580399,
+	      0.35836795,
+	      0.807358623,
+	      -0.579484105,
+	      0.111221552,
+	      0.633836746,
+	      0.736898482,
+	      -0.232180476,
+	      0.0363854282
+	    ],
+	    [
+	      0.939692616,
+	      0.342020154,
+	      0.824533343,
+	      -0.556670427,
+	      0.101305731,
+	      0.664884746,
+	      0.715273559,
+	      -0.212865278,
+	      0.0316297
+	    ],
+	    [
+	      0.945518553,
+	      0.325568169,
+	      0.841008067,
+	      -0.533178449,
+	      0.0917940363,
+	      0.694968879,
+	      0.691815674,
+	      -0.194074973,
+	      0.0272813439
+	    ],
+	    [
+	      0.95105654,
+	      0.309017,
+	      0.856762767,
+	      -0.509036958,
+	      0.0826980695,
+	      0.724011958,
+	      0.666583,
+	      -0.175867945,
+	      0.0233285148
+	    ],
+	    [
+	      0.956304729,
+	      0.29237169,
+	      0.87177819,
+	      -0.484275252,
+	      0.0740289,
+	      0.751939535,
+	      0.639638543,
+	      -0.158300623,
+	      0.0197581388
+	    ],
+	    [
+	      0.96126169,
+	      0.275637358,
+	      0.886036098,
+	      -0.458923548,
+	      0.0657971054,
+	      0.778679788,
+	      0.61104995,
+	      -0.141427353,
+	      0.0165559556
+	    ],
+	    [
+	      0.965925813,
+	      0.258819044,
+	      0.899519,
+	      -0.433012694,
+	      0.0580127,
+	      0.804163933,
+	      0.580889285,
+	      -0.125300229,
+	      0.0137065668
+	    ],
+	    [
+	      0.970295727,
+	      0.241921902,
+	      0.912210703,
+	      -0.406574309,
+	      0.0506851785,
+	      0.828326404,
+	      0.549233,
+	      -0.10996896,
+	      0.0111934906
+	    ],
+	    [
+	      0.974370062,
+	      0.224951059,
+	      0.924095511,
+	      -0.379640549,
+	      0.043823462,
+	      0.851105,
+	      0.516161561,
+	      -0.0954807103,
+	      0.00899920426
+	    ],
+	    [
+	      0.978147626,
+	      0.207911685,
+	      0.935159087,
+	      -0.352244258,
+	      0.0374359153,
+	      0.872441,
+	      0.481759191,
+	      -0.08188,
+	      0.00710520707
+	    ],
+	    [
+	      0.981627166,
+	      0.190809,
+	      0.9453879,
+	      -0.324418813,
+	      0.0315303169,
+	      0.892279327,
+	      0.446113944,
+	      -0.0692085773,
+	      0.00549207628
+	    ],
+	    [
+	      0.98480773,
+	      0.173648179,
+	      0.954769492,
+	      -0.29619813,
+	      0.0261138603,
+	      0.910568774,
+	      0.409317106,
+	      -0.0575052574,
+	      0.00413952675
+	    ],
+	    [
+	      0.987688363,
+	      0.156434461,
+	      0.96329236,
+	      -0.26761657,
+	      0.0211931504,
+	      0.927262187,
+	      0.37146312,
+	      -0.0468058847,
+	      0.0030264766
+	    ],
+	    [
+	      0.990268052,
+	      0.139173105,
+	      0.970946252,
+	      -0.238708958,
+	      0.0167741776,
+	      0.942316413,
+	      0.33264932,
+	      -0.0371431746,
+	      0.00213111029
+	    ],
+	    [
+	      0.992546141,
+	      0.121869341,
+	      0.97772181,
+	      -0.209510505,
+	      0.0128623275,
+	      0.955692589,
+	      0.292975664,
+	      -0.0285466593,
+	      0.00143094664
+	    ],
+	    [
+	      0.994521916,
+	      0.104528464,
+	      0.98361069,
+	      -0.18005681,
+	      0.00946236681,
+	      0.967356,
+	      0.252544463,
+	      -0.0210425854,
+	      0.000902908447
+	    ],
+	    [
+	      0.99619472,
+	      0.0871557444,
+	      0.988605797,
+	      -0.150383726,
+	      0.00657843612,
+	      0.977276683,
+	      0.211460009,
+	      -0.014653855,
+	      0.000523393159
+	    ],
+	    [
+	      0.997564077,
+	      0.0697564706,
+	      0.992701054,
+	      -0.120527439,
+	      0.00421405,
+	      0.985428751,
+	      0.169828475,
+	      -0.00939994864,
+	      0.000268345029
+	    ],
+	    [
+	      0.99862951,
+	      0.0523359552,
+	      0.995891392,
+	      -0.0905243,
+	      0.00237208884,
+	      0.991791308,
+	      0.12775746,
+	      -0.00529688271,
+	      0.000113328853
+	    ],
+	    [
+	      0.999390841,
+	      0.0348994955,
+	      0.998173058,
+	      -0.0604108796,
+	      0.00105479721,
+	      0.996347725,
+	      0.0853558108,
+	      -0.00235716137,
+	      0.000033604505
+	    ],
+	    [
+	      0.99984771,
+	      0.0174524058,
+	      0.99954313,
+	      -0.0302238502,
+	      0.000263779628,
+	      0.99908632,
+	      0.0427332148,
+	      -0.000589739357,
+	      0.00000420248307
+	    ],
+	    [
+	      1,
+	      0,
+	      1,
+	      0,
+	      0,
+	      1,
+	      0,
+	      0,
+	      0
+	    ]
+	  ]
+	]
+
+	/**
+	 * Pre-computed per-band weighting coefficients for producing energy-preserving
+	 * Max-Re sources.
+	 */
+	exports.MAX_RE_WEIGHTS =
+	[
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1,
+	    1,
+	    1,
+	    1
+	  ],
+	  [
+	    1.0032358508264159,
+	    1.0021561078918704,
+	    0.9991522721291044,
+	    0.9900383346072376
+	  ],
+	  [
+	    1.0323700100887403,
+	    1.0211943511980661,
+	    0.9904327224316126,
+	    0.8985721355692946
+	  ],
+	  [
+	    1.0626941200192837,
+	    1.0402306944670838,
+	    0.9791614098092954,
+	    0.7998060308998676
+	  ],
+	  [
+	    1.093999484738735,
+	    1.0589537676973442,
+	    0.9649762040494918,
+	    0.6936032566684466
+	  ],
+	  [
+	    1.126003037274403,
+	    1.07700551504534,
+	    0.9475255978805139,
+	    0.5798903526486952
+	  ],
+	  [
+	    1.1583454003572016,
+	    1.0939820685450519,
+	    0.9264740556372181,
+	    0.45868998779583786
+	  ],
+	  [
+	    1.1905904804789895,
+	    1.1094372633297156,
+	    0.9015119456269705,
+	    0.3301577214839965
+	  ],
+	  [
+	    1.2222283958622953,
+	    1.1228901205544772,
+	    0.8723701036428401,
+	    0.19462053205464802
+	  ],
+	  [
+	    1.2526836221434745,
+	    1.133837499964763,
+	    0.8388386006370375,
+	    0.05261359862069929
+	  ],
+	  [
+	    1.2819868322954973,
+	    1.1423579695609207,
+	    0.8011990403743167,
+	    0
+	  ],
+	  [
+	    1.3120731774625924,
+	    1.1502068820580456,
+	    0.7608388127738076,
+	    0
+	  ],
+	  [
+	    1.3430111799785607,
+	    1.1574235943837505,
+	    0.7177992282271877,
+	    0
+	  ],
+	  [
+	    1.3746490959476585,
+	    1.1638590665453323,
+	    0.6719991769885592,
+	    0
+	  ],
+	  [
+	    1.4068092926157594,
+	    1.169353858964783,
+	    0.623371324575326,
+	    0
+	  ],
+	  [
+	    1.4392864456039072,
+	    1.1737388805087106,
+	    0.5718675889451592,
+	    0
+	  ],
+	  [
+	    1.4718463517337337,
+	    1.1768368967674447,
+	    0.5174653413254887,
+	    0
+	  ],
+	  [
+	    1.504225711759235,
+	    1.1784649619355996,
+	    0.46017412651086853,
+	    0
+	  ],
+	  [
+	    1.536133251152103,
+	    1.1784379039770327,
+	    0.4000425964751542,
+	    0
+	  ],
+	  [
+	    1.5672525304852498,
+	    1.1765729330887034,
+	    0.337165236956795,
+	    0
+	  ],
+	  [
+	    1.597246736017093,
+	    1.1726953538047915,
+	    0.2716883543809124,
+	    0
+	  ],
+	  [
+	    1.6257656244041108,
+	    1.166645241810761,
+	    0.20381470052203146,
+	    0
+	  ],
+	  [
+	    1.6524546183065816,
+	    1.1582848047410574,
+	    0.13380606994103852,
+	    0
+	  ],
+	  [
+	    1.6769658184075504,
+	    1.1475059972026487,
+	    0.06198323662199352,
+	    0
+	  ],
+	  [
+	    1.6990056332515058,
+	    1.1342613270635011,
+	    0,
+	    0
+	  ],
+	  [
+	    1.7202240662101795,
+	    1.1197885940495649,
+	    0,
+	    0
+	  ],
+	  [
+	    1.7416307545362066,
+	    1.1048097178834912,
+	    0,
+	    0
+	  ],
+	  [
+	    1.763183172521712,
+	    1.089329779471421,
+	    0,
+	    0
+	  ],
+	  [
+	    1.784837323932529,
+	    1.0733560490248248,
+	    0,
+	    0
+	  ],
+	  [
+	    1.8065479282674715,
+	    1.0568981278169443,
+	    0,
+	    0
+	  ],
+	  [
+	    1.828268651081558,
+	    1.03996806565619,
+	    0,
+	    0
+	  ],
+	  [
+	    1.8499523757324718,
+	    1.022580450054847,
+	    0,
+	    0
+	  ],
+	  [
+	    1.8715515126303635,
+	    1.00475246342061,
+	    0,
+	    0
+	  ],
+	  [
+	    1.8930183408427133,
+	    0.9865039050945279,
+	    0,
+	    0
+	  ],
+	  [
+	    1.9143053757711086,
+	    0.9678571757036307,
+	    0,
+	    0
+	  ],
+	  [
+	    1.9353657556228374,
+	    0.9488372220817789,
+	    0,
+	    0
+	  ],
+	  [
+	    1.956153638595801,
+	    0.9294714419199109,
+	    0,
+	    0
+	  ],
+	  [
+	    1.9766246021256129,
+	    0.9097895483090511,
+	    0,
+	    0
+	  ],
+	  [
+	    1.9967360352468466,
+	    0.8898233953998222,
+	    0,
+	    0
+	  ],
+	  [
+	    2.0164475151228762,
+	    0.8696067674779677,
+	    0,
+	    0
+	  ],
+	  [
+	    2.035721159113243,
+	    0.8491751347995677,
+	    0,
+	    0
+	  ],
+	  [
+	    2.0545219443702267,
+	    0.8285653804943943,
+	    0,
+	    0
+	  ],
+	  [
+	    2.0728179878669346,
+	    0.8078155036854582,
+	    0,
+	    0
+	  ],
+	  [
+	    2.090580780920932,
+	    0.7869643046470761,
+	    0,
+	    0
+	  ],
+	  [
+	    2.1077853736394316,
+	    0.7660510583007786,
+	    0,
+	    0
+	  ],
+	  [
+	    2.124410506212585,
+	    0.7451151826066895,
+	    0,
+	    0
+	  ],
+	  [
+	    2.1404386855518256,
+	    0.724195908438217,
+	    0,
+	    0
+	  ],
+	  [
+	    2.155856207339799,
+	    0.7033319573330264,
+	    0,
+	    0
+	  ],
+	  [
+	    2.1706531250587875,
+	    0.6825612331082543,
+	    0,
+	    0
+	  ],
+	  [
+	    2.184823168934199,
+	    0.6619205327382505,
+	    0,
+	    0
+	  ],
+	  [
+	    2.198363618917445,
+	    0.6414452811527926,
+	    0,
+	    0
+	  ],
+	  [
+	    2.2112751368000905,
+	    0.6211692937622493,
+	    0,
+	    0
+	  ],
+	  [
+	    2.223561563274568,
+	    0.6011245695963112,
+	    0,
+	    0
+	  ],
+	  [
+	    2.2352296862266203,
+	    0.5813411169971875,
+	    0,
+	    0
+	  ],
+	  [
+	    2.2462889867652436,
+	    0.5618468128767999,
+	    0,
+	    0
+	  ],
+	  [
+	    2.2567513694835313,
+	    0.542667295665886,
+	    0,
+	    0
+	  ],
+	  [
+	    2.2666308832243236,
+	    0.5238258912804311,
+	    0,
+	    0
+	  ],
+	  [
+	    2.275943438230698,
+	    0.5053435707295075,
+	    0,
+	    0
+	  ],
+	  [
+	    2.284706525029858,
+	    0.4872389374032205,
+	    0,
+	    0
+	  ],
+	  [
+	    2.2929389397681375,
+	    0.46952824161738976,
+	    0,
+	    0
+	  ],
+	  [
+	    2.30066052002182,
+	    0.4522254196537687,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3078918943878133,
+	    0.4353421543162538,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3146542484400614,
+	    0.4188879539154533,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3209691089472178,
+	    0.402870246583764,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3268581476041734,
+	    0.38729448689625284,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3323430049489864,
+	    0.37216427191375173,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3374451346266376,
+	    0.3574814639581776,
+	    0,
+	    0
+	  ],
+	  [
+	    2.34218566772664,
+	    0.34324631766145536,
+	    0,
+	    0
+	  ],
+	  [
+	    2.346585296563553,
+	    0.3294576090850418,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3506641769856538,
+	    0.3161127649750473,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3544418480826557,
+	    0.3032079904882719,
+	    0,
+	    0
+	  ],
+	  [
+	    2.357937168012265,
+	    0.2907383939888871,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3611682645700416,
+	    0.27869810776764853,
+	    0,
+	    0
+	  ],
+	  [
+	    2.36415249907986,
+	    0.26708040377071157,
+	    0,
+	    0
+	  ],
+	  [
+	    2.366906442175269,
+	    0.2558778036401838,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3694458600677306,
+	    0.24508218256159103,
+	    0,
+	    0
+	  ],
+	  [
+	    2.371785709949025,
+	    0.2346848665837075,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3739401432456417,
+	    0.22467672322375193,
+	    0,
+	    0
+	  ],
+	  [
+	    2.375922515527137,
+	    0.21504824529657612,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3777454019634128,
+	    0.205789628011383,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3794206173235986,
+	    0.19689083946531133,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3809592396084067,
+	    0.18834168473168889,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3823716365058556,
+	    0.18013186379374693,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3836674939551004,
+	    0.17225102361401823,
+	    0,
+	    0
+	  ],
+	  [
+	    2.384855846193295,
+	    0.1646888046573338,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3859451067449142,
+	    0.1574348822030257,
+	    0,
+	    0
+	  ],
+	  [
+	    2.386943099891083,
+	    0.15047900279125884,
+	    0,
+	    0
+	  ],
+	  [
+	    2.387857092227927,
+	    0.14381101615082073,
+	    0,
+	    0
+	  ],
+	  [
+	    2.388693823987581,
+	    0.13742090295249954,
+	    0,
+	    0
+	  ],
+	  [
+	    2.389459539853424,
+	    0.13129879872456063,
+	    0,
+	    0
+	  ],
+	  [
+	    2.390160019052548,
+	    0.12543501425577144,
+	    0,
+	    0
+	  ],
+	  [
+	    2.390800604553709,
+	    0.11982005279781596,
+	    0,
+	    0
+	  ],
+	  [
+	    2.391386231238564,
+	    0.11444462436351505,
+	    0,
+	    0
+	  ],
+	  [
+	    2.391921452948123,
+	    0.10929965740062485,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3924104683356857,
+	    0.1043763081036652,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3928571454824348,
+	    0.09966596760861011,
+	    0,
+	    0
+	  ],
+	  [
+	    2.393265045252806,
+	    0.09516026729771561,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3936374433841925,
+	    0.09085108242450426,
+	    0,
+	    0
+	  ],
+	  [
+	    2.393977351319884,
+	    0.08673053425218355,
+	    0,
+	    0
+	  ],
+	  [
+	    2.394287535805758,
+	    0.08279099088268502,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3945705372804786,
+	    0.07902506693818387,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3948286870961963,
+	    0.07542562224246287,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3950641236121633,
+	    0.07198575963585582,
+	    0,
+	    0
+	  ],
+	  [
+	    2.395278807207675,
+	    0.0686988220447719,
+	    0,
+	    0
+	  ],
+	  [
+	    2.395474534263447,
+	    0.06555838891495455,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3956529501621793,
+	    0.0625582721066553,
+	    0,
+	    0
+	  ],
+	  [
+	    2.395815561359864,
+	    0.05969251133978081,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3959637465794352,
+	    0.05695536926776664,
+	    0,
+	    0
+	  ],
+	  [
+	    2.39609876717785,
+	    0.054341326250401244,
+	    0,
+	    0
+	  ],
+	  [
+	    2.396221776736725,
+	    0.051845074888037544,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3963338299252768,
+	    0.04946151437252655,
+	    0,
+	    0
+	  ],
+	  [
+	    2.396435890682732,
+	    0.04718574470375868,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3965288397655176,
+	    0.04501306081485033,
+	    0,
+	    0
+	  ],
+	  [
+	    2.396613481702591,
+	    0.04293894664372207,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3966905512001953,
+	    0.04095906918403984,
+	    0,
+	    0
+	  ],
+	  [
+	    2.396760719035214,
+	    0.03906927254419144,
+	    0,
+	    0
+	  ],
+	  [
+	    2.396824597474172,
+	    0.03726557203910426,
+	    0,
+	    0
+	  ],
+	  [
+	    2.396882745252786,
+	    0.03554414833624339,
+	    0,
+	    0
+	  ],
+	  [
+	    2.396935672148907,
+	    0.03390134167402582,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3969838431796284,
+	    0.03233364616811425,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3970276824513705,
+	    0.030837704218581653,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397067576689836,
+	    0.0294103010287397,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397103878474915,
+	    0.028048359244471473,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397136909203867,
+	    0.026748933721181808,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3971669618044578,
+	    0.02550920642395034,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3971943032181637,
+	    0.02432648146512805,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3972191766720767,
+	    0.02319818028243567,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3972418037567547,
+	    0.022121836959587828,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397262386325962,
+	    0.021095093690562405,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3972811082330145,
+	    0.020115696387850192,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397298136917325,
+	    0.019181490434338904,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3973136248536466,
+	    0.018290416577900873,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3973277108755653,
+	    0.017440506967251426,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3973405213838372,
+	    0.01662988132721864,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397352171449336,
+	    0.015856743271204156,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3973627658195733,
+	    0.01511937674831498,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3973723998370278,
+	    0.014416142622396069,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397381160276849,
+	    0.0137454753799918,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3973891261108555,
+	    0.013105879964102585,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397396369204204,
+	    0.012495928730477406,
+	    0,
+	    0
+	  ],
+	  [
+	    2.39740295495054,
+	    0.011914258523089062,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397408942850978,
+	    0.01135956786537232,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974143870417968,
+	    0.010830614263763519,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397419336775313,
+	    0.010326211620058713,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974238368580485,
+	    0.009845227749105075,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974279280499045,
+	    0.009386581998352723,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974316474277924,
+	    0.008949242965821053,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397435028716832,
+	    0.00853222631307192,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397438102591979,
+	    0.008134592669829034,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974408969527006,
+	    0.007755445626940273,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397443437173072,
+	    0.007393929814441706,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397445746329474,
+	    0.007049229061551143,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974478454078882,
+	    0.00672056463549245,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397449753492585,
+	    0.006407193556128229,
+	    0,
+	    0
+	  ],
+	  [
+	    2.39745148793788,
+	    0.006108406983458562,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974530645244445,
+	    0.005823528675125142,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397454497601571,
+	    0.005551913511142837,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974558002166266,
+	    0.005292946083165246,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974569842328557,
+	    0.005046039345674704,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974580604365636,
+	    0.004810633326571559,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974590386346355,
+	    0.004586193894721633,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974599277432613,
+	    0.00437221158210341,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397460735868648,
+	    0.004168200458279044,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974614703804416,
+	    0.003973697054993924,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974621379785224,
+	    0.0037882593387891707,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974627447537493,
+	    0.0036114657295891494,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397463296243222,
+	    0.0034429141633025,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397463797480536,
+	    0.003282221196549611,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974642530414907,
+	    0.0031290211517016895,
+	    0,
+	    0
+	  ],
+	  [
+	    2.39746466708566,
+	    0.002982965300487771,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974650433941918,
+	    0.002843721084493969,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974653854041916,
+	    0.0027109713709463877,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397465696239978,
+	    0.0025844137422334885,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974659787415127,
+	    0.00246375981768615,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974662354902465,
+	    0.0023487346061943698,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974664688326253,
+	    0.002239075888297921,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397466680901457,
+	    0.002134533626444738,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974668736353437,
+	    0.0020348694021654085,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974670487963436,
+	    0.0019398558789646039,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974672079860375,
+	    0.0018492762897810784,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397467352660126,
+	    0.001762923947916421,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974674841417083,
+	    0.0016806017803799615,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974676036333493,
+	    0.0016021218826422006,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974677122280514,
+	    0.0015273050938326316,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974678109192276,
+	    0.0014559805914595894,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397467900609772,
+	    0.0013879855047697627,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974679821203,
+	    0.0013231645459035658,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974680561966397,
+	    0.0012613696580395268,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974681235166475,
+	    0.0012024596797561716,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974681846963954,
+	    0.001146300024874073,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974682402957983,
+	    0.0010927623770731582,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974682908237366,
+	    0.0010417243986116707,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974683367426963,
+	    0.0009930694525032032,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974683784730044,
+	    0.00094668633753675,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974684163966655,
+	    0.0009024690355523064,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468450860857,
+	    0.0008603164704108336,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974684821811,
+	    0.0008201322781224969,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974685106441465,
+	    0.0007818245876213326,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974685365106025,
+	    0.0007453058116973925,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974685600173085,
+	    0.0007104924476196144,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468581379508,
+	    0.0006773048870036646,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468600792815,
+	    0.0006456672344992455,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974686184350045,
+	    0.0006155071348906252,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974686344676384,
+	    0.0005867556082225889,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974686490375436,
+	    0.0005593468925816748,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468662278155,
+	    0.0005332182941793929,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974686743107383,
+	    0.000508310044400219,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974686852454976,
+	    0.00048456516349258927,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468695182585,
+	    0.0004619293305957818,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468704213019,
+	    0.00044035075980964147,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687124195135,
+	    0.0004197800820275419,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468719877238,
+	    0.0004001702322657469,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687266545067,
+	    0.0003814763422346362,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687328133992,
+	    0.0003636556379088857,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687384103337,
+	    0.0003466673418649154,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468743496582,
+	    0.0003304725801645369,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468748118737,
+	    0.00031503429357391226,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687523191425,
+	    0.0003003171529166748,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687561362784,
+	    0.0002862874783692915,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687596051147,
+	    0.00027291316251564526,
+	    0,
+	    0
+	  ],
+	  [
+	    2.39746876275743,
+	    0.0002601635969862308,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468765622105,
+	    0.0002480096025154269,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687682253846,
+	    0.00023642336225801236,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468770591119,
+	    0.0002253783582134261,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687727409827,
+	    0.00021484931061328233,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687746946732,
+	    0.0002048121201343383,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687764700904,
+	    0.00019524381280549153,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687780835007,
+	    0.00018612248748346792,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687795496865,
+	    0.0001774272657776737,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468780882082,
+	    0.00016913824431022403,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687820928953,
+	    0.00016123644920243907,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687831932195,
+	    0.00015370379268415675,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468784193138,
+	    0.00014652303172700117,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468785101812,
+	    0.00013967772860735403,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468785927567,
+	    0.000133152213309135,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687866779703,
+	    0.0001269315476806905,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468787359897,
+	    0.00012100149126405185,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468787979596,
+	    0.00011534846871864036,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687885427457,
+	    0.00010995953876510535,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687890545057,
+	    0.0001048223645784468,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468789519566,
+	    0.00009992518556286006,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687899421876,
+	    0.00009525679044388711,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687903262435,
+	    0.00009080649161645948,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687906752528,
+	    0.0000865641006902665,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687909924133,
+	    0.00008251990517661483,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687912806316,
+	    0.00007866464626354641,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687915425488,
+	    0.00007498949762845111,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468791780564,
+	    0.00007148604523978551,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687919968605,
+	    0.00006814626810175412,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468792193418,
+	    0.00006496251989796162,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687923720386,
+	    0.00006192751149209829,
+	    0,
+	    0
+	  ],
+	  [
+	    2.39746879253436,
+	    0.00005903429424566603,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687926818676,
+	    0.00005627624411462521,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687928159146,
+	    0.00005364704648861123,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687929377287,
+	    0.00005114068173807149,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687930484273,
+	    0.00004875141143628079,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687931490237,
+	    0.00004647376522474107,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687932404404,
+	    0.00004430252829193366,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687933235144,
+	    0.00004223272943679786,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687933990078,
+	    0.00004025962968963913,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687934676115,
+	    0.00003837871146444906,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468793529955,
+	    0.000036585668217827286,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468793586609,
+	    0.00003487639459085677,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687936380934,
+	    0.00003324697701138594,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468793684879,
+	    0.000031693684735220784,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687937273953,
+	    0.000030212961305737207,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687937660315,
+	    0.00002880141641237584,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687938011425,
+	    0.00002745581812939587,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468793833049,
+	    0.00002617308551713183,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468793862044,
+	    0.00002495028156882763,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687938883927,
+	    0.000023784606486909614,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687939123367,
+	    0.00002267339127331657,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468793934096,
+	    0.000021614091619219478,
+	    0,
+	    0
+	  ],
+	  [
+	    2.39746879395387,
+	    0.000020604282080150943,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687939718393,
+	    0.000019641650523215703,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687939881685,
+	    0.000018723992833675052,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687940030073,
+	    0.000017849207868793367,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794016492,
+	    0.000017015292647397386,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687940287467,
+	    0.00001622033776414108,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687940398827,
+	    0.000015462523017981008,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794050003,
+	    0.000014740113244856968,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687940591988,
+	    0.00001405145434504113,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794067556,
+	    0.000013394969496063389,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687940751505,
+	    0.000012769155542544555,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687940820516,
+	    0.000012172579554675474,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687940883235,
+	    0.000011603875547463932,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794094023,
+	    0.00001106174135324111,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794099202,
+	    0.000010544935640267928,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941039083,
+	    0.000010052275070617967,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794108186,
+	    0.00000958263159083048,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794112072,
+	    0.000009134929849132473,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941156043,
+	    0.000008708144733317006,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941188138,
+	    0.000008301299023642233,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941217305,
+	    0.000007913461155377843,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941243813,
+	    0.000007543743085877514,
+	    0,
+	    0
+	  ],
+	  [
+	    2.39746879412679,
+	    0.0000071912982612941945,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794128979,
+	    0.00000685531967828392,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794130968,
+	    0.000006535038036260927,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941327755,
+	    0.000006229719975973888,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794134418,
+	    0.000005938666400370827,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794135911,
+	    0.000005661210873909149,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941372674,
+	    0.000005396718096645467,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941385002,
+	    0.000005144582449612669,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941396207,
+	    0.000004904226608153443,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794140639,
+	    0.000004675100220035986,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794141564,
+	    0.000004456678645325569,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941424047,
+	    0.000004248461755126638,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941431685,
+	    0.000004049972786445764,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941438626,
+	    0.000003860757250553173,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794144493,
+	    0.0000036803818923441363,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794145067,
+	    0.0000035084336983170773,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794145588,
+	    0.000003344518950897727,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941460613,
+	    0.0000031882623269438035,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794146492,
+	    0.0000030393060383665505,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941468824,
+	    0.0000028973090129011828,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941472377,
+	    0.0000027619461131508753,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794147561,
+	    0.0000026329073921162726,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941478545,
+	    0.0000025098973835056412,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794148121,
+	    0.0000023926344252013016,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794148363,
+	    0.0000022808500143329223,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941485837,
+	    0.000002174288192481311,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941487836,
+	    0.0000020727049596049217,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794148965,
+	    0.0000019758677153474024,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941491304,
+	    0.0000018835547264466953,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941492805,
+	    0.0000017955546190265128,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941494173,
+	    0.0000017116658946076909,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794149541,
+	    0.0000016316964687310874,
+	    0,
+	    0
+	  ],
+	  [
+	    2.397468794149654,
+	    0.000001555463231135871,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941497566,
+	    0.0000014827916264859885,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941498494,
+	    0.000001413515254684983,
+	    0,
+	    0
+	  ],
+	  [
+	    2.3974687941499337,
+	    0.0000013474754898638069,
+	    0,
+	    0
+	  ]
+	];
 
 /***/ })
 /******/ ])

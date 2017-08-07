@@ -208,7 +208,7 @@ describe('AmbisonicEncoder', function () {
     // Create nodes.
     context =
       new OfflineAudioContext(numberOfChannels, renderLength, sampleRate);
-    encoder = Songbird.createAmbisonicEncoder(context, ambisonicOrder);
+    encoder = Songbird.createEncoder(context, ambisonicOrder);
     source = context.createBufferSource();
     source.buffer = context.createBuffer(1, renderLength, sampleRate);
     source.buffer.getChannelData(0)[0] = 1;
@@ -225,10 +225,10 @@ describe('AmbisonicEncoder', function () {
         encoder.setDirection(angles[index][0], angles[index][1]);
         expectedValues = coefficients[index];
         context.startRendering().then(function (renderedBuffer) {
-          let error = 0;
-          for (let i = 0; i < renderedBuffer.numberOfChannels; i++) {
-            let buffer = renderedBuffer.getChannelData(i);
-            for (let j = 0; j < buffer.length; j++) {
+          var error = 0;
+          for (var i = 0; i < renderedBuffer.numberOfChannels; i++) {
+            var buffer = renderedBuffer.getChannelData(i);
+            for (var j = 0; j < buffer.length; j++) {
               error += Math.abs(buffer[j] - expectedValues[i]);
             }
           }

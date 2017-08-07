@@ -43,16 +43,16 @@ describe('Attenuation', function () {
   it('#setDistance: verify the attenuation of rolloff models with ' +
     numTestsPerModel + ' tests .',
     function (done) {
-      for (let i = 0; i < rolloffModels.length; i++) {
+      for (var i = 0; i < rolloffModels.length; i++) {
         attenuation.setRolloffModel(rolloffModels[i]);
-        for (let j = 0; j < numTestsPerModel; j++) {
-          let distance =
+        for (var j = 0; j < numTestsPerModel; j++) {
+          var distance =
             Math.random() * (distanceMax - distanceMin) + distanceMin;
           attenuation.setDistance(distance);
-          let actualGain = attenuation.output.gain.value;
+          var actualGain = attenuation.output.gain.value;
 
           // Compute expected value.
-          let expectedGain = 1;
+          var expectedGain = 1;
           if (rolloffModels[i] == 'logarithmic') {
             if (distance > options.maxDistance) {
               expectedGain = 0;
@@ -85,14 +85,14 @@ describe('Attenuation', function () {
 
   it('#setRolloffModel: ensure case is ignored when specifying model.',
     function (done) {
-      let rolloffModelsBad = ['LOGARITHMIC', 'LOgArItHMIC', 'LiNeAR', 'None',
+      var rolloffModelsBad = ['LOGARITHMIC', 'LOgArItHMIC', 'LiNeAR', 'None',
         'logARITHMIC', 'linEAR', 'logarithmIC', 'noNe'];
-      let rolloffModelsFixed = ['logarithmic', 'logarithmic', 'linear',
+      var rolloffModelsFixed = ['logarithmic', 'logarithmic', 'linear',
         'none', 'logarithmic', 'linear', 'logarithmic', 'none'];
-      for (let i = 0; i < rolloffModelsBad.length; i++) {
+      for (var i = 0; i < rolloffModelsBad.length; i++) {
         attenuation.setRolloffModel(rolloffModelsBad[i]);
-        let expectedModel = rolloffModelsFixed[i];
-        let actualModel = attenuation._rolloffModel;
+        var expectedModel = rolloffModelsFixed[i];
+        var actualModel = attenuation._rolloffModel;
         expect(actualModel).to.be.equal(expectedModel);
       }
       done();
