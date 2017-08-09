@@ -17,7 +17,6 @@
 <head>
   <meta charset="utf-8">
   <title>Panning example.</title>
-  <script src="resources/omnitone.min.js"></script>
   <script src="../build/songbird.js"></script>
 </head>
 <body>
@@ -40,11 +39,11 @@
   <input type="range" min="1" max="10" step="0.01" value="1" id="eDistanceRange"
     oninput="updatePositions();">
   <br/>
-  <button id="eButtonPlayback" disabled>Play</button>
+  <button id="eButtonPlayback">Play</button>
   <br/>
   <script>
     var audioSource = 'resources/CubeSound.wav';
-    var juncoSource;
+    var songbirdSource;
 
     function updatePositions() {
       var azimuth = document.getElementById('eAzimuthRange').value;
@@ -55,24 +54,26 @@
       document.getElementById('eElevationLabel').textContent = elevation;
       document.getElementById('eDistanceLabel').textContent = distance;
 
-      juncoSource.setAngleFromListener(azimuth, elevation, distance);
+      songbirdSource.setAngleFromListener(azimuth, elevation, distance);
     }
 
     var onLoad = function () {
-      var audioContext = new AudioContext();
+      var context = new AudioContext();
 
       // Create <audio> streaming audio source.
       var audioElement = document.createElement('audio');
       audioElement.src = audioSource;
       audioElement.loop = true;
       var audioElementSource =
-          audioContext.createMediaElementSource(audioElement);
+        context.createMediaElementSource(audioElement);
 
       // Initialize Songbird, create listener and source.
-      var juncoOptions = {};
-      juncoOptions.ambisonicOrder = 1;
-      juncoListener = Songbird.createListener(audioContext, juncoOptions);
-      juncoSource = Songbird.createSource(juncoListener, juncoOptions);
+      var songbird = new Songbird(context, {
+        ambisonicOrder: 3
+      });
+      songbird.output.connect(context.destination);
+      songbirdSource = songbird.createSource();
+      audioElementSource.connect(songbirdSource.input);
 
       // Initialize play button functionality.
       buttonPlayback = document.getElementById('eButtonPlayback');
@@ -85,26 +86,6 @@
           audioElement.pause();
         }
       };
-
-      // Initialize Omnitone, connect audio source to Songbird to omnitone.
-      // var omnitoneOptions = {
-      //   ambisonicOrder: 1,
-      //   HRIRUrl: ['resources/sh_hrir_o_1.wav']
-      // };
-      var omnitoneOptions = {
-        ambisonicOrder: 3,
-        HRIRUrl: ['resources/sh_hrir_o_3_ch0-ch7.wav',
-                  'resources/sh_hrir_o_3_ch8-ch15.wav']
-      };
-      hoaRenderer = Omnitone.createHOARenderer(audioContext, omnitoneOptions);
-      hoaRenderer.initialize().then(function () {
-        audioElementSource.connect(juncoSource.input);
-        juncoListener.output.connect(hoaRenderer.input);
-        hoaRenderer.output.connect(audioContext.destination);
-        buttonPlayback.disabled = false;
-      }, function (onInitializationError) {
-        console.error(onInitializationError);
-      });
 
       updatePositions();
     };

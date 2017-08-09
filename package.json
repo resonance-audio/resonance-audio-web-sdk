@@ -21,14 +21,15 @@
     "karma-mocha-reporter": "^2.2.3",
     "mocha": "^3.0.0",
     "webpack": "^1.13.0",
-    "doctoc": "^1.3.0"
+    "doctoc": "^1.3.0",
+    "jsdoc": "^3.5.4"
   },
   "scripts": {
     "build": "webpack --progress --color",
     "watch": "webpack --progress --color --watch",
     "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
     "test": "node_modules/karma/bin/karma start",
-    "doc": "doctoc README.md && jsdoc src/*.js -R README.md -d doc"
+    "doc": "doctoc README.md && jsdoc src -R README.md -d doc"
   },
   "repository": {
     "type": "git",

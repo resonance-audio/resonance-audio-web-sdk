@@ -22,10 +22,7 @@
 'use strict';
 
 // Internal dependencies.
-var Reflections = require('./reflections.js');
-var Reverb = require('./reverb.js');
-var Room = require('./room.js');
-var Globals = require('./globals.js');
+var Omnitone = require('./omnitone.js');
 var Utils = require('./utils.js');
 
 /**
@@ -36,50 +33,50 @@ var Utils = require('./utils.js');
 https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Number} options.ambisonicOrder
  * Desired ambisonic order. Defaults to
- * {@link DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
- * @param {Map} options.dimensions
- * Dimensions map which should conform to the layout of
- * {@link Room.DefaultDimensions Room.DefaultDimensions}
- * @param {Map} options.materials
- * Materials map which should conform to the layout of
- * {@link Room.DefaultMaterials Room.DefaultMaterials}
- * @param {Number} options.speedOfSound
- * (in meters / second). Defaults to
- * {@link SPEED_OF_SOUND SPEED_OF_SOUND}.
+ * {@linkcode Encoder.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
  * @param {Float32Array} options.position
- * Position [x,y,z] from the center of the room (in meters). Defaults to
- * {@link DEFAULT_POSITION DEFAULT_POSITION}.
+ * Initial position (in meters), where origin is the center of
+ * the room. Defaults to
+ * {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
  * @param {Float32Array} options.orientation
- * Orientation [roll, pitch, yaw] (in radians). Defaults to
- * {@link DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
+ * Orientation (roll, pitch and yaw, in radians). Defaults to
+ * {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
  */
 function Listener (context, options) {
   // Public variables.
   /**
-   * Listener's speed of sound (in meters/second).
-   * @member {Number} speedOfSound
+   * Position (in meters).
+   * @member {Float32Array} position
    * @memberof Listener
+   * @instance
    */
   /**
-   * Input to .connect() input AudioNodes to.
+   * Ambisonic (multichannel) input {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} input
-   * @memberof Reverb
+   * @memberof Listener
+   * @instance
    */
   /**
-   * Outuput to .connect() object from.
+   * Binaurally-rendered stereo (2-channel) output {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} output
    * @memberof Listener
+   * @instance
    */
-
-  // Assign defaults for undefined options.
+  /**
+   * Ambisonic (multichannel) output {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+   * @member {AudioNode} ambisonicOutput
+   * @memberof Listener
+   * @instance
+   */
+  // Use defaults for undefined arguments.
   if (options == undefined) {
     options = new Object();
   }
   if (options.ambisonicOrder == undefined) {
-    options.ambisonicOrder = Globals.DEFAULT_AMBISONIC_ORDER;
-  }
-  if (options.speedOfSound == undefined) {
-    options.speedOfSound = Globals.SPEED_OF_SOUND;
+    options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
   }
   if (options.position == undefined) {
     options.position = Globals.DEFAULT_POSITION;
@@ -88,56 +85,59 @@ function Listener (context, options) {
     options.orientation = Globals.DEFAULT_ORIENTATION;
   }
 
-  this.speedOfSound = options.speedOfSound;
+  // Member variables.
+  this.position = new Float32Array(3);
 
-  // Stored in order to access when constructing sources.
+  // Select the appropriate HRIR filters using 8-channel chunks since
+  // >8 channels is not yet supported by a majority of browsers.
+  // TODO(bitllama): Place these HRIR filters online somewhere?
+  var urls = [''];
+  if (options.ambisonicOrder == 1) {
+    urls = [
+      'resources/sh_hrir_o_1.wav'
+    ];
+  }
+  else if (options.ambisonicOrder == 2) {
+    urls = [
+      'resources/sh_hrir_o_2_ch0-ch7.wav',
+      'resources/sh_hrir_o_2_ch8.wav'
+    ];
+  }
+  else if (options.ambisonicOrder == 3) {
+    urls = [
+      'resources/sh_hrir_o_3_ch0-ch7.wav',
+      'resources/sh_hrir_o_3_ch8-ch15.wav'
+    ];
+  }
+  else {
+    // TODO(bitllama): Throw an error?!
+  }
+
+  // Create audio nodes.
   this._context = context;
-  this._ambisonicOrder = options.ambisonicOrder;
-  this._position = new Float32Array(3);
-  this._forward = new Float32Array(3);
-  this._up = new Float32Array(3);
-  this._right = new Float32Array(3);
+  this._renderer = Omnitone.Omnitone.createHOARenderer(context, {
+    ambisonicOrder: options.ambisonicOrder,
+    HRIRUrl: urls
+  });
 
-  // Create nodes.
-  this._reflections = new Reflections(context, options);
-  this._reverb = new Reverb(context);
-  this._roomGain = context.createGain();
+  // These nodes are created in order to safely asynchronously load Omnitone
+  // while the rest of Songbird is being created.
+  this.input = context.createGain();
+  this.ambisonicOutput = context.createGain();
   this.output = context.createGain();
 
-  // Connect nodes.
-  //this._reflections.output.connect(this._roomGain);
-  this._reverb.output.connect(this._roomGain);
-  this._roomGain.connect(this.output);
+  // Initialize Omnitone (async) and connect to audio graph when complete.
+  var that = this;
+  this._renderer.initialize().then(function () {
+    // Connect pre-rotated soundfield to renderer.
+    that.input.connect(that._renderer.input);
 
-  // Assign initial conditions.
-  this.setPosition(options.position[0], options.position[1],
-    options.position[2]);
-  this.setOrientation(options.orientation[0], options.orientation[1],
-    options.orientation[2]);
-  this.setRoomProperties(options.dimensions, options.materials);
-}
+    // Connect rotated soundfield to ambisonic output.
+    that._renderer._hoaRotator.output.connect(that.ambisonicOutput);
 
-/**
- * Set the listener's position (in meters).
- * @param {Number} x
- * @param {Number} y
- * @param {Number} z
- */
-Listener.prototype.setPosition = function (x, y, z) {
-  this._position = [x, y, z];
-  this._reflections.speedOfSound = this.speedOfSound;
-  this._reflections.setListenerPosition(x, y, z);
-
-  // Determine if listener is outside room dimensions.
-  // If so, disable room effects.
-  if (Math.abs(this._position[0]) > this._reflections._halfDimensions['width']
-    || Math.abs(this._position[1]) > this._reflections._halfDimensions['height']
-    || Math.abs(this._position[2]) > this._reflections._halfDimensions['depth']
-  ) {
-    this._roomGain.gain.value = 0;
-  } else {
-    this._roomGain.gain.value = 1;
-  }
+    // Connect binaurally-rendered soundfield to binaural output.
+    that._renderer.output.connect(that.output);
+  });
 }
 
 /**
@@ -148,31 +148,29 @@ Listener.prototype.setPosition = function (x, y, z) {
  */
 Listener.prototype.setOrientation = function (roll, pitch, yaw) {
   var q = Utils.toQuaternion(roll, pitch, yaw);
-  this._forward = Utils.rotateVector(Globals.DEFAULT_FORWARD, q);
-  this._up = Utils.rotateVector(Globals.DEFAULT_UP, q);
-  this._right = Utils.rotateVector(Globals.DEFAULT_RIGHT, q);
+  var right = Utils.rotateVector(Globals.DEFAULT_RIGHT, q);
+  var up = Utils.rotateVector(Globals.DEFAULT_UP, q);
+  var forward = Utils.rotateVector(Globals.DEFAULT_FORWARD, q);
+  var matrix = new Float32Array(9);
+  matrix[0] = right[0];
+  matrix[1] = right[1];
+  matrix[2] = right[2];
+  matrix[3] = up[0];
+  matrix[4] = up[1];
+  matrix[5] = up[2];
+  matrix[6] = forward[0];
+  matrix[7] = forward[1];
+  matrix[8] = forward[2];
+  this._renderer.setRotationMatrix(matrix);
 }
 
 /**
- * Set the dimensions and material properties
- * for the room associated with the listener.
- * @param {Map} dimensions
- * Dimensions map which should conform to the layout of
- * {@link Room.DefaultDimensions Room.DefaultDimensions}
- * @param {Map} materials
- * Materials map which should conform to the layout of
- * {@link Room.DefaultMaterials Room.DefaultMaterials}
+ * Set the listener's orientation using a Three.js camera object.
+ * @param {Object} cameraMatrix
+ * The Matrix4 object of the Three.js camera.
  */
-Listener.prototype.setRoomProperties = function (dimensions, materials) {
-  // Update reverb.
-  var coefficients = Room.getCoefficientsFromMaterials(materials);
-  var RT60Secs =
-    Room.computeRT60Secs(dimensions, coefficients, this.speedOfSound);
-  this._reverb.setRT60s(RT60Secs);
-
-  // Update reflections.
-  this._reflections.speedOfSound = this.speedOfSound;
-  this._reflections.setRoomProperties(dimensions, coefficients);
+Listener.prototype.setOrientationFromCamera = function (cameraMatrix) {
+  this._renderer.setRotationMatrixFromCamera(cameraMatrix);
 }
 
 module.exports = Listener;

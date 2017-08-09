@@ -22,14 +22,13 @@
 'use strict';
 
 // Internal dependencies.
-//var AmbisonicEncoder = require('./ambisonic-encoder.js');
-//var Attenuation = require('./attenuation.js');
-//var Listener = require('./listener.js');
+var Listener = require('./listener.js');
 var Source = require('./source.js');
 var Room = require('./room.js');
 var LateReflections = require('./late-reflections.js');
 var EarlyReflections = require('./early-reflections.js');
-var Global = require('./global.js');
+var Encoder = require('./encoder.js');
+var Utils = require('./utils.js');
 
 /**
  * @class Songbird spatial audio.
@@ -38,56 +37,153 @@ var Global = require('./global.js');
  * Associated {@link
 https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Object} options
- * @param {Number} ambisonicOrder
- * @param {Float32Array} listenerPosition
+ * @param {Number} options.ambisonicOrder
+ * Desired ambisonic Order. Defaults to
+ * {@linkcode Encoder.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
+ * @param {Float32Array} options.listenerPosition
+ * The listener's initial position (in meters), where origin is the center of
+ * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+ * @param {Float32Array} options.listenerOrientation
+ * The listener's initial orientation (roll, pitch and yaw, in radians).
+ * Defaults to {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
+ * @param {Object} options.dimensions Room dimensions (in meters). Defaults to
+ * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+ * @param {Object} options.materials Named acoustic materials per wall.
+ * Defaults to {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+ * @param {Number} options.speedOfSound
+ * (in meters/second). Defaults to
+ * {@linkcode DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
+ * @param {Boolean} options.useLateReflections Enables/disables
+ * {@link LateReflections LateReflections}, which uses a convolution reverb.
+ * Can be disabled to improve performance on low-power devices. Defaults to
+ * {@linkcode Room.USE_LATE_REFLECTIONS USE_LATE_REFLECTIONS}.
  */
 function Songbird (context, options) {
-  this._context = context;
+  // Public variables.
+  /**
+   * Binaurally-rendered stereo (2-channel) output {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+   * @member {AudioNode} output
+   * @memberof Songbird
+   * @instance
+   */
+  /**
+   * Ambisonic (multichannel) output {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+   * @member {AudioNode} ambisonicOutput
+   * @memberof Songbird
+   * @instance
+   */
+
+  // Use defaults for undefined arguments.
   if (options == undefined) {
     options = new Object();
   }
   if (options.ambisonicOrder == undefined) {
-    options.ambisonicOrder = Global.DEFAULT_AMBISONIC_ORDER;
+    options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
   }
-  this._ambisonicOrder = options.ambisonicOrder;
-
-  // Member submodules.
-  this._sources = [];
-  this._room = new Room(context);
+  if (options.listenerPosition == undefined) {
+    options.listenerPosition = Utils.DEFAULT_POSITION;
+  }
+  if (options.listenerOrientation == undefined) {
+    options.listenerOrientation = Utils.DEFAULT_ORIENTATION;
+  }
+  if (options.dimensions == undefined) {
+    options.dimensions = EarlyReflections.DEFAULT_DIMENSIONS;
+  }
+  if (options.materials == undefined) {
+    options.materials = Room.DEFAULT_MATERIALS;
+  }
+  if (options.speedOfSound == undefined) {
+    options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
+  }
+  if (options.useLateReflections == undefined) {
+    options.useLateReflections = Room.USE_LATE_REFLECTIONS;
+  }
 
   // Member variables.
-  this._position = new Float32Array(3);
+  this._ambisonicOrder = options.ambisonicOrder;
+
+  // Create member submodules.
+  this._sources = [];
+  this._room = new Room(context, {
+    listenerPosition: options.listenerPosition,
+    dimensions: options.dimensions,
+    materials: options.materials,
+    speedOfSound: options.speedOfSound
+  });
+  this._listener = new Listener(context, {
+    ambisonicOrder: options.ambisonicOrder,
+    position: options.listenerPosition,
+    orientation: options.listenerOrientation
+  });
 
   // Create auxillary audio nodes.
+  this._context = context;
   this.output = context.createGain();
+  this.ambisonicOutput = context.createGain();
 
   // Connect audio graph.
-  this._room.output.connect(this.output);
+  this._room.output.connect(this._listener.input);
+  this._listener.output.connect(this.output);
+  this._listener.ambisonicOutput.connect(this.ambisonicOutput);
 }
 
-Songbird.prototype.createSource = function (audioNode, options) {
+/**
+ * Create a new source for the scene.
+ * @param {Object} options
+ * @param {Float32Array} options.position
+ * The source's initial position (in meters), where origin is the center of
+ * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+ * @param {Float32Array} options.orientation
+ * The source's initial orientation (roll, pitch and yaw, in radians). Defaults
+ * to {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
+ * @param {Number} options.minDistance
+ * Min. distance (in meters). Defaults to
+ * {@linkcode Attenuation.MIN_DISTANCE MIN_DISTANCE}.
+ * @param {Number} options.maxDistance
+ * Max. distance (in meters). Defaults to
+ * {@linkcode Attenuation.MAX_DISTANCE MAX_DISTANCE}.
+ * @param {string} options.rolloff
+ * Rolloff model to use, chosen from options in
+ * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+ * {@linkcode Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+ * @param {Number} options.gain Input gain (linear). Defaults to
+ * {@linkcode Source.DEFAULT_GAIN DEFAULT_GAIN}.
+ * @param {Number} options.alpha Directivity alpha. Defaults to
+ * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
+ * @param {Number} options.exponent Directivity exponent. Defaults to
+ * {@linkcode Directivity.DEFAULT_EXPONENT DEFAULT_EXPONENT}.
+ */
+Songbird.prototype.createSource = function (options) {
+  // Create a source and push it to the internal sources array, returning
+  // the object's reference to the user.
   this._sources.push(new Source(this, options));
-  audioNode.connect(this._sources[this._sources.length - 1].input);
   return this._sources[this._sources.length - 1];
 }
 
-Songbird.prototype.removeSource = function (source) {
-  var index = this._sources.indexOf(source);
-  if (index > -1) {
-    this._sources.splice(index, 1);
-  } else {
-    Utils.log("Error: Source not found, not removed!");
-  }
-}
-
+/**
+ * Set the room's dimensions and wall materials.
+ * @param {Object} dimensions Room dimensions (in meters). Defaults to
+ * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+ * @param {Object} materials Named acoustic materials per wall. Defaults to
+ * {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+ */
 Songbird.prototype.setRoomProperties = function (dimensions, materials) {
   this._room.setProperties(dimensions, materials);
 }
 
+/**
+ * Set the listener's position (in meters), where origin is the center of
+ * the room.
+ * @param {Number} x
+ * @param {Number} y
+ * @param {Number} z
+ */
 Songbird.prototype.setListenerPosition = function (x, y, z) {
-  this._position[0] = x;
-  this._position[1] = y;
-  this._position[2] = z;
+  this._listener.position[0] = x;
+  this._listener.position[1] = x;
+  this._listener.position[2] = x;
   this._room.setListenerPosition(x, y, z);
   for (var i = 0; i < this._sources.length; i++) {
     this._sources[i].setPosition(this._sources[i]._position[0],
@@ -95,90 +191,23 @@ Songbird.prototype.setListenerPosition = function (x, y, z) {
   }
 }
 
+/**
+ * Set the listener's orientation (in radians).
+ * @param {Number} roll
+ * @param {Number} pitch
+ * @param {Number} yaw
+ */
 Songbird.prototype.setListenerOrientation = function (roll, pitch, yaw) {
-  //TODO(bitllama): Omnitone stuff here...
+  this._listener.setOrientation(roll, pitch, yaw);
 }
 
-Songbird.createRoom = function (context, options) {
-  return new Room(context, options);
+/**
+ * Set the listener's orientation using a Three.js camera object.
+ * @param {Object} cameraMatrix
+ * The Matrix4 object of the Three.js camera.
+ */
+Songbird.prototype.setListenerOrientationFromCamera = function (cameraMatrix) {
+  this._listener.setOrientationFromCamera(cameraMatrix);
 }
-Songbird.createLateReflections = function (context, options) {
-  return new LateReflections(context, options);
-}
-Songbird.createEarlyReflections = function (context, options) {
-  return new EarlyReflections(context, options);
-}
-
-// var Songbird = {};
-
-// /**
-//  * Create {@link Listener Listener} to listen to
-//  * sources in a configurable environment.
-//  * @param {AudioContext} context
-//  * Associated {@link
-// https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-//  * @param {Number} options.ambisonicOrder
-//  * Desired ambisonic order.
-//  * @param {Map} options.dimensions
-//  * Dimensions map which should conform to the layout of
-//  * {@link Room.DefaultDimensions Room.DefaultDimensions}
-//  * @param {Map} options.materials
-//  * Materials map which should conform to the layout of
-//  * {@link Room.DefaultMaterials Room.DefaultMaterials}
-//  * @param {Number} options.speedOfSound
-//  * (in meters / second).
-//  * @returns {Listener}
-//  */
-// Songbird.createListener = function (context, options) {
-//   return new Listener(context, options);
-// }
-
-// /**
-//  * Create {@link Source Source} to spatialize an audio buffer.
-//  * @param {Listener} listener Associated Listener.
-//  * @param {Object} options
-//  * @param {Number} options.minDistance Min. distance (in meters).
-//  * @param {Number} options.maxDistance Max. distance (in meters).
-//  * @param {Number} options.gain Gain (linear).
-//  * @param {Float32Array} options.position Position [x,y,z] (in meters).
-//  * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
-//  * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
-//  * @returns {Source}
-//  */
-// Songbird.createSource = function (listener, options) {
-//   return new Source(listener, options);
-// }
-
-// /**
-//  * Create {@link Encoder Encoder} to spatially encodes input
-//  * using spherical harmonics.
-//  * @param {AudioContext} context
-//  * Associated {@link
-// https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-//  * @param {Number} ambisonicOrder
-//  * Desired ambisonic Order. Defaults to
-//  * {@link Globals.DEFAULT_AMBISONIC_ORDER Globals.DEFAULT_AMBISONIC_ORDER}.
-//  * @returns {Encoder}
-//  */
-// Songbird.createEncoder = function (context, ambisonicOrder) {
-//   return new Encoder(context, ambisonicOrder);
-// }
-
-// /**
-//  * Create {@link Attenuation Attenuation} to apply distance attenuation.
-//  * @param {AudioContext} context
-//  * Associated {@link
-// https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-//  * @param {Object} options
-//  * @param {Number} options.minDistance Min. distance (in meters).
-//  * @param {Number} options.maxDistance Max. distance (in meters).
-//  * @param {string} options.rolloffModel
-//  * Rolloff model to use, chosen from options in
-//  * {@link Globals.ROLLOFF_MODELS Globals.ROLLOFF_MODELS}.
-//  * @return {Attenuation}
-//  */
-// Songbird.createAttenuation = function (context, options) {
-//   return new Attenuation(context, options);
-// }
 
 module.exports = Songbird;

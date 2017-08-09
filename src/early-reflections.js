@@ -22,7 +22,7 @@
 'use strict';
 
 // Internal dependencies.
-var Global = require('./global.js');
+var Utils = require('./utils.js');
 
 /**
  * @class EarlyReflections
@@ -33,16 +33,16 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Object} options
  * @param {Object} options.dimensions
  * Room dimensions (in meters). Defaults to
- * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+ * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
  * @param {Object} options.coefficients
- * Multiband reflection coefficients per wall. Defaults to
- * {@link EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS
+ * Frequency-independent reflection coeffs per wall. Defaults to
+ * {@linkcode EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS
  * DEFAULT_REFLECTION_COEFFICIENTS}.
  * @param {Number} options.speedOfSound
- * (in meters / second). Defaults to {@link SPEED_OF_SOUND SPEED_OF_SOUND}.
+ * (in meters / second). Defaults to {@linkcode DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
  * @param {Float32Array} options.listenerPosition
  * (in meters). Defaults to
- * {@link DEFAULT_POSITION DEFAULT_POSITION}.
+ * {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
  */
 function EarlyReflections (context, options) {
   // Public variables.
@@ -53,34 +53,35 @@ function EarlyReflections (context, options) {
    * @instance
    */
   /**
-   * Input {@link
+   * Mono (1-channel) input {@link
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} input
    * @memberof EarlyReflections
    * @instance
    */
   /**
-   * Output {@link
+   * First-order ambisonic (4-channel) output {@link
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} output
    * @memberof EarlyReflections
    * @instance
    */
 
-  // Assign defaults for undefined options.
+  // Use defaults for undefined arguments.
   if (options == undefined) {
-    options = {};
+    options = new Object();
   }
   if (options.speedOfSound == undefined) {
-    options.speedOfSound = Global.SPEED_OF_SOUND;
+    options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
   }
   if (options.listenerPosition == undefined) {
-    options.listenerPosition = Global.DEFAULT_POSITION;
+    options.listenerPosition = Utils.DEFAULT_POSITION;
   }
   if (options.coefficients == undefined) {
     options.coefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
   }
 
+  // Assign room's speed of sound.
   this.speedOfSound = options.speedOfSound;
 
   // Create nodes.
@@ -88,8 +89,8 @@ function EarlyReflections (context, options) {
   this.output = context.createGain();
   this._lowpass = context.createBiquadFilter();
   this._delays = {};
-  this._gains = {}; // ReflectionCoeff / Attenuation
-  this._inverters = {};
+  this._gains = {}; // gainPerWall = (ReflectionCoeff / Attenuation)
+  this._inverters = {}; // 3 of these are needed for right/back/down walls.
   this._merger = context.createChannelMerger(4); // First-order encoding only.
 
   // Connect audio graph for each wall reflection.
@@ -181,13 +182,14 @@ EarlyReflections.prototype.setListenerPosition = function (x, y, z) {
 }
 
 /**
- * Set the room's properties which determines the characteristics of reflections.
+ * Set the room's properties which determines the characteristics of
+ * reflections.
  * @param {Object} dimensions
  * Room dimensions (in meters). Defaults to
- * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+ * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
  * @param {Object} coefficients
- * Multiband reflection coeffs per wall. Defaults to
- * {@link EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS
+ * Frequency-independent reflection coeffs per wall. Defaults to
+ * {@linkcode EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS
  * DEFAULT_REFLECTION_COEFFICIENTS}.
  */
 EarlyReflections.prototype.setRoomProperties = function (dimensions,
@@ -211,18 +213,33 @@ EarlyReflections.prototype.setRoomProperties = function (dimensions,
     this._listenerPosition[1], this._listenerPosition[2]);
 }
 
-/** @type {Number} */
+// Static constants.
+/**
+ * The maximum delay (in seconds) of a single wall reflection.
+ * @type {Number}
+ */
 EarlyReflections.MAX_DURATION = 0.5;
-/** @type {Number} */
+/**
+ * The -12dB cutoff frequency (in Hertz) for the lowpass filter applied to
+ * all reflections.
+ * @type {Number}
+ */
 EarlyReflections.CUTOFF_FREQUENCY = 6400; // Uses -12dB cutoff.
-/** @type {Object} */
+/**
+ * The default reflection coefficients (where 0 = no reflection, 1 = perfect
+ * reflection, -1 = mirrored reflection (180-degrees out of phase)).
+ * @type {Object}
+ */
 EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS = {
   left : 0, right : 0, front : 0, back : 0, down : 0, up : 0
 };
-/** @type {Number} */
+/**
+ * The minimum distance we consider the listener to be to any given wall.
+ * @type {Number}
+ */
 EarlyReflections.MIN_DISTANCE = 1;
 /**
- * Default dimensions (in meters).
+ * Default room dimensions (in meters).
  * @type {Object}
  */
 EarlyReflections.DEFAULT_DIMENSIONS = {

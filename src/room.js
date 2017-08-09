@@ -15,18 +15,16 @@
  */
 
 /**
- * @file Pre-defined wall materials, mathematical constants and utility
- * functions for computing room acoustics.
+ * @file Complete room model with early and late reflections.
  * @author Andrew Allen <bitllama@google.com>
  */
 
 'use strict';
 
 // Internal dependencies.
-var Global = require('./global.js');
-var Utils = require('./utils.js');
 var LateReflections = require('./late-reflections.js');
 var EarlyReflections = require('./early-reflections.js');
+var Utils = require('./utils.js');
 
 /**
  * @class Room
@@ -36,18 +34,23 @@ var EarlyReflections = require('./early-reflections.js');
  * Associated {@link
 https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Object} options
+ * @param {Float32Array} options.listenerPosition
+ * The listener's initial position (in meters), where origin is the center of
+ * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+ * @param {Object} options.dimensions Room dimensions (in meters). Defaults to
+ * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+ * @param {Object} options.materials Named acoustic materials per wall.
+ * Defaults to {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
  * @param {Number} options.speedOfSound
  * (in meters/second). Defaults to
- * {@link SPEED_OF_SOUND SPEED_OF_SOUND}.
- * @param {Object} options.dimensions (in meters). Defaults to
- * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
- * @param {Object} options.materials Named acoustic materials per wall.
- * Defaults to {@link Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
- * @param {Float32Array} options.listenerPosition
- * The initial listener position (in meters). Defaults to
- * {@link DEFAULT_POSITION DEFAULT_POSITION}.
+ * {@linkcode DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
+ * @param {Boolean} options.useLateReflections Enables/disables
+ * {@link LateReflections LateReflections}, which uses a convolution reverb.
+ * Can be disabled to improve performance on low-power devices. Defaults to
+ * {@linkcode Room.USE_LATE_REFLECTIONS USE_LATE_REFLECTIONS}.
  */
 function Room (context, options) {
+  // Public variables.
   /**
    * EarlyReflections {@link EarlyReflections EarlyReflections} submodule.
    * @member {AudioNode} early
@@ -61,25 +64,36 @@ function Room (context, options) {
    * @instance
    */
   /**
-   * Output {@link
+   * Ambisonic (multichannel) output {@link
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} output
    * @memberof Room
    * @instance
    */
 
-  // Sanitize inputs.
+  // Use defaults for undefined arguments.
   if (options == undefined) {
-    options = {};
+    options = new Object();
+  }
+  if (options.listenerPosition == undefined) {
+    options.listenerPosition = Utils.DEFAULT_POSITION;
+  }
+  if (options.dimensions == undefined) {
+    options.dimensions = EarlyReflections.DEFAULT_DIMENSIONS;
+  }
+  if (options.materials == undefined) {
+    options.materials = Room.DEFAULT_MATERIALS;
   }
   if (options.speedOfSound == undefined) {
-    options.speedOfSound = Global.SPEED_OF_SOUND;
+    options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
   }
-  this.speedOfSound = options.speedOfSound;
+  if (options.useLateReflections == undefined) {
+    options.useLateReflections = Room.USE_LATE_REFLECTIONS;
+  }
+
+  // Sanitize room-properties-related arguments.
   options.dimensions = _sanitizeDimensions(options.dimensions);
   var absorptionCoefficients = _getCoefficientsFromMaterials(options.materials);
-  var durations = _getDurationsFromProperties(options.dimensions,
-    absorptionCoefficients, options.speedOfSound);
   var reflectionCoefficients =
     _computeReflectionCoefficients(absorptionCoefficients);
 
@@ -90,32 +104,44 @@ function Room (context, options) {
     speedOfSound : options.speedOfSound,
     listenerPosition : options.listenerPosition
   });
-  this.late = new LateReflections(context, {
-    durations : durations
-  });
+
+  this._useLateReflections = options.useLateReflections;
+  this.speedOfSound = options.speedOfSound;
 
   // Construct auxillary audio nodes.
   this.output = context.createGain();
-  this._merger = context.createChannelMerger(4);
-
   this.early.output.connect(this.output);
-  this.late.output.connect(this._merger, 0, 0);
-  this._merger.connect(this.output);
+
+  // Only construct the late reflections if not disabled.
+  if (this._useLateReflections) {
+    var durations = _getDurationsFromProperties(options.dimensions,
+      absorptionCoefficients, options.speedOfSound);
+    this.late = new LateReflections(context, {
+      durations : durations
+    });
+
+    this._merger = context.createChannelMerger(4);
+
+    this.late.output.connect(this._merger, 0, 0);
+    this._merger.connect(this.output);
+  }
 }
 
 /**
  * Set the room's dimensions and wall materials.
- * @param {Object} dimensions (in meters). Defaults to
- * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+ * @param {Object} dimensions Room dimensions (in meters). Defaults to
+ * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
  * @param {Object} materials Named acoustic materials per wall. Defaults to
- * {@link Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+ * {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
  */
 Room.prototype.setProperties = function (dimensions, materials) {
-  // Compute late response.
-  absorptionCoefficients = _getCoefficientsFromMaterials(materials);
-  durations = _getDurationsFromProperties(dimensions, absorptionCoefficients,
-    this.speedOfSound);
-  this.late.setDurations(durations);
+  // Compute late response, skip if disabled.
+  if (this._useLateReflections) {
+    absorptionCoefficients = _getCoefficientsFromMaterials(materials);
+    durations = _getDurationsFromProperties(dimensions, absorptionCoefficients,
+      this.speedOfSound);
+    this.late.setDurations(durations);
+  }
 
   // Compute early response.
   this.early.speedOfSound = this.speedOfSound;
@@ -125,62 +151,75 @@ Room.prototype.setProperties = function (dimensions, materials) {
 }
 
 /**
- * Set the listener's position (in meters),
- * where [0,0,0] is the center of the room.
+ * Set the listener's position (in meters), where origin is the center of
+ * the room.
  * @param {Number} x
  * @param {Number} y
  * @param {Number} z
  */
 Room.prototype.setListenerPosition = function (x, y, z) {
-  //TODO(bitllama): Check distance and zero-out if outside of room.
   this.early.speedOfSound = this.speedOfSound;
   this.early.setListenerPosition(x, y, z);
+
+  // Disable room effects if the listener is outside the room boundaries.
+  var distance = this.getDistanceOutsideRoom(x, y, z);
+  var gain = 1;
+  if (distance > Utils.EPSILON_FLOAT) {
+    gain = 1 - distance / Room.LISTENER_MAX_OUTSIDE_ROOM_DISTANCE;
+
+    // Clamp gain between 0 and 1.
+    gain = Math.max(0, Math.min(1, gain));
+  }
+  this.output.gain.value = gain;
 }
 
-/** @type {Number} */
-Room.MIN_VOLUME = 1e-4;
-/** @type {Float32Array} */
-Room.AIR_ABSORPTION_COEFFICIENTS =
-  [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
-/** @type {Number} */
-Room.EYRING_CORRECTION = 1.38;
-
 /**
- * Default materials use strings from
- * {@link MATERIAL_COEFFICIENTS MATERIAL_COEFFICIENTS}
- * @type {Object}
+ * Compute distance outside room of provided position (in meters).
+ * @param {Number} x
+ * @param {Number} y
+ * @param {Number} z
+ * @returns {Number}
+ * Distance outside room (in meters). Returns 0 if inside room.
  */
-Room.DEFAULT_MATERIALS = {
-  left : 'transparent', right : 'transparent', front : 'transparent',
-  back : 'transparent', down : 'transparent', up : 'transparent'
-};
+Room.prototype.getDistanceOutsideRoom = function (x, y, z) {
+  var dx = Math.max(0, -this.early._halfDimensions.width - x,
+    x - this.early._halfDimensions.width);
+  var dy = Math.max(0, -this.early._halfDimensions.height - y,
+    y - this.early._halfDimensions.height);
+  var dz = Math.max(0, -this.early._halfDimensions.depth - z,
+    z - this.early._halfDimensions.depth);
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
 
+// Static constants.
 /**
  * Pre-defined frequency-dependent absorption coefficients for listed materials.
  * Currently supported materials are:
- * 'transparent',
- * 'acoustic-ceiling-tiles',
- * 'brick-bare',
- * 'brick-painted',
- * 'concrete-block-coarse',
- * 'concrete-block-painted',
- * 'curtain-heavy',
- * 'fiber-glass-insulation',
- * 'glass-thin',
- * 'glass-thick',
- * 'grass',
- * 'linoleum-on-concrete',
- * 'marble',
- * 'metal',
- * 'parquet-on-concrete',
- * 'plaster-smooth',
- * 'plywood-panel',
- * 'polished-concrete-or-tile',
- * 'sheetrock',
- * 'water-or-ice-surface',
- * 'wood-ceiling',
- * 'wood-panel',
- * 'uniform'
+ * <ul>
+ * <li>'transparent'</li>
+ * <li>'acoustic-ceiling-tiles'</li>
+ * <li>'brick-bare'</li>
+ * <li>'brick-painted'</li>
+ * <li>'concrete-block-coarse'</li>
+ * <li>'concrete-block-painted'</li>
+ * <li>'curtain-heavy'</li>
+ * <li>'fiber-glass-insulation'</li>
+ * <li>'glass-thin'</li>
+ * <li>'glass-thick'</li>
+ * <li>'grass'</li>
+ * <li>'linoleum-on-concrete'</li>
+ * <li>'marble'</li>
+ * <li>'metal'</li>
+ * <li>'parquet-on-concrete'</li>
+ * <li>'plaster-smooth'</li>
+ * <li>'plywood-panel'</li>
+ * <li>'polished-concrete-or-tile'</li>
+ * <li>'sheetrock'</li>
+ * <li>'water-or-ice-surface'</li>
+ * <li>'wood-ceiling'</li>
+ * <li>'wood-panel'</li>
+ * <li>'uniform'</li>
+ * </ul>
  * @type {Object}
  */
 Room.MATERIAL_COEFFICIENTS = {
@@ -233,12 +272,54 @@ Room.MATERIAL_COEFFICIENTS = {
   'uniform' :
   [0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500]
 }
-
-/** @type {Number} */
-Room.STARTING_BAND = 4;
-/** @type {Number} */
+/**
+ * Default materials that use strings from
+ * {@linkcode Room.MATERIAL_COEFFICIENTS MATERIAL_COEFFICIENTS}
+ * @type {Object}
+ */
+Room.DEFAULT_MATERIALS = {
+  left : 'transparent', right : 'transparent', front : 'transparent',
+  back : 'transparent', down : 'transparent', up : 'transparent'
+};
+/**
+ * The number of bands to average over when computing reflection coefficients.
+ * @type {Number}
+ */
 Room.NUMBER_AVERAGING_BANDS = 3;
+/**
+ * The starting band to average over when computing reflection coefficients.
+ * @type {Number}
+ */
+Room.STARTING_AVERAGING_BAND = 4;
+/**
+ * The minimum threshold for room volume.
+ * Room model is disabled if volume is below this value.
+ * @type {Number} */
+Room.MIN_ROOM_VOLUME = 1e-4;
+/**
+ * Air absorption coefficients per frequency band.
+ * @type {Float32Array}
+ */
+Room.AIR_ABSORPTION_COEFFICIENTS =
+  [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
+/**
+ * A scalar correction value to ensure Sabine and Eyring produce the same RT60
+ * value at the cross-over threshold.
+ * @type {Number} */
+Room.EYRING_CORRECTION = 1.38;
+/**
+ * Maximum outside-the-room distance to attenuate far-field listener by.
+ * @type {Number}
+ */
+Room.LISTENER_MAX_OUTSIDE_ROOM_DISTANCE = 1;
+/**
+ * Set to 'true' by default. Can be disabled to improve performance on low-power
+ * devices.
+ * @type {Boolean}
+ */
+Room.USE_LATE_REFLECTIONS = true;
 
+// Helper functions.
 function _getCoefficientsFromMaterials (materials) {
   // Initialize coefficients to use defaults.
   var coefficients = {};
@@ -297,21 +378,21 @@ function _sanitizeDimensions (dimensions) {
 }
 
 function _getDurationsFromProperties (dimensions, coefficients, speedOfSound) {
-  var durations = new Float32Array(Global.NUMBER_REVERB_BANDS);
+  var durations = new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
 
   // Sanitize inputs.
   dimensions = _sanitizeDimensions(dimensions);
   coefficients = _sanitizeCoefficients(coefficients);
   if (speedOfSound == undefined) {
-    speedOfSound = Globals.SPEED_OF_SOUND;
+    speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
   }
 
   // Acoustic constant.
-  var k = Global.TWENTY_FOUR_LOG10 / speedOfSound;
+  var k = Utils.TWENTY_FOUR_LOG10 / speedOfSound;
 
   // Compute volume, skip if room is not present.
   var volume = dimensions.width * dimensions.height * dimensions.depth;
-  if (volume < Room.MIN_VOLUME) {
+  if (volume < Room.MIN_ROOM_VOLUME) {
     return durations;
   }
 
@@ -320,7 +401,7 @@ function _getDurationsFromProperties (dimensions, coefficients, speedOfSound) {
   var floorCeilingArea = dimensions.width * dimensions.depth;
   var frontBackArea = dimensions.depth * dimensions.height;
   var totalArea = 2 * (leftRightArea + floorCeilingArea + frontBackArea);
-  for (var i = 0; i < Global.NUMBER_REVERB_BANDS; i++) {
+  for (var i = 0; i < LateReflections.NUMBER_FREQUENCY_BANDS; i++) {
     // Effective absorptive area.
     var absorbtionArea =
       (coefficients.left[i] + coefficients.right[i]) * leftRightArea +
@@ -352,7 +433,7 @@ function _computeReflectionCoefficients (absorptionCoefficients) {
   for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
     // Compute average absorption coefficient (per wall).
     for (var j = 0; j < Room.NUMBER_AVERAGING_BANDS; j++) {
-      var bandIndex = j + Room.STARTING_BAND;
+      var bandIndex = j + Room.STARTING_AVERAGING_BAND;
       reflectionCoefficients[property] +=
         absorptionCoefficients[property][bandIndex];
     }

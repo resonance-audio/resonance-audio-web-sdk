@@ -17,7 +17,6 @@
 <head>
   <meta charset="utf-8"/>
   <title>"Hello World" example.</title>
-  <script src="resources/omnitone.min.js"></script>
   <script src="../build/songbird.js"></script>
 </head>
 <body>
@@ -35,26 +34,19 @@
     var audioElementSource = context.createMediaElementSource(audioElement);
 
     // Create a 1st-order Ambisonics Songbird Listener.
-    var engine = new Songbird(context);
+    var songbird = new Songbird(context);
+
+    // Send songbird to audio output.
+    songbird.output.connect(context.destination);
 
     // Create a Songbird Source.
-    var source = engine.createSource(audioElementSource);
-    var source2 = engine.createSource(audioElementSource);
-    engine.removeSource(source2);
+    var source = songbird.createSource();
+    audioElementSource.connect(source.input);
 
     // Pan an audio source 45 degrees to the left (counter-clockwise).
     source.setAngleFromListener(45);
 
-    // Create an Omnitone FOA renderer.
-    var renderer = Omnitone.createFOARenderer(context);
-
-    // Initialize Omnitone, connect elements and then start playing the audio element.
-    renderer.initialize().then(function () {
-      engine.output.connect(renderer.input);
-      renderer.output.connect(context.destination);
-      audioElement.play();
-    }, function (onInitializationError) {
-      console.error(onInitializationError);
-    });
+    // Wait 1 second and then playback the audio.
+    setTimeout(audioElement.play(), 1000);
   </script>
 </body>

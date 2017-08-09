@@ -22,7 +22,6 @@
 'use strict';
 
 // Internal dependencies.
-var Global = require('./global.js');
 var Utils = require('./utils.js');
 
 /**
@@ -34,14 +33,14 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Object} options
  * @param {Number} options.minDistance
  * Min. distance (in meters). Defaults to
- * {@link Attenuation.MIN_DISTANCE MIN_DISTANCE}.
+ * {@linkcode Attenuation.DEFAULT_MIN_DISTANCE DEFAULT_MIN_DISTANCE}.
  * @param {Number} options.maxDistance
  * Max. distance (in meters). Defaults to
- * {@link Attenuation.MAX_DISTANCE MAX_DISTANCE}.
+ * {@linkcode Attenuation.DEFAULT_MAX_DISTANCE DEFAULT_MAX_DISTANCE}.
  * @param {string} options.rolloff
  * Rolloff model to use, chosen from options in
- * {@link Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
- * {@link Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+ * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+ * {@linkcode Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
  */
 function Attenuation (context, options) {
   // Public variables.
@@ -58,29 +57,29 @@ function Attenuation (context, options) {
    * @instance
    */
   /**
-   * Input {@link
+   * Mono (1-channel) input {@link
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} input
    * @memberof Attenuation
    * @instance
    */
   /**
-   * Output {@link
+   * Mono (1-channel) output {@link
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} output
    * @memberof Attenuation
    * @instance
    */
 
-   // Use defaults for undefined arguments
+  // Use defaults for undefined arguments.
   if (options == undefined) {
     options = new Object();
   }
   if (options.minDistance == undefined) {
-    options.minDistance = Attenuation.MIN_DISTANCE;
+    options.minDistance = Attenuation.DEFAULT_MIN_DISTANCE;
   }
   if (options.maxDistance == undefined) {
-    options.maxDistance = Attenuation.MAX_DISTANCE;
+    options.maxDistance = Attenuation.DEFAULT_MAX_DISTANCE;
   }
   if (options.rolloff == undefined) {
     options.rolloff = Attenuation.DEFAULT_ROLLOFF;
@@ -113,7 +112,7 @@ Attenuation.prototype.setDistance = function (distance) {
       gain = 0;
     } else if (distance > this.minDistance) {
       var range = this.maxDistance - this.minDistance;
-      if (range > Global.EPSILON_FLOAT) {
+      if (range > Utils.EPSILON_FLOAT) {
         // Compute the distance attenuation value by the logarithmic curve
         // "1 / (d + 1)" with an offset of |minDistance|.
         var relativeDistance = distance - this.minDistance;
@@ -127,7 +126,7 @@ Attenuation.prototype.setDistance = function (distance) {
       gain = 0;
     } else if (distance > this.minDistance) {
       var range = this.maxDistance - this.minDistance;
-      if (range > Global.EPSILON_FLOAT) {
+      if (range > Utils.EPSILON_FLOAT) {
         gain = (this.maxDistance - distance) / range;
       }
     }
@@ -139,8 +138,8 @@ Attenuation.prototype.setDistance = function (distance) {
  * Set rolloff.
  * @param {string} rolloff
  * Rolloff model to use, chosen from options in
- * {@link Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
- * {@link Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+ * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+ * {@linkcode Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
  */
 Attenuation.prototype.setRolloff = function (rolloff) {
   var isValidModel = ~Attenuation.ROLLOFFS.indexOf(rolloff);
@@ -156,6 +155,7 @@ Attenuation.prototype.setRolloff = function (rolloff) {
   this._rolloff = rolloff;
 }
 
+// Static constants.
 /** Rolloff models (e.g. 'logarithmic', 'linear', or 'none').
  * @type {Array}
  */
@@ -165,9 +165,9 @@ Attenuation.ROLLOFFS = ['logarithmic', 'linear', 'none'];
  */
 Attenuation.DEFAULT_ROLLOFF = 'logarithmic';
 /** @type {Number} */
-Attenuation.MIN_DISTANCE = 1;
+Attenuation.DEFAULT_MIN_DISTANCE = 1;
 /** @type {Number} */
-Attenuation.MAX_DISTANCE = 1000;
+Attenuation.DEFAULT_MAX_DISTANCE = 1000;
 
 
 module.exports = Attenuation;

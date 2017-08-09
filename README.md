@@ -1,18 +1,26 @@
 # Songbird: Spatial Audio Encoding on the Web
 
+<!-- TODO(bitllama): Add Travis support -->
 <!-- [![Travis](https://img.shields.io/travis/GoogleChrome/omnitone.svg)](https://travis-ci.org/GoogleChrome/omnitone) [![npm](https://img.shields.io/npm/v/omnitone.svg?colorB=4bc51d)](https://www.npmjs.com/package/omnitone) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/GoogleChrome/omnitone/master/LICENSE) -->
 
-Songbird is a real-time spatial audio encoding JavaScript library for WebAudio applications. It allows web developers to dynamically spatially-encode streaming audio content into scalable [ambisonics](https://en.wikipedia.org/wiki/Ambisonics) signal, which can be rendered using a binaural renderer such as [Omnitone](https://github.com/GoogleChrome/omnitone) for realistic and quality-scalable 3D audio.
+Songbird is a real-time spatial audio encoding JavaScript library for WebAudio
+applications. It allows web developers to dynamically spatially-encode
+streaming audio content into scalable
+[ambisonics](https://en.wikipedia.org/wiki/Ambisonics) signal, which can be
+rendered using a binaural renderer such as
+[Omnitone](https://github.com/GoogleChrome/omnitone) for realistic and
+quality-scalable 3D audio.
 
-The implementation of Songbird is based on the [Google spatial media](https://github.com/google/spatial-media) specification. It expects mono sources and outputs ACN channel layout with SN3D normalization.
+The implementation of Songbird is based on the
+[Google spatial media](https://github.com/google/spatial-media) specification.
+It expects mono (1-channel) input to its `Source` instances and outputs
+ambisonic (multichannel) ACN channel layout with SN3D normalization.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
 
 - [How it works](#how-it-works)
-- [Installation](#installation)
-- [Usage](#usage)
   - ["Hello World" Example](#hello-world-example)
   - [Source/Listener Placement](#sourcelistener-placement)
   - [Room Properties](#room-properties)
@@ -30,21 +38,27 @@ The implementation of Songbird is based on the [Google spatial media](https://gi
 
 ## How it works
 
-Songbird is a JavaScript API that supports real-time spatial audio encoding for the Web using Higher-Order Ambisonics (HOA). This is accomplished by attached audio input to a `Source` which has associated spatial object parameters. `Source` objects are attached to a `Listener`, which models the listener as well as the room environment the listener and sources are in. Ambisonic output is generated, which can be passed on to a binaural renderer such as [Omnitone](https://github.com/GoogleChrome/omnitone).
+Songbird is a JavaScript API that supports real-time spatial audio encoding for
+the Web using Higher-Order Ambisonics (HOA). This is accomplished by attached
+audio input to a `Source` which has associated spatial object parameters.
+`Source` objects are attached to a `Songbird` instance, which models the
+listener as well as the room environment the listener and sources are in.
+Binaurally-rendered ambisonic output is generated using
+[Omnitone](https://github.com/GoogleChrome/omnitone), and raw ambisonic output
+is exposed as well.
 
 <p align="center">
   <img src="../diagram-songbird.png" alt="Songbird Diagram">
 </p>
 
-
-## Installation
+<!-- TODO(bitllama): Actually put Songbird on NPM -->
+<!-- ## Installation
 
 Songbird is designed to be used for web front-end projects. So [NPM](https://www.npmjs.com/) is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.
-<!-- TODO(bitllama): Actually put Songbird on NPM -->
 
 ```bash
 npm install songbird
-```
+``` -->
 
 
 ## Usage
@@ -60,90 +74,129 @@ The first step is to include the library file in an HTML document.
 <script src="THISISNOTAREALLINKBUTITWILLBESOON.js"></script>
 ```
 
-Spatial encoding is done by creating a `Listener` using an associted `AudioContext` and then creating any number of associated `Source` objects. The `Listener` object models a physical listener while adding room reflections and reverberation. The `Source` object models a physical sound source and can be easily integrated into an existing WebAudio audio graph.
+Spatial encoding is done by creating a `Songbird` instance using an associted
+`AudioContext` and then creating any number of associated `Source` objects
+using `Songbird.createSource()`. The `Songbird` instance models a physical
+listener while adding room reflections and reverberation. The `Source`
+instances model acoustic sound sources. The library is designed to be easily
+integrated into an existing WebAudio audio graph.
 
 
 ### "Hello World" Example
 
 ```js
 // Create an AudioContext.
-var audioContext = new AudioContext();
+var context = new AudioContext();
 
 // Prepare audio element to feed the ambisonic source audio feed.
 var audioElement = document.createElement('audio');
-audioElement.src = 'resources/mono-audio-file.wav';
+audioElement.src = 'resources/SpeechSample.wav';
 
-// Create media element source to connect to WebAudio audio graph.
-var audioElementSource = audioContext.createMediaElementSource(audioElement);
+// Create AudioNode to connect the audio element to WebAudio.
+var audioElementSource = context.createMediaElementSource(audioElement);
 
 // Create a 1st-order Ambisonics Songbird Listener.
-var listener = Songbird.createListener(audioContext);
+var songbird = new Songbird(context);
 
-// Create a Songbird Source.
-var source = Songbird.createSource(listener, audioElementSource);
+// Send songbird to audio output.
+songbird.output.connect(context.destination);
 
-// Connect audio element source to Songbird source.
+// Create a Songbird Source, connect desired audio input to it.
+var source = songbird.createSource();
 audioElementSource.connect(source.input);
 
 // Pan an audio source 45 degrees to the left (counter-clockwise).
 source.setAngleFromListener(45);
 
-// Create an Omnitone FOA renderer.
-var renderer = Omnitone.createFOARenderer(audioContext);
-
-// Initialize Omnitone, connect elements and then start playing the audio element.
-renderer.initialize().then(function () {
-  listener.output.connect(renderer.input);
-  renderer.output.connect(audioContext.destination);
-  audioElement.play();
-}, function (onInitializationError) {
-  console.error(onInitializationError);
-});
+// Wait 1 second and then playback the audio.
+setTimeout(audioElement.play(), 1000);
 ```
 
 
 ### Source/Listener Placement
 
-`Source` objects can be placed relative to a `Listener` or using absolute coordinates. Songbird uses a right-handed coordinate system, similarly to OpenGL and three.js.
+Usage begins by creating a `Songbird` instance, which manages all your sources,
+the listener and the reverberation model.
+
+```js
+var songbird = new Songbird(audioContext);
+```
+
+Once the main `Songbird` instance is created, it can be used to be create
+as many sources as you desired.
+
+```js
+var source = songbird.createSource();
+
+// Create other sources.
+var sourceB = songbird.createSource();
+var sourceC = songbird.createSource();
+// etc. ...
+```
+
+These `Source` instances are automatically managed and modelled by the
+`Songbird` instance. Simply provide the desired monophonic input to each source
+to complete the audio graph.
+
+```js
+audioElementSource.connect(source.input);
+```
+
+`Source` objects can be placed relative to the listener or using absolute
+coordinates. Songbird uses a counter-clockwise, right-handed coordinate system,
+similar to OpenGL and Three.js.
 
 ```js
 // Set source's position relative to the listener.
 source.setAngleFromListener(azimuth, elevation, distance);
 
-// Set Source's and Listener's positions directly.
+// Or set Source's and listener's positions directly.
 source.setPosition(x, y, z);
-listener.setPosition(x, y, z);
+songbird.setListenerPosition(x, y, z);
 ```
 
-The `Source` and `Listener` orientations can also be set, which control directivity and head orientation respectively.
+The `Source` orientations can also be set, along with source
+directivity and spread control. The listener orientation can be set, which
+corresponds to head rotation.
 
 ```js
 // Set Source and Listener orientation.
 source.setOrientation(roll, pitch, yaw);
-listener.setOrientation(roll, pitch, yaw);
+source.setDirectivityPattern(alpha, exponent);
+source.setSourceWidth(sourceWidth);
+songbird.setListenerOrientation(roll, pitch, yaw);
+```
+
+Alternatively, you can set the listener's orientation using a three.js Matrix4
+Camera matrix:
+
+```js
+songbird.setListenerOrientationFromCamera(cameraMatrix);
 ```
 
 
 ### Room Properties
 
-Room properties can be set to control the characteristics of spatial reflections and reverberation. A list of materials can be found in the documentation.
+Room properties can be set to control the characteristics of spatial
+reflections and reverberation. A list of materials can be found in the
+documentation.
 
 ```js
 // Set room properties.
 var dimensions = {
-  'width' : width_m,
-  'height' : height_m,
-  'depth' : depth_m
+  width : 3.1,
+  height : 2.5,
+  depth : 3.4
 };
 var materials = {
-  'left' : 'BrickBare',
-  'right' : 'CurtainHeavy',
-  'front' : 'Marble',
-  'back' : 'GlassThin',
-  'down' : 'Grass',
-  'up' : 'Transparent'
+  left : 'brick-bare',
+  right : 'curtain-heavy',
+  front : 'marble',
+  back : 'glass-thin',
+  down : 'grass',
+  up : 'transparent'
 };
-listener.setRoomProperties(dimensions, materials);
+songbird.setRoomProperties(dimensions, materials);
 ```
 
 
@@ -327,7 +380,7 @@ Special thanks to Alper Gungormusler, Hongchan Choi, Julius Kammerl and Marcin G
 
 ## Support
 
-If you have found an error in this library, please file an issue at: https://github.com/Google/songbird/issues.
+If you have found an error in this library, please file an issue at: [https://github.com/Google/songbird/issues](https://github.com/Google/songbird/issues).
 
 Patches are encouraged, and may be submitted by forking this project and submitting a pull request through GitHub. See CONTRIBUTING for more detail.
 
@@ -338,7 +391,7 @@ Copyright 2016 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+[http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License. -->
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 

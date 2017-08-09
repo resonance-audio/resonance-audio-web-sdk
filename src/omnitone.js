@@ -233,7 +233,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	/**
 	 * Creates HOARenderer for higher-order ambisonic decoding and binaural
-	 * binaural rendering. 
+	 * binaural rendering.
 	 * @param {AudioContext} context            Associated AudioContext.
 	 * @param {Object} options
 	 * @param {Array} options.HRIRUrl           Optional HRIR URLs in an array.
@@ -328,7 +328,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          that._done(fileInfo.name, null);
 	        });
 	    } else {
-	      Utils.log('XHR Error: ' + fileInfo.url + ' (' + xhr.statusText 
+	      Utils.log('XHR Error: ' + fileInfo.url + ' (' + xhr.statusText
 	        + ')');
 	      that._done(fileInfo.name, null);
 	    }
@@ -1010,7 +1010,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    throw 'IR does not have 2 channels. cannot proceed.';
 
 	  this._active = false;
-	  
+
 	  this._context = context;
 
 	  this._input = this._context.createChannelSplitter(4);
@@ -1498,7 +1498,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        resolve();
 	      }.bind(this),
 	      function (buffers) {
-	        var errorMessage = 'Initialization failed: ' + key + ' is ' 
+	        var errorMessage = 'Initialization failed: ' + key + ' is '
 	            + buffers.get(0) + '.';
 	        Utils.log(errorMessage);
 	        reject(errorMessage);
@@ -1682,7 +1682,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} a
 	 * @param {Number} b
 	 * @param {Number} l
-	 * @return {Number} 
+	 * @return {Number}
 	 */
 	function P(matrix, i, a, b, l) {
 	  if (b === l) {
@@ -1789,7 +1789,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 	function computeUVWCoeff(m, n, l) {
 	  var d = getKroneckerDelta(m, 0);
-	  var reciprocalDenominator = Math.abs(n) === l 
+	  var reciprocalDenominator = Math.abs(n) === l
 	      ? 1 / (2 * l * (2 * l - 1)) : 1 / ((l + n) * (l - n));
 
 	  return [
@@ -2142,7 +2142,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	    // Skip right-channel if it exceeds buffer channel count.
 	    var rightChannelIndex = i * 2 + 1;
-	    if (rightChannelIndex < hrirBuffers.numberOfChannels) {
+	    if (rightChannelIndex < buffer.numberOfChannels) {
 	      stereoHRIRBuffer.copyToChannel(
 	        buffer.getChannelData(rightChannelIndex), 1);
 	    }
@@ -2245,7 +2245,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 	HOARenderer.prototype.initialize = function () {
 	  Utils.log('Version: ' + SystemVersion);
-	  Utils.log('Initializing... (mode: ' + this._renderingMode + 
+	  Utils.log('Initializing... (mode: ' + this._renderingMode +
 	      ', order: ' + this._ambisonicOrder + ')');
 
 	  return new Promise(this._initializeCallback.bind(this));
@@ -2269,7 +2269,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  });
 
 	  new AudioBufferManager(
-	      this._context, 
+	      this._context,
 	      audioBufferData,
 	      function (buffers) {
 	        var accumulatedChannelCount = 0;
@@ -2288,7 +2288,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	          accumulatedChannelCount += buffer.numberOfChannels;
 	        }.bind(this));
-	        
+
 	        if (accumulatedChannelCount === this._numberOfChannels) {
 	          this._buildAudioGraph(hoaHRIRBuffer);
 	          this._isRendererReady = true;
@@ -2318,13 +2318,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.input = this._context.createGain();
 	  this.output = this._context.createGain();
 	  this._bypass = this._context.createGain();
-	  
+
 	  this._hoaRotator = new HOARotator(this._context, this._ambisonicOrder);
-	  this._hoaConvolver = new HOAConvolver(this._context, { 
-	      IRBuffer: hoaHRIRBuffer, 
+	  this._hoaConvolver = new HOAConvolver(this._context, {
+	      IRBuffer: hoaHRIRBuffer,
 	      ambisonicOrder: this._ambisonicOrder
 	    });
-	  
+
 	  this.input.connect(this._hoaRotator.input);
 	  this.input.connect(this._bypass);
 	  this._hoaRotator.output.connect(this._hoaConvolver.input);

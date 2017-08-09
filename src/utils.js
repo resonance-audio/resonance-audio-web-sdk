@@ -15,12 +15,42 @@
  */
 
 /**
- * @file Songbird library common utilities.
+ * @file Songbird library common utilities, mathematical constants,
+ * and default values.
  * @author Andrew Allen <bitllama@google.com>
  */
 
 'use strict';
 
+// Math constants.
+/** @type {Number} */
+exports.TWO_PI = 6.28318530717959;
+/** @type {Number} */
+exports.TWENTY_FOUR_LOG10 = 55.2620422318571;
+/** @type {Number} */
+exports.LOG1000 = 6.90775527898214;
+/** @type {Number} */
+exports.LOG2_DIV2 = 0.346573590279973;
+/** @type {Number} */
+exports.DEGREES_TO_RADIANS = 0.017453292519943;
+/** @type {Number} */
+exports.RADIANS_TO_DEGREES = 57.295779513082323;
+/** @type {Number} */
+exports.EPSILON_FLOAT = 1e-8;
+/** @type {Float32Array} */
+exports.DEFAULT_POSITION = [0, 0, 0];
+/** @type {Float32Array} */
+exports.DEFAULT_ORIENTATION = [0, 0, 0];
+/** @type {Float32Array} */
+exports.DEFAULT_FORWARD = [0, 0, 1];
+/** @type {Float32Array} */
+exports.DEFAULT_UP = [0, 1, 0];
+/** @type {Float32Array} */
+exports.DEFAULT_RIGHT = [1, 0, 0];
+/** @type {Number} */
+exports.DEFAULT_SPEED_OF_SOUND = 343;
+
+// Helper functions
 /**
  * Songbird library logging function.
  * @type {Function}

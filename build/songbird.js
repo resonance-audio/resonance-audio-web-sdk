@@ -70,9 +70,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * limitations under the License.
 	 */
 
-	'use strict';
+	/**
+	 * @file Primary namespace for Songbird library.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
 
-	// Primary namespace for Songbird library.
+	 'use strict';
+
 	exports.Songbird = __webpack_require__(1);
 
 
@@ -104,14 +108,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 
 	// Internal dependencies.
-	//var AmbisonicEncoder = require('./ambisonic-encoder.js');
-	//var Attenuation = require('./attenuation.js');
-	//var Listener = require('./listener.js');
-	var Source = __webpack_require__(7);
-	var Room = __webpack_require__(2);
-	var LateReflections = __webpack_require__(5);
-	var EarlyReflections = __webpack_require__(6);
-	var Global = __webpack_require__(3);
+	var Listener = __webpack_require__(2);
+	var Source = __webpack_require__(5);
+	var Room = __webpack_require__(10);
+	var LateReflections = __webpack_require__(11);
+	var EarlyReflections = __webpack_require__(12);
+	var Encoder = __webpack_require__(8);
+	var Utils = __webpack_require__(4);
 
 	/**
 	 * @class Songbird spatial audio.
@@ -120,56 +123,153 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Associated {@link
 	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
 	 * @param {Object} options
-	 * @param {Number} ambisonicOrder
-	 * @param {Float32Array} listenerPosition
+	 * @param {Number} options.ambisonicOrder
+	 * Desired ambisonic Order. Defaults to
+	 * {@linkcode Encoder.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
+	 * @param {Float32Array} options.listenerPosition
+	 * The listener's initial position (in meters), where origin is the center of
+	 * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+	 * @param {Float32Array} options.listenerOrientation
+	 * The listener's initial orientation (roll, pitch and yaw, in radians).
+	 * Defaults to {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
+	 * @param {Object} options.dimensions Room dimensions (in meters). Defaults to
+	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} options.materials Named acoustic materials per wall.
+	 * Defaults to {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+	 * @param {Number} options.speedOfSound
+	 * (in meters/second). Defaults to
+	 * {@linkcode DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
+	 * @param {Boolean} options.useLateReflections Enables/disables
+	 * {@link LateReflections LateReflections}, which uses a convolution reverb.
+	 * Can be disabled to improve performance on low-power devices. Defaults to
+	 * {@linkcode Room.USE_LATE_REFLECTIONS USE_LATE_REFLECTIONS}.
 	 */
 	function Songbird (context, options) {
-	  this._context = context;
+	  // Public variables.
+	  /**
+	   * Binaurally-rendered stereo (2-channel) output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} output
+	   * @memberof Songbird
+	   * @instance
+	   */
+	  /**
+	   * Ambisonic (multichannel) output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} ambisonicOutput
+	   * @memberof Songbird
+	   * @instance
+	   */
+
+	  // Use defaults for undefined arguments.
 	  if (options == undefined) {
 	    options = new Object();
 	  }
 	  if (options.ambisonicOrder == undefined) {
-	    options.ambisonicOrder = Global.DEFAULT_AMBISONIC_ORDER;
+	    options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
 	  }
-	  this._ambisonicOrder = options.ambisonicOrder;
-
-	  // Member submodules.
-	  this._sources = [];
-	  this._room = new Room(context);
+	  if (options.listenerPosition == undefined) {
+	    options.listenerPosition = Utils.DEFAULT_POSITION;
+	  }
+	  if (options.listenerOrientation == undefined) {
+	    options.listenerOrientation = Utils.DEFAULT_ORIENTATION;
+	  }
+	  if (options.dimensions == undefined) {
+	    options.dimensions = EarlyReflections.DEFAULT_DIMENSIONS;
+	  }
+	  if (options.materials == undefined) {
+	    options.materials = Room.DEFAULT_MATERIALS;
+	  }
+	  if (options.speedOfSound == undefined) {
+	    options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
+	  }
+	  if (options.useLateReflections == undefined) {
+	    options.useLateReflections = Room.USE_LATE_REFLECTIONS;
+	  }
 
 	  // Member variables.
-	  this._position = new Float32Array(3);
+	  this._ambisonicOrder = options.ambisonicOrder;
+
+	  // Create member submodules.
+	  this._sources = [];
+	  this._room = new Room(context, {
+	    listenerPosition: options.listenerPosition,
+	    dimensions: options.dimensions,
+	    materials: options.materials,
+	    speedOfSound: options.speedOfSound
+	  });
+	  this._listener = new Listener(context, {
+	    ambisonicOrder: options.ambisonicOrder,
+	    position: options.listenerPosition,
+	    orientation: options.listenerOrientation
+	  });
 
 	  // Create auxillary audio nodes.
+	  this._context = context;
 	  this.output = context.createGain();
+	  this.ambisonicOutput = context.createGain();
 
 	  // Connect audio graph.
-	  this._room.output.connect(this.output);
+	  this._room.output.connect(this._listener.input);
+	  this._listener.output.connect(this.output);
+	  this._listener.ambisonicOutput.connect(this.ambisonicOutput);
 	}
 
-	Songbird.prototype.createSource = function (audioNode, options) {
+	/**
+	 * Create a new source for the scene.
+	 * @param {Object} options
+	 * @param {Float32Array} options.position
+	 * The source's initial position (in meters), where origin is the center of
+	 * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+	 * @param {Float32Array} options.orientation
+	 * The source's initial orientation (roll, pitch and yaw, in radians). Defaults
+	 * to {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
+	 * @param {Number} options.minDistance
+	 * Min. distance (in meters). Defaults to
+	 * {@linkcode Attenuation.MIN_DISTANCE MIN_DISTANCE}.
+	 * @param {Number} options.maxDistance
+	 * Max. distance (in meters). Defaults to
+	 * {@linkcode Attenuation.MAX_DISTANCE MAX_DISTANCE}.
+	 * @param {string} options.rolloff
+	 * Rolloff model to use, chosen from options in
+	 * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+	 * {@linkcode Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+	 * @param {Number} options.gain Input gain (linear). Defaults to
+	 * {@linkcode Source.DEFAULT_GAIN DEFAULT_GAIN}.
+	 * @param {Number} options.alpha Directivity alpha. Defaults to
+	 * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
+	 * @param {Number} options.exponent Directivity exponent. Defaults to
+	 * {@linkcode Directivity.DEFAULT_EXPONENT DEFAULT_EXPONENT}.
+	 */
+	Songbird.prototype.createSource = function (options) {
+	  // Create a source and push it to the internal sources array, returning
+	  // the object's reference to the user.
 	  this._sources.push(new Source(this, options));
-	  audioNode.connect(this._sources[this._sources.length - 1].input);
 	  return this._sources[this._sources.length - 1];
 	}
 
-	Songbird.prototype.removeSource = function (source) {
-	  var index = this._sources.indexOf(source);
-	  if (index > -1) {
-	    this._sources.splice(index, 1);
-	  } else {
-	    Utils.log("Error: Source not found, not removed!");
-	  }
-	}
-
+	/**
+	 * Set the room's dimensions and wall materials.
+	 * @param {Object} dimensions Room dimensions (in meters). Defaults to
+	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} materials Named acoustic materials per wall. Defaults to
+	 * {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+	 */
 	Songbird.prototype.setRoomProperties = function (dimensions, materials) {
 	  this._room.setProperties(dimensions, materials);
 	}
 
+	/**
+	 * Set the listener's position (in meters), where origin is the center of
+	 * the room.
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 */
 	Songbird.prototype.setListenerPosition = function (x, y, z) {
-	  this._position[0] = x;
-	  this._position[1] = y;
-	  this._position[2] = z;
+	  this._listener.position[0] = x;
+	  this._listener.position[1] = x;
+	  this._listener.position[2] = x;
 	  this._room.setListenerPosition(x, y, z);
 	  for (var i = 0; i < this._sources.length; i++) {
 	    this._sources[i].setPosition(this._sources[i]._position[0],
@@ -177,93 +277,27 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	}
 
+	/**
+	 * Set the listener's orientation (in radians).
+	 * @param {Number} roll
+	 * @param {Number} pitch
+	 * @param {Number} yaw
+	 */
 	Songbird.prototype.setListenerOrientation = function (roll, pitch, yaw) {
-	  //TODO(bitllama): Omnitone stuff here...
+	  this._listener.setOrientation(roll, pitch, yaw);
 	}
 
-	Songbird.createRoom = function (context, options) {
-	  return new Room(context, options);
+	/**
+	 * Set the listener's orientation using a Three.js camera object.
+	 * @param {Object} cameraMatrix
+	 * The Matrix4 object of the Three.js camera.
+	 */
+	Songbird.prototype.setListenerOrientationFromCamera = function (cameraMatrix) {
+	  this._listener.setOrientationFromCamera(cameraMatrix);
 	}
-	Songbird.createLateReflections = function (context, options) {
-	  return new LateReflections(context, options);
-	}
-	Songbird.createEarlyReflections = function (context, options) {
-	  return new EarlyReflections(context, options);
-	}
-
-	// var Songbird = {};
-
-	// /**
-	//  * Create {@link Listener Listener} to listen to
-	//  * sources in a configurable environment.
-	//  * @param {AudioContext} context
-	//  * Associated {@link
-	// https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	//  * @param {Number} options.ambisonicOrder
-	//  * Desired ambisonic order.
-	//  * @param {Map} options.dimensions
-	//  * Dimensions map which should conform to the layout of
-	//  * {@link Room.DefaultDimensions Room.DefaultDimensions}
-	//  * @param {Map} options.materials
-	//  * Materials map which should conform to the layout of
-	//  * {@link Room.DefaultMaterials Room.DefaultMaterials}
-	//  * @param {Number} options.speedOfSound
-	//  * (in meters / second).
-	//  * @returns {Listener}
-	//  */
-	// Songbird.createListener = function (context, options) {
-	//   return new Listener(context, options);
-	// }
-
-	// /**
-	//  * Create {@link Source Source} to spatialize an audio buffer.
-	//  * @param {Listener} listener Associated Listener.
-	//  * @param {Object} options
-	//  * @param {Number} options.minDistance Min. distance (in meters).
-	//  * @param {Number} options.maxDistance Max. distance (in meters).
-	//  * @param {Number} options.gain Gain (linear).
-	//  * @param {Float32Array} options.position Position [x,y,z] (in meters).
-	//  * @param {Float32Array} options.velocity Velocity [x,y,z] (in meters).
-	//  * @param {Float32Array} options.orientation Orientation [x,y,z] (in meters).
-	//  * @returns {Source}
-	//  */
-	// Songbird.createSource = function (listener, options) {
-	//   return new Source(listener, options);
-	// }
-
-	// /**
-	//  * Create {@link Encoder Encoder} to spatially encodes input
-	//  * using spherical harmonics.
-	//  * @param {AudioContext} context
-	//  * Associated {@link
-	// https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	//  * @param {Number} ambisonicOrder
-	//  * Desired ambisonic Order. Defaults to
-	//  * {@link Globals.DEFAULT_AMBISONIC_ORDER Globals.DEFAULT_AMBISONIC_ORDER}.
-	//  * @returns {Encoder}
-	//  */
-	// Songbird.createEncoder = function (context, ambisonicOrder) {
-	//   return new Encoder(context, ambisonicOrder);
-	// }
-
-	// /**
-	//  * Create {@link Attenuation Attenuation} to apply distance attenuation.
-	//  * @param {AudioContext} context
-	//  * Associated {@link
-	// https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	//  * @param {Object} options
-	//  * @param {Number} options.minDistance Min. distance (in meters).
-	//  * @param {Number} options.maxDistance Max. distance (in meters).
-	//  * @param {string} options.rolloffModel
-	//  * Rolloff model to use, chosen from options in
-	//  * {@link Globals.ROLLOFF_MODELS Globals.ROLLOFF_MODELS}.
-	//  * @return {Attenuation}
-	//  */
-	// Songbird.createAttenuation = function (context, options) {
-	//   return new Attenuation(context, options);
-	// }
 
 	module.exports = Songbird;
+
 
 /***/ }),
 /* 2 */
@@ -271,7 +305,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	/**
 	 * @license
-	 * Copyright 2017 Google Inc. All Rights Reserved.
+	 * Copyright 2016 Google Inc. All Rights Reserved.
 	 * Licensed under the Apache License, Version 2.0 (the "License");
 	 * you may not use this file except in compliance with the License.
 	 * You may obtain a copy of the License at
@@ -286,423 +320,2583 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @file Pre-defined wall materials, mathematical constants and utility
-	 * functions for computing room acoustics.
+	 * @file Listener model to spatialize sources in an environment.
 	 * @author Andrew Allen <bitllama@google.com>
 	 */
 
 	'use strict';
 
 	// Internal dependencies.
-	var Global = __webpack_require__(3);
+	var Omnitone = __webpack_require__(3);
 	var Utils = __webpack_require__(4);
-	var LateReflections = __webpack_require__(5);
-	var EarlyReflections = __webpack_require__(6);
 
 	/**
-	 * @class Room
-	 * @description Model that manages early and late reflections using acoustic
-	 * properties and listener position relative to a rectangular room.
+	 * @class Listener
+	 * @description Listener model to spatialize sources in an environment.
 	 * @param {AudioContext} context
 	 * Associated {@link
 	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Object} options
-	 * @param {Number} options.speedOfSound
-	 * (in meters/second). Defaults to
-	 * {@link SPEED_OF_SOUND SPEED_OF_SOUND}.
-	 * @param {Object} options.dimensions (in meters). Defaults to
-	 * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
-	 * @param {Object} options.materials Named acoustic materials per wall.
-	 * Defaults to {@link Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
-	 * @param {Float32Array} options.listenerPosition
-	 * The initial listener position (in meters). Defaults to
-	 * {@link DEFAULT_POSITION DEFAULT_POSITION}.
+	 * @param {Number} options.ambisonicOrder
+	 * Desired ambisonic order. Defaults to
+	 * {@linkcode Encoder.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
+	 * @param {Float32Array} options.position
+	 * Initial position (in meters), where origin is the center of
+	 * the room. Defaults to
+	 * {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+	 * @param {Float32Array} options.orientation
+	 * Orientation (roll, pitch and yaw, in radians). Defaults to
+	 * {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
 	 */
-	function Room (context, options) {
+	function Listener (context, options) {
+	  // Public variables.
 	  /**
-	   * EarlyReflections {@link EarlyReflections EarlyReflections} submodule.
-	   * @member {AudioNode} early
-	   * @memberof Room
+	   * Position (in meters).
+	   * @member {Float32Array} position
+	   * @memberof Listener
 	   * @instance
 	   */
 	  /**
-	   * LateReflections {@link LateReflections LateReflections} submodule.
-	   * @member {AudioNode} late
-	   * @memberof Room
+	   * Ambisonic (multichannel) input {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} input
+	   * @memberof Listener
 	   * @instance
 	   */
 	  /**
-	   * Output {@link
+	   * Binaurally-rendered stereo (2-channel) output {@link
 	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
 	   * @member {AudioNode} output
-	   * @memberof Room
+	   * @memberof Listener
 	   * @instance
 	   */
-
-	  // Sanitize inputs.
+	  /**
+	   * Ambisonic (multichannel) output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} ambisonicOutput
+	   * @memberof Listener
+	   * @instance
+	   */
+	  // Use defaults for undefined arguments.
 	  if (options == undefined) {
-	    options = {};
+	    options = new Object();
 	  }
-	  if (options.speedOfSound == undefined) {
-	    options.speedOfSound = Global.SPEED_OF_SOUND;
+	  if (options.ambisonicOrder == undefined) {
+	    options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
 	  }
-	  this.speedOfSound = options.speedOfSound;
-	  options.dimensions = _sanitizeDimensions(options.dimensions);
-	  var absorptionCoefficients = _getCoefficientsFromMaterials(options.materials);
-	  var durations = _getDurationsFromProperties(options.dimensions,
-	    absorptionCoefficients, options.speedOfSound);
-	  var reflectionCoefficients =
-	    _computeReflectionCoefficients(absorptionCoefficients);
+	  if (options.position == undefined) {
+	    options.position = Globals.DEFAULT_POSITION;
+	  }
+	  if (options.orientation == undefined) {
+	    options.orientation = Globals.DEFAULT_ORIENTATION;
+	  }
 
-	  // Construct submodules for early and late reflections.
-	  this.early = new EarlyReflections(context, {
-	    dimensions : options.dimensions,
-	    coefficients : reflectionCoefficients,
-	    speedOfSound : options.speedOfSound,
-	    listenerPosition : options.listenerPosition
-	  });
-	  this.late = new LateReflections(context, {
-	    durations : durations
+	  // Member variables.
+	  this.position = new Float32Array(3);
+
+	  // Select the appropriate HRIR filters using 8-channel chunks since
+	  // >8 channels is not yet supported by a majority of browsers.
+	  // TODO(bitllama): Place these HRIR filters online somewhere?
+	  var urls = [''];
+	  if (options.ambisonicOrder == 1) {
+	    urls = [
+	      'resources/sh_hrir_o_1.wav'
+	    ];
+	  }
+	  else if (options.ambisonicOrder == 2) {
+	    urls = [
+	      'resources/sh_hrir_o_2_ch0-ch7.wav',
+	      'resources/sh_hrir_o_2_ch8.wav'
+	    ];
+	  }
+	  else if (options.ambisonicOrder == 3) {
+	    urls = [
+	      'resources/sh_hrir_o_3_ch0-ch7.wav',
+	      'resources/sh_hrir_o_3_ch8-ch15.wav'
+	    ];
+	  }
+	  else {
+	    // TODO(bitllama): Throw an error?!
+	  }
+
+	  // Create audio nodes.
+	  this._context = context;
+	  this._renderer = Omnitone.Omnitone.createHOARenderer(context, {
+	    ambisonicOrder: options.ambisonicOrder,
+	    HRIRUrl: urls
 	  });
 
-	  // Construct auxillary audio nodes.
+	  // These nodes are created in order to safely asynchronously load Omnitone
+	  // while the rest of Songbird is being created.
+	  this.input = context.createGain();
+	  this.ambisonicOutput = context.createGain();
 	  this.output = context.createGain();
-	  this._merger = context.createChannelMerger(4);
 
-	  this.early.output.connect(this.output);
-	  this.late.output.connect(this._merger, 0, 0);
-	  this._merger.connect(this.output);
+	  // Initialize Omnitone (async) and connect to audio graph when complete.
+	  var that = this;
+	  this._renderer.initialize().then(function () {
+	    // Connect pre-rotated soundfield to renderer.
+	    that.input.connect(that._renderer.input);
+
+	    // Connect rotated soundfield to ambisonic output.
+	    that._renderer._hoaRotator.output.connect(that.ambisonicOutput);
+
+	    // Connect binaurally-rendered soundfield to binaural output.
+	    that._renderer.output.connect(that.output);
+	  });
 	}
 
 	/**
-	 * Set the room's dimensions and wall materials.
-	 * @param {Object} dimensions (in meters). Defaults to
-	 * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
-	 * @param {Object} materials Named acoustic materials per wall. Defaults to
-	 * {@link Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+	 * Set the listener's orientation (in radians).
+	 * @param {Number} roll
+	 * @param {Number} pitch
+	 * @param {Number} yaw
 	 */
-	Room.prototype.setProperties = function (dimensions, materials) {
-	  // Compute late response.
-	  absorptionCoefficients = _getCoefficientsFromMaterials(materials);
-	  durations = _getDurationsFromProperties(dimensions, absorptionCoefficients,
-	    this.speedOfSound);
-	  this.late.setDurations(durations);
-
-	  // Compute early response.
-	  this.early.speedOfSound = this.speedOfSound;
-	  var reflectionCoefficients =
-	    _computeReflectionCoefficients(absorptionCoefficients);
-	  this.early.setRoomProperties(dimensions, reflectionCoefficients);
+	Listener.prototype.setOrientation = function (roll, pitch, yaw) {
+	  var q = Utils.toQuaternion(roll, pitch, yaw);
+	  var right = Utils.rotateVector(Globals.DEFAULT_RIGHT, q);
+	  var up = Utils.rotateVector(Globals.DEFAULT_UP, q);
+	  var forward = Utils.rotateVector(Globals.DEFAULT_FORWARD, q);
+	  var matrix = new Float32Array(9);
+	  matrix[0] = right[0];
+	  matrix[1] = right[1];
+	  matrix[2] = right[2];
+	  matrix[3] = up[0];
+	  matrix[4] = up[1];
+	  matrix[5] = up[2];
+	  matrix[6] = forward[0];
+	  matrix[7] = forward[1];
+	  matrix[8] = forward[2];
+	  this._renderer.setRotationMatrix(matrix);
 	}
 
 	/**
-	 * Set the listener's position (in meters),
-	 * where [0,0,0] is the center of the room.
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
+	 * Set the listener's orientation using a Three.js camera object.
+	 * @param {Object} cameraMatrix
+	 * The Matrix4 object of the Three.js camera.
 	 */
-	Room.prototype.setListenerPosition = function (x, y, z) {
-	  //TODO(bitllama): Check distance and zero-out if outside of room.
-	  this.early.speedOfSound = this.speedOfSound;
-	  this.early.setListenerPosition(x, y, z);
+	Listener.prototype.setOrientationFromCamera = function (cameraMatrix) {
+	  this._renderer.setRotationMatrixFromCamera(cameraMatrix);
 	}
 
-	/** @type {Number} */
-	Room.MIN_VOLUME = 1e-4;
-	/** @type {Float32Array} */
-	Room.AIR_ABSORPTION_COEFFICIENTS =
-	  [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
-	/** @type {Number} */
-	Room.EYRING_CORRECTION = 1.38;
-
-	/**
-	 * Default materials use strings from
-	 * {@link MATERIAL_COEFFICIENTS MATERIAL_COEFFICIENTS}
-	 * @type {Object}
-	 */
-	Room.DEFAULT_MATERIALS = {
-	  left : 'transparent', right : 'transparent', front : 'transparent',
-	  back : 'transparent', down : 'transparent', up : 'transparent'
-	};
-
-	/**
-	 * Pre-defined frequency-dependent absorption coefficients for listed materials.
-	 * Currently supported materials are:
-	 * 'transparent',
-	 * 'acoustic-ceiling-tiles',
-	 * 'brick-bare',
-	 * 'brick-painted',
-	 * 'concrete-block-coarse',
-	 * 'concrete-block-painted',
-	 * 'curtain-heavy',
-	 * 'fiber-glass-insulation',
-	 * 'glass-thin',
-	 * 'glass-thick',
-	 * 'grass',
-	 * 'linoleum-on-concrete',
-	 * 'marble',
-	 * 'metal',
-	 * 'parquet-on-concrete',
-	 * 'plaster-smooth',
-	 * 'plywood-panel',
-	 * 'polished-concrete-or-tile',
-	 * 'sheetrock',
-	 * 'water-or-ice-surface',
-	 * 'wood-ceiling',
-	 * 'wood-panel',
-	 * 'uniform'
-	 * @type {Object}
-	 */
-	Room.MATERIAL_COEFFICIENTS = {
-	  'transparent' :
-	  [1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000],
-	  'acoustic-ceiling-tiles' :
-	  [0.672, 0.675, 0.700, 0.660, 0.720, 0.920, 0.880, 0.750, 1.000],
-	  'brick-bare' :
-	  [0.030, 0.030, 0.030, 0.030, 0.030, 0.040, 0.050, 0.070, 0.140],
-	  'brick-painted' :
-	  [0.006, 0.007, 0.010, 0.010, 0.020, 0.020, 0.020, 0.030, 0.060],
-	  'concrete-block-coarse' :
-	  [0.360, 0.360, 0.360, 0.440, 0.310, 0.290, 0.390, 0.250, 0.500],
-	  'concrete-block-painted' :
-	  [0.092, 0.090, 0.100, 0.050, 0.060, 0.070, 0.090, 0.080, 0.160],
-	  'curtain-heavy' :
-	  [0.073, 0.106, 0.140, 0.350, 0.550, 0.720, 0.700, 0.650, 1.000],
-	  'fiber-glass-insulation' :
-	  [0.193, 0.220, 0.220, 0.820, 0.990, 0.990, 0.990, 0.990, 1.000],
-	  'glass-thin' :
-	  [0.180, 0.169, 0.180, 0.060, 0.040, 0.030, 0.020, 0.020, 0.040],
-	  'glass-thick' :
-	  [0.350, 0.350, 0.350, 0.250, 0.180, 0.120, 0.070, 0.040, 0.080],
-	  'grass' :
-	  [0.050, 0.050, 0.150, 0.250, 0.400, 0.550, 0.600, 0.600, 0.600],
-	  'linoleum-on-concrete' :
-	  [0.020, 0.020, 0.020, 0.030, 0.030, 0.030, 0.030, 0.020, 0.040],
-	  'marble' :
-	  [0.010, 0.010, 0.010, 0.010, 0.010, 0.010, 0.020, 0.020, 0.0400],
-	  'metal' :
-	  [0.030, 0.035, 0.040, 0.040, 0.050, 0.050, 0.050, 0.070, 0.090],
-	  'parquet-on-concrete' :
-	  [0.028, 0.030, 0.040, 0.040, 0.070, 0.060, 0.060, 0.070, 0.140],
-	  'plaster-rough' :
-	  [0.017, 0.018, 0.020, 0.030, 0.040, 0.050, 0.040, 0.030, 0.060],
-	  'plaster-smooth' :
-	  [0.011, 0.012, 0.013, 0.015, 0.020, 0.030, 0.040, 0.050, 0.100],
-	  'plywood-panel' :
-	  [0.400, 0.340, 0.280, 0.220, 0.170, 0.090, 0.100, 0.110, 0.220],
-	  'polished-concrete-or-tile' :
-	  [0.008, 0.008, 0.010, 0.010, 0.015, 0.020, 0.020, 0.020, 0.040],
-	  'sheet-rock' :
-	  [0.290, 0.279, 0.290, 0.100, 0.050, 0.040, 0.070, 0.090, 0.180],
-	  'water-or-ice-surface' :
-	  [0.006, 0.006, 0.008, 0.008, 0.013, 0.015, 0.020, 0.025, 0.050],
-	  'wood-ceiling' :
-	  [0.150, 0.147, 0.150, 0.110, 0.100, 0.070, 0.060, 0.070, 0.140],
-	  'wood-panel' :
-	  [0.280, 0.280, 0.280, 0.220, 0.170, 0.090, 0.100, 0.110, 0.220],
-	  'uniform' :
-	  [0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500]
-	}
-
-	/** @type {Number} */
-	Room.STARTING_BAND = 4;
-	/** @type {Number} */
-	Room.NUMBER_AVERAGING_BANDS = 3;
-
-	function _getCoefficientsFromMaterials (materials) {
-	  // Initialize coefficients to use defaults.
-	  var coefficients = {};
-	  for (var property in Room.DEFAULT_MATERIALS) {
-	    coefficients[property] =
-	      Room.MATERIAL_COEFFICIENTS[Room.DEFAULT_MATERIALS[property]];
-	  }
-
-	  // Sanitize materials.
-	  if (materials == undefined) {
-	    materials = Room.DEFAULT_MATERIALS;
-	  }
-
-	  // Assign coefficients using provided materials.
-	  for (var property in Room.DEFAULT_MATERIALS) {
-	    if (materials.hasOwnProperty(property)) {
-	      if (materials[property] in Room.MATERIAL_COEFFICIENTS) {
-	        coefficients[property] =
-	          Room.MATERIAL_COEFFICIENTS[materials[property]];
-	      } else {
-	        Utils.log('Material \"' + materials[property] + '\" on wall \"' +
-	          property + '\" not found. Using \"' +
-	          Room.DEFAULT_MATERIALS[property] + '\".');
-	      }
-	    } else {
-	      Utils.log('Wall \"' + property + '\" is not defined. Default used.');
-	    }
-	  }
-	  return coefficients;
-	}
-
-	function _sanitizeCoefficients (coefficients) {
-	  if (coefficients == undefined) {
-	    coefficients = {};
-	  }
-	  for (var property in Room.DEFAULT_MATERIALS) {
-	    if (!(coefficients.hasOwnProperty(property))) {
-	      // If element is not present, use default coefficients.
-	      coefficients[property] =
-	        Room.MATERIAL_COEFFICIENTS[Room.DEFAULT_MATERIALS[property]];
-	    }
-	  }
-	  return coefficients;
-	}
-
-	function _sanitizeDimensions (dimensions) {
-	  if (dimensions == undefined) {
-	    dimensions = {};
-	  }
-	  for (var property in EarlyReflections.DEFAULT_DIMENSIONS) {
-	    if (!(dimensions.hasOwnProperty(property))) {
-	      dimensions[property] = EarlyReflections.DEFAULT_DIMENSIONS[property];
-	    }
-	  }
-	  return dimensions;
-	}
-
-	function _getDurationsFromProperties (dimensions, coefficients, speedOfSound) {
-	  var durations = new Float32Array(Global.NUMBER_REVERB_BANDS);
-
-	  // Sanitize inputs.
-	  dimensions = _sanitizeDimensions(dimensions);
-	  coefficients = _sanitizeCoefficients(coefficients);
-	  if (speedOfSound == undefined) {
-	    speedOfSound = Globals.SPEED_OF_SOUND;
-	  }
-
-	  // Acoustic constant.
-	  var k = Global.TWENTY_FOUR_LOG10 / speedOfSound;
-
-	  // Compute volume, skip if room is not present.
-	  var volume = dimensions.width * dimensions.height * dimensions.depth;
-	  if (volume < Room.MIN_VOLUME) {
-	    return durations;
-	  }
-
-	  // Room surface area.
-	  var leftRightArea = dimensions.width * dimensions.height;
-	  var floorCeilingArea = dimensions.width * dimensions.depth;
-	  var frontBackArea = dimensions.depth * dimensions.height;
-	  var totalArea = 2 * (leftRightArea + floorCeilingArea + frontBackArea);
-	  for (var i = 0; i < Global.NUMBER_REVERB_BANDS; i++) {
-	    // Effective absorptive area.
-	    var absorbtionArea =
-	      (coefficients.left[i] + coefficients.right[i]) * leftRightArea +
-	      (coefficients.down[i] + coefficients.up[i]) * floorCeilingArea +
-	      (coefficients.front[i] + coefficients.back[i]) * frontBackArea;
-	    var meanAbsorbtionArea = absorbtionArea / totalArea;
-
-	    // Compute reverberation using one of two algorithms, depending on area [1].
-	    // [1] Beranek, Leo L. "Analysis of Sabine and Eyring equations and their
-	    //     application to concert hall audience and chair absorption." The
-	    //     Journal of the Acoustical Society of America, Vol. 120, No. 3.
-	    //     (2006), pp. 1399-1399.
-	    if (meanAbsorbtionArea <= 0.5) {
-	      // Sabine equation.
-	      durations[i] = k * volume / (absorbtionArea + 4 *
-	        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
-	    } else {
-	      // Eyring equation.
-	      durations[i] = Room.EYRING_CORRECTION * k * volume / (-totalArea *
-	        Math.log(1 - meanAbsorbtionArea) + 4 *
-	        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
-	    }
-	  }
-	  return durations;
-	}
-
-	function _computeReflectionCoefficients (absorptionCoefficients) {
-	  var reflectionCoefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
-	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
-	    // Compute average absorption coefficient (per wall).
-	    for (var j = 0; j < Room.NUMBER_AVERAGING_BANDS; j++) {
-	      var bandIndex = j + Room.STARTING_BAND;
-	      reflectionCoefficients[property] +=
-	        absorptionCoefficients[property][bandIndex];
-	    }
-	    reflectionCoefficients[property] /= Room.NUMBER_AVERAGING_BANDS;
-
-	    // Convert absorption coefficient to reflection coefficient.
-	    reflectionCoefficients[property] =
-	      Math.sqrt(1 - reflectionCoefficients[property]);
-	  }
-	  return reflectionCoefficients;
-	}
-
-	module.exports = Room;
-
+	module.exports = Listener;
 
 /***/ }),
 /* 3 */
-/***/ (function(module, exports) {
+/***/ (function(module, exports, __webpack_require__) {
 
-	/**
-	 * @license
-	 * Copyright 2017 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
+	(function webpackUniversalModuleDefinition(root, factory) {
+		if(true)
+			module.exports = factory();
+		else if(typeof define === 'function' && define.amd)
+			define([], factory);
+		else {
+			var a = factory();
+			for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
+		}
+	})(this, function() {
+	return /******/ (function(modules) { // webpackBootstrap
+	/******/ 	// The module cache
+	/******/ 	var installedModules = {};
 
-	/**
-	 * @file Mathematical constants and default values for submodules.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
+	/******/ 	// The require function
+	/******/ 	function __webpack_require__(moduleId) {
 
-	'use strict';
+	/******/ 		// Check if module is in cache
+	/******/ 		if(installedModules[moduleId])
+	/******/ 			return installedModules[moduleId].exports;
 
-	// Math constants.
-	/** @type {Number} */
-	exports.TWO_PI = 6.28318530717959;
-	/** @type {Number} */
-	exports.TWENTY_FOUR_LOG10 = 55.2620422318571;
-	/** @type {Number} */
-	exports.LOG1000 = 6.90775527898214;
-	/** @type {Number} */
-	exports.LOG2_DIV2 = 0.346573590279973;
-	/** @type {Number} */
-	exports.DEGREES_TO_RADIANS = 0.017453292519943;
-	/** @type {Number} */
-	exports.RADIANS_TO_DEGREES = 57.295779513082323;
-	/** @type {Number} */
-	exports.EPSILON_FLOAT = 1e-6;
-	/** @type {Number} */
-	exports.DEFAULT_GAIN_LINEAR = 1;
-	/** @type {Float32Array} */
-	exports.DEFAULT_POSITION = [0, 0, 0];
-	/** @type {Float32Array} */
-	exports.DEFAULT_ORIENTATION = [0, 0, 0];
-	/** @type {Float32Array} */
-	exports.DEFAULT_FORWARD = [0, 0, 1];
-	/** @type {Float32Array} */
-	exports.DEFAULT_UP = [0, 1, 0];
-	/** @type {Float32Array} */
-	exports.DEFAULT_RIGHT = [1, 0, 0];
-	/** @type {Number} */
-	exports.DEFAULT_AMBISONIC_ORDER = 1;
-	/** @type {Number} */
-	exports.SPEED_OF_SOUND = 343;
+	/******/ 		// Create a new module (and put it into the cache)
+	/******/ 		var module = installedModules[moduleId] = {
+	/******/ 			exports: {},
+	/******/ 			id: moduleId,
+	/******/ 			loaded: false
+	/******/ 		};
 
-	// Reverb constants and defaults.
-	/** @type {Number} */
-	exports.NUMBER_REVERB_BANDS = 9;
+	/******/ 		// Execute the module function
+	/******/ 		modules[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+
+	/******/ 		// Flag the module as loaded
+	/******/ 		module.loaded = true;
+
+	/******/ 		// Return the exports of the module
+	/******/ 		return module.exports;
+	/******/ 	}
 
 
+	/******/ 	// expose the modules object (__webpack_modules__)
+	/******/ 	__webpack_require__.m = modules;
+
+	/******/ 	// expose the module cache
+	/******/ 	__webpack_require__.c = installedModules;
+
+	/******/ 	// __webpack_public_path__
+	/******/ 	__webpack_require__.p = "";
+
+	/******/ 	// Load entry module and return exports
+	/******/ 	return __webpack_require__(0);
+	/******/ })
+	/************************************************************************/
+	/******/ ([
+	/* 0 */
+	/***/ (function(module, exports, __webpack_require__) {
+
+		/**
+		 * @license
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		'use strict';
+
+		// Primary namespace for Omnitone library.
+		exports.Omnitone = __webpack_require__(1);
+
+
+	/***/ }),
+	/* 1 */
+	/***/ (function(module, exports, __webpack_require__) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		/**
+		 * @fileOverview Omnitone library name space and common utilities.
+		 */
+
+		'use strict';
+
+		/**
+		 * @class Omnitone main namespace.
+		 */
+		var Omnitone = {};
+
+		// Internal dependencies.
+		var AudioBufferManager = __webpack_require__(2);
+		var FOAConvolver = __webpack_require__(4);
+		var FOARouter = __webpack_require__(5);
+		var FOARotator = __webpack_require__(6);
+		var FOAPhaseMatchedFilter = __webpack_require__(7);
+		var FOAVirtualSpeaker = __webpack_require__(8);
+		var FOADecoder = __webpack_require__(9);
+		var FOARenderer = __webpack_require__(12);
+		var HOARotator = __webpack_require__(13);
+		var HOAConvolver = __webpack_require__(14);
+		var HOARenderer = __webpack_require__(15);
+
+		/**
+		 * Load audio buffers based on the speaker configuration map data.
+		 * @param {AudioContext} context      The associated AudioContext.
+		 * @param {Map} speakerData           The speaker configuration map data.
+		 *                                    { name, url, coef }
+		 * @return {Promise}
+		 */
+		Omnitone.loadAudioBuffers = function (context, speakerData) {
+		  return new Promise(function (resolve, reject) {
+		    new AudioBufferManager(context, speakerData, function (buffers) {
+		      resolve(buffers);
+		    }, reject);
+		  });
+		};
+
+		/**
+		 * Create an instance of FOA Convolver. For parameters, refer the definition of
+		 * Router class.
+		 * @return {FOAConvolver}
+		 */
+		Omnitone.createFOAConvolver = function (context, options) {
+		  return new FOAConvolver(context, options);
+		};
+
+		/**
+		 * Create an instance of FOA Router. For parameters, refer the definition of
+		 * Router class.
+		 * @return {FOARouter}
+		 */
+		Omnitone.createFOARouter = function (context, channelMap) {
+		  return new FOARouter(context, channelMap);
+		};
+
+		/**
+		 * Create an instance of FOA Rotator. For parameters, refer the definition of
+		 * Rotator class.
+		 * @return {FOARotator}
+		 */
+		Omnitone.createFOARotator = function (context) {
+		  return new FOARotator(context);
+		};
+
+		/**
+		 * Create an instance of FOAPhaseMatchedFilter. For parameters, refer the
+		 * definition of PhaseMatchedFilter class.
+		 * @return {FOAPhaseMatchedFilter}
+		 */
+		Omnitone.createFOAPhaseMatchedFilter = function (context) {
+		  return new FOAPhaseMatchedFilter(context);
+		};
+
+		/**
+		 * Create an instance of FOAVirtualSpeaker. For parameters, refer the
+		 * definition of VirtualSpeaker class.
+		 * @return {FOAVirtualSpeaker}
+		 */
+		Omnitone.createFOAVirtualSpeaker = function (context, options) {
+		  return new FOAVirtualSpeaker(context, options);
+		};
+
+		/**
+		 * Create a singleton FOADecoder instance.
+		 * @param {AudioContext} context      Associated AudioContext.
+		 * @param {DOMElement} videoElement   Video or Audio DOM element to be streamed.
+		 * @param {Object} options            Options for FOA decoder.
+		 * @param {String} options.baseResourceUrl    Base URL for resources.
+		 *                                            (HRTF IR files)
+		 * @param {Number} options.postGain           Post-decoding gain compensation.
+		 *                                            (Default = 26.0)
+		 * @param {Array} options.routingDestination  Custom channel layout.
+		 * @return {FOADecoder}
+		 */
+		Omnitone.createFOADecoder = function (context, videoElement, options) {
+		  return new FOADecoder(context, videoElement, options);
+		};
+
+		/**
+		 * Create a FOARenderer.
+		 * @param {AudioContext} context      Associated AudioContext.
+		 * @param {Object} options            Options.
+		 * @param {String} options.HRIRUrl    Optional HRIR URL.
+		 * @param {Number} options.postGainDB Optional post-decoding gain in dB.
+		 * @param {Array} options.channelMap  Optional custom channel map.
+		 * @return {FOARenderer}
+		 */
+		Omnitone.createFOARenderer = function (context, options) {
+		  return new FOARenderer(context, options);
+		};
+
+		/**
+		 * Creates HOARotator for higher-order ambisonics rotation.
+		 * @param {AudioContext} context    Associated AudioContext.
+		 * @param {Number} ambisonicOrder   Ambisonic order.
+		 */
+		Omnitone.createHOARotator = function (context, ambisonicOrder) {
+		  return new HOARotator(context, ambisonicOrder);
+		};
+
+		/**
+		 * Creates HOAConvolver performs the multi-channel convolution for binaural
+		 * rendering.
+		 * @param {AudioContext} context          Associated AudioContext.
+		 * @param {Object} options
+		 * @param {Number} options.ambisonicOrder Ambisonic order (default is 3).
+		 * @param {AudioBuffer} options.IRBuffer  IR Audiobuffer for convolution. The
+		 *                                        number of channels must be (N+1)^2
+		 *                                        where N is the ambisonic order.
+		 */
+		Omnitone.createHOAConvolver = function (context, options) {
+		  return new HOAConvolver(context, options);
+		};
+
+		/**
+		 * Creates HOARenderer for higher-order ambisonic decoding and binaural
+		 * binaural rendering.
+		 * @param {AudioContext} context            Associated AudioContext.
+		 * @param {Object} options
+		 * @param {Array} options.HRIRUrl           Optional HRIR URLs in an array.
+		 * @param {String} options.renderingMode    Rendering mode.
+		 * @param {Number} options.ambisonicOrder   Ambisonic order (default is 3).
+		 */
+		Omnitone.createHOARenderer = function (context, options) {
+		  return new HOARenderer(context, options);
+		};
+
+
+		module.exports = Omnitone;
+
+
+	/***/ }),
+	/* 2 */
+	/***/ (function(module, exports, __webpack_require__) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		/**
+		 * @fileOverview Audio buffer loading utility.
+		 */
+
+		'use strict';
+
+		var Utils = __webpack_require__(3);
+
+		/**
+		 * Streamlined audio file loader supports Promise.
+		 * @param {Object} context          AudioContext
+		 * @param {Object} audioFileData    Audio file info as [{name, url}]
+		 * @param {Function} resolve        Resolution handler for promise.
+		 * @param {Function} reject         Rejection handler for promise.
+		 * @param {Function} progress       Progress event handler.
+		 */
+		function AudioBufferManager(context, audioFileData, resolve, reject, progress) {
+		  this._context = context;
+
+		  this._buffers = new Map();
+		  this._loadingTasks = {};
+
+		  this._resolve = resolve;
+		  this._reject = reject;
+		  this._progress = progress;
+
+		  // Iterating file loading.
+		  for (var i = 0; i < audioFileData.length; i++) {
+		    var fileInfo = audioFileData[i];
+
+		    // Check for duplicates filename and quit if it happens.
+		    if (this._loadingTasks.hasOwnProperty(fileInfo.name)) {
+		      Utils.log('Duplicated filename when loading: ' + fileInfo.name);
+		      return;
+		    }
+
+		    // Mark it as pending (0)
+		    this._loadingTasks[fileInfo.name] = 0;
+		    this._loadAudioFile(fileInfo);
+		  }
+		}
+
+		AudioBufferManager.prototype._loadAudioFile = function (fileInfo) {
+		  var xhr = new XMLHttpRequest();
+		  xhr.open('GET', fileInfo.url);
+		  xhr.responseType = 'arraybuffer';
+
+		  var that = this;
+		  xhr.onload = function () {
+		    if (xhr.status === 200) {
+		      that._context.decodeAudioData(xhr.response,
+		        function (buffer) {
+		          // Utils.log('File loaded: ' + fileInfo.url);
+		          that._done(fileInfo.name, buffer);
+		        },
+		        function (message) {
+		          Utils.log('Decoding failure: '
+		            + fileInfo.url + ' (' + message + ')');
+		          that._done(fileInfo.name, null);
+		        });
+		    } else {
+		      Utils.log('XHR Error: ' + fileInfo.url + ' (' + xhr.statusText
+		        + ')');
+		      that._done(fileInfo.name, null);
+		    }
+		  };
+
+		  // TODO: fetch local resources if XHR fails.
+		  xhr.onerror = function (event) {
+		    Utils.log('XHR Network failure: ' + fileInfo.url);
+		    that._done(fileInfo.name, null);
+		  };
+
+		  xhr.send();
+		};
+
+		AudioBufferManager.prototype._done = function (filename, buffer) {
+		  // Label the loading task.
+		  this._loadingTasks[filename] = buffer !== null ? 'loaded' : 'failed';
+
+		  // A failed task will be a null buffer.
+		  this._buffers.set(filename, buffer);
+
+		  this._updateProgress(filename);
+		};
+
+		AudioBufferManager.prototype._updateProgress = function (filename) {
+		  var numberOfFinishedTasks = 0, numberOfFailedTask = 0;
+		  var numberOfTasks = 0;
+
+		  for (var task in this._loadingTasks) {
+		    numberOfTasks++;
+		    if (this._loadingTasks[task] === 'loaded')
+		      numberOfFinishedTasks++;
+		    else if (this._loadingTasks[task] === 'failed')
+		      numberOfFailedTask++;
+		  }
+
+		  if (typeof this._progress === 'function') {
+		    this._progress(filename, numberOfFinishedTasks, numberOfTasks);
+		    return;
+		  }
+
+		  if (numberOfFinishedTasks === numberOfTasks) {
+		    this._resolve(this._buffers);
+		    return;
+		  }
+
+		  if (numberOfFinishedTasks + numberOfFailedTask === numberOfTasks) {
+		    this._reject(this._buffers);
+		    return;
+		  }
+		};
+
+		module.exports = AudioBufferManager;
+
+
+	/***/ }),
+	/* 3 */
+	/***/ (function(module, exports) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		/**
+		 * @fileOverview Omnitone library common utilities.
+		 */
+
+		'use strict';
+
+		/**
+		 * Omnitone library logging function.
+		 * @type {Function}
+		 * @param {any} Message to be printed out.
+		 */
+		exports.log = function () {
+		  window.console.log.apply(window.console, [
+		    '%c[Omnitone]%c '
+		      + Array.prototype.slice.call(arguments).join(' ') + ' %c(@'
+		      + performance.now().toFixed(2) + 'ms)',
+		    'background: #BBDEFB; color: #FF5722; font-weight: 700',
+		    'font-weight: 400',
+		    'color: #AAA'
+		  ]);
+		};
+
+		/**
+		 * A 4x4 matrix inversion utility.
+		 * @param {Array} out   the receiving matrix.
+		 * @param {Array} a     the source matrix.
+		 * @returns {Array} out
+		 */
+		exports.invertMatrix4 = function (out, a) {
+		  var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3],
+		      a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7],
+		      a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11],
+		      a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15],
+
+		      b00 = a00 * a11 - a01 * a10,
+		      b01 = a00 * a12 - a02 * a10,
+		      b02 = a00 * a13 - a03 * a10,
+		      b03 = a01 * a12 - a02 * a11,
+		      b04 = a01 * a13 - a03 * a11,
+		      b05 = a02 * a13 - a03 * a12,
+		      b06 = a20 * a31 - a21 * a30,
+		      b07 = a20 * a32 - a22 * a30,
+		      b08 = a20 * a33 - a23 * a30,
+		      b09 = a21 * a32 - a22 * a31,
+		      b10 = a21 * a33 - a23 * a31,
+		      b11 = a22 * a33 - a23 * a32,
+
+		      det = b00 * b11 - b01 * b10 + b02 * b09 +
+		            b03 * b08 - b04 * b07 + b05 * b06;
+
+		  if (!det)
+		    return null;
+		  det = 1.0 / det;
+
+		  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+		  out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+		  out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+		  out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+		  out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+		  out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+		  out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+		  out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+		  out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+		  out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+		  out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+		  out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+		  out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+		  out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+		  out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+		  out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+
+		  return out;
+		}
+
+		exports.getNumberOfChannelsFromAmbisonicOrder = function (order) {
+		  return (order + 1) * (order + 1);
+		}
+
+
+	/***/ }),
+	/* 4 */
+	/***/ (function(module, exports) {
+
+		/**
+		 * Copyright 2017 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		/**
+		 * @fileOverview A collection of convolvers. Can be used for the optimized FOA
+		 *               binaural rendering. (e.g. SH-MaxRe HRTFs)
+		 */
+
+		'use strict';
+
+		/**
+		 * @class FOAConvolver
+		 * @description A collection of 2 stereo convolvers for 4-channel FOA stream.
+		 * @param {AudioContext} context        Associated AudioContext.
+		 * @param {Object} options              Options for speaker.
+		 * @param {AudioBuffer} options.IR      Stereo IR buffer for HRTF convolution.
+		 * @param {Number} options.gain         Post-gain for the speaker.
+		 */
+		function FOAConvolver (context, options) {
+		  if (options.IR.numberOfChannels !== 4)
+		    throw 'IR does not have 4 channels. cannot proceed.';
+
+		  this._active = false;
+
+		  this._context = context;
+
+		  this._input = this._context.createChannelSplitter(4);
+		  this._mergerWY = this._context.createChannelMerger(2);
+		  this._mergerZX = this._context.createChannelMerger(2);
+		  this._convolverWY = this._context.createConvolver();
+		  this._convolverZX = this._context.createConvolver();
+		  this._splitterWY = this._context.createChannelSplitter(2);
+		  this._splitterZX = this._context.createChannelSplitter(2);
+		  this._inverter = this._context.createGain();
+		  this._mergerBinaural = this._context.createChannelMerger(2);
+		  this._summingBus = this._context.createGain();
+
+		  // Group W and Y, then Z and X.
+		  this._input.connect(this._mergerWY, 0, 0);
+		  this._input.connect(this._mergerWY, 1, 1);
+		  this._input.connect(this._mergerZX, 2, 0);
+		  this._input.connect(this._mergerZX, 3, 1);
+
+		  // Create a network of convolvers using splitter/merger.
+		  this._mergerWY.connect(this._convolverWY);
+		  this._mergerZX.connect(this._convolverZX);
+		  this._convolverWY.connect(this._splitterWY);
+		  this._convolverZX.connect(this._splitterZX);
+		  this._splitterWY.connect(this._mergerBinaural, 0, 0);
+		  this._splitterWY.connect(this._mergerBinaural, 0, 1);
+		  this._splitterWY.connect(this._mergerBinaural, 1, 0);
+		  this._splitterWY.connect(this._inverter, 1, 0);
+		  this._inverter.connect(this._mergerBinaural, 0, 1);
+		  this._splitterZX.connect(this._mergerBinaural, 0, 0);
+		  this._splitterZX.connect(this._mergerBinaural, 0, 1);
+		  this._splitterZX.connect(this._mergerBinaural, 1, 0);
+		  this._splitterZX.connect(this._mergerBinaural, 1, 1);
+
+		  this._convolverWY.normalize = false;
+		  this._convolverZX.normalize = false;
+
+		  // Generate 2 stereo buffers from a 4-channel IR.
+		  this._setHRIRBuffers(options.IR);
+
+		  // For asymmetric degree.
+		  this._inverter.gain.value = -1;
+
+		  // Input/Output proxy.
+		  this.input = this._input;
+		  this.output = this._summingBus;
+
+		  this.enable();
+		}
+
+		FOAConvolver.prototype._setHRIRBuffers = function (hrirBuffer) {
+		  // Use 2 stereo convolutions. This is because the mono convolution wastefully
+		  // produces the stereo output with the same content.
+		  this._hrirWY = this._context.createBuffer(2, hrirBuffer.length,
+		                                            hrirBuffer.sampleRate);
+		  this._hrirZX = this._context.createBuffer(2, hrirBuffer.length,
+		                                            hrirBuffer.sampleRate);
+
+		  // We do this because Safari does not support copyFromChannel/copyToChannel.
+		  this._hrirWY.getChannelData(0).set(hrirBuffer.getChannelData(0));
+		  this._hrirWY.getChannelData(1).set(hrirBuffer.getChannelData(1));
+		  this._hrirZX.getChannelData(0).set(hrirBuffer.getChannelData(2));
+		  this._hrirZX.getChannelData(1).set(hrirBuffer.getChannelData(3));
+
+		  // After these assignments, the channel data in the buffer is immutable in
+		  // FireFox. (i.e. neutered)
+		  this._convolverWY.buffer = this._hrirWY;
+		  this._convolverZX.buffer = this._hrirZX;
+		};
+
+		FOAConvolver.prototype.enable = function () {
+		  this._mergerBinaural.connect(this._summingBus);
+		  this._active = true;
+		};
+
+		FOAConvolver.prototype.disable = function () {
+		  this._mergerBinaural.disconnect();
+		  this._active = false;
+		};
+
+		module.exports = FOAConvolver;
+
+
+	/***/ }),
+	/* 5 */
+	/***/ (function(module, exports) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		'use strict';
+
+		/**
+		 * @fileOverview An audio channel re-router to resolve different channel layouts
+		 *               between various platforms.
+		 */
+
+
+		/**
+		 * Channel map dictionary for various mapping scheme.
+		 *
+		 * @type {Object}
+		 */
+		var CHANNEL_MAP = {
+		  // ACN, default channel map. Works correctly on Chrome and FireFox. (FFMpeg)
+		  DEFAULT: [0, 1, 2, 3],
+		  // Safari's decoder works differently on 4-channel stream.
+		  APPLE: [2, 0, 1, 3],
+		  // ACN -> FuMa conversion.
+		  FUMA: [0, 3, 1, 2]
+		};
+
+
+		/**
+		 * @class A simple channel re-router.
+		 * @param {AudioContext} context Associated AudioContext.
+		 * @param {Array} channelMap  Routing destination array.
+		 *                                    e.g.) Chrome: [0, 1, 2, 3],
+		 *                                    Apple(Safari): [2, 0, 1, 3]
+		 */
+		function FOARouter (context, channelMap) {
+		  this._context = context;
+
+		  this._splitter = this._context.createChannelSplitter(4);
+		  this._merger = this._context.createChannelMerger(4);
+
+		  this._channelMap = channelMap || CHANNEL_MAP.DEFAULT;
+
+		  this._splitter.connect(this._merger, 0, this._channelMap[0]);
+		  this._splitter.connect(this._merger, 1, this._channelMap[1]);
+		  this._splitter.connect(this._merger, 2, this._channelMap[2]);
+		  this._splitter.connect(this._merger, 3, this._channelMap[3]);
+
+		  // input/output proxy.
+		  this.input = this._splitter;
+		  this.output = this._merger;
+		}
+
+
+		/**
+		 * Set a channel map array.
+		 *
+		 * @param {Array} channelMap A custom channel map for FOA stream.
+		 */
+		FOARouter.prototype.setChannelMap = function (channelMap) {
+		  if (!channelMap)
+		    return;
+
+		  this._channelMap = channelMap;
+		  this._splitter.disconnect();
+		  this._splitter.connect(this._merger, 0, this._channelMap[0]);
+		  this._splitter.connect(this._merger, 1, this._channelMap[1]);
+		  this._splitter.connect(this._merger, 2, this._channelMap[2]);
+		  this._splitter.connect(this._merger, 3, this._channelMap[3]);
+		}
+
+
+		/**
+		 * Static channel map dictionary.
+		 *
+		 * @static
+		 * @type {Object}
+		 */
+		FOARouter.CHANNEL_MAP = CHANNEL_MAP;
+
+
+		module.exports = FOARouter;
+
+
+	/***/ }),
+	/* 6 */
+	/***/ (function(module, exports) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		'use strict';
+
+
+		/**
+		 * @fileOverview Sound field rotator for first-order-ambisonics decoding.
+		 */
+
+
+		/**
+		 * @class First-order-ambisonic decoder based on gain node network.
+		 * @param {AudioContext} context    Associated AudioContext.
+		 */
+		function FOARotator (context) {
+		  this._context = context;
+
+		  this._splitter = this._context.createChannelSplitter(4);
+		  this._inY = this._context.createGain();
+		  this._inZ = this._context.createGain();
+		  this._inX = this._context.createGain();
+		  this._m0 = this._context.createGain();
+		  this._m1 = this._context.createGain();
+		  this._m2 = this._context.createGain();
+		  this._m3 = this._context.createGain();
+		  this._m4 = this._context.createGain();
+		  this._m5 = this._context.createGain();
+		  this._m6 = this._context.createGain();
+		  this._m7 = this._context.createGain();
+		  this._m8 = this._context.createGain();
+		  this._outY = this._context.createGain();
+		  this._outZ = this._context.createGain();
+		  this._outX = this._context.createGain();
+		  this._merger = this._context.createChannelMerger(4);
+
+		    // ACN channel ordering: [1, 2, 3] => [-Y, Z, -X]
+		  this._splitter.connect(this._inY, 1); // Y (from channel 1)
+		  this._splitter.connect(this._inZ, 2); // Z (from channel 2)
+		  this._splitter.connect(this._inX, 3); // X (from channel 3)
+		  this._inY.gain.value = -1;
+		  this._inX.gain.value = -1;
+
+		  // Apply the rotation in the world space.
+		  // |Y|   | m0  m3  m6 |   | Y * m0 + Z * m3 + X * m6 |   | Yr |
+		  // |Z| * | m1  m4  m7 | = | Y * m1 + Z * m4 + X * m7 | = | Zr |
+		  // |X|   | m2  m5  m8 |   | Y * m2 + Z * m5 + X * m8 |   | Xr |
+		  this._inY.connect(this._m0);
+		  this._inY.connect(this._m1);
+		  this._inY.connect(this._m2);
+		  this._inZ.connect(this._m3);
+		  this._inZ.connect(this._m4);
+		  this._inZ.connect(this._m5);
+		  this._inX.connect(this._m6);
+		  this._inX.connect(this._m7);
+		  this._inX.connect(this._m8);
+		  this._m0.connect(this._outY);
+		  this._m1.connect(this._outZ);
+		  this._m2.connect(this._outX);
+		  this._m3.connect(this._outY);
+		  this._m4.connect(this._outZ);
+		  this._m5.connect(this._outX);
+		  this._m6.connect(this._outY);
+		  this._m7.connect(this._outZ);
+		  this._m8.connect(this._outX);
+
+		  // Transform 3: world space to audio space.
+		  this._splitter.connect(this._merger, 0, 0); // W -> W (to channel 0)
+		  this._outY.connect(this._merger, 0, 1); // Y (to channel 1)
+		  this._outZ.connect(this._merger, 0, 2); // Z (to channel 2)
+		  this._outX.connect(this._merger, 0, 3); // X (to channel 3)
+		  this._outY.gain.value = -1;
+		  this._outX.gain.value = -1;
+
+		  this.setRotationMatrix(new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]));
+
+		  // input/output proxy.
+		  this.input = this._splitter;
+		  this.output = this._merger;
+		}
+
+
+		/**
+		 * Set 3x3 matrix for soundfield rotation. (gl-matrix.js style)
+		 * @param {Array} rotationMatrix    A 3x3 matrix of soundfield rotation. The
+		 *                                  matrix is in the row-major representation.
+		 */
+		FOARotator.prototype.setRotationMatrix = function (rotationMatrix) {
+		  this._m0.gain.value = rotationMatrix[0];
+		  this._m1.gain.value = rotationMatrix[1];
+		  this._m2.gain.value = rotationMatrix[2];
+		  this._m3.gain.value = rotationMatrix[3];
+		  this._m4.gain.value = rotationMatrix[4];
+		  this._m5.gain.value = rotationMatrix[5];
+		  this._m6.gain.value = rotationMatrix[6];
+		  this._m7.gain.value = rotationMatrix[7];
+		  this._m8.gain.value = rotationMatrix[8];
+		};
+
+		/**
+		 * Set 4x4 matrix for soundfield rotation. (Three.js style)
+		 * @param {Array} rotationMatrix4   A 4x4 matrix of soundfield rotation.
+		 */
+		FOARotator.prototype.setRotationMatrix4 = function (rotationMatrix4) {
+		  this._m0.gain.value = rotationMatrix4[0];
+		  this._m1.gain.value = rotationMatrix4[1];
+		  this._m2.gain.value = rotationMatrix4[2];
+		  this._m3.gain.value = rotationMatrix4[4];
+		  this._m4.gain.value = rotationMatrix4[5];
+		  this._m5.gain.value = rotationMatrix4[6];
+		  this._m6.gain.value = rotationMatrix4[8];
+		  this._m7.gain.value = rotationMatrix4[9];
+		  this._m8.gain.value = rotationMatrix4[10];
+		};
+
+		/**
+		 * Returns the current rotation matrix.
+		 * @return {Array}                  A 3x3 matrix of soundfield rotation. The
+		 *                                  matrix is in the row-major representation.
+		 */
+		FOARotator.prototype.getRotationMatrix = function () {
+		  return [
+		    this._m0.gain.value, this._m1.gain.value, this._m2.gain.value,
+		    this._m3.gain.value, this._m4.gain.value, this._m5.gain.value,
+		    this._m6.gain.value, this._m7.gain.value, this._m8.gain.value
+		  ];
+		};
+
+
+		module.exports = FOARotator;
+
+
+	/***/ }),
+	/* 7 */
+	/***/ (function(module, exports, __webpack_require__) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+
+
+		/**
+		 * @fileOverview Phase matched filter for first-order-ambisonics decoding.
+		 */
+
+		'use strict';
+
+		var Utils = __webpack_require__(3);
+
+		// Static parameters.
+		var CROSSOVER_FREQUENCY = 690;
+		var GAIN_COEFFICIENTS = [1.4142, 0.8166, 0.8166, 0.8166];
+
+		// Helper: generate the coefficients for dual band filter.
+		function generateDualBandCoefficients(crossoverFrequency, sampleRate) {
+		  var k = Math.tan(Math.PI * crossoverFrequency / sampleRate),
+		      k2 = k * k,
+		      denominator = k2 + 2 * k + 1;
+
+		  return {
+		    lowpassA: [1, 2 * (k2 - 1) / denominator, (k2 - 2 * k + 1) / denominator],
+		    lowpassB: [k2 / denominator, 2 * k2 / denominator, k2 / denominator],
+		    hipassA: [1, 2 * (k2 - 1) / denominator, (k2 - 2 * k + 1) / denominator],
+		    hipassB: [1 / denominator, -2 * 1 / denominator, 1 / denominator]
+		  };
+		}
+
+		/**
+		 * @class FOAPhaseMatchedFilter
+		 * @description A set of filters (LP/HP) with a crossover frequency to
+		 *              compensate the gain of high frequency contents without a phase
+		 *              difference.
+		 * @param {AudioContext} context        Associated AudioContext.
+		 */
+		function FOAPhaseMatchedFilter (context) {
+		  this._context = context;
+
+		  this._input = this._context.createGain();
+
+		  if (!this._context.createIIRFilter) {
+		    Utils.log('IIR filter is missing. Using Biquad filter instead.');
+		    this._lpf = this._context.createBiquadFilter();
+		    this._hpf = this._context.createBiquadFilter();
+		    this._lpf.frequency.value = CROSSOVER_FREQUENCY;
+		    this._hpf.frequency.value = CROSSOVER_FREQUENCY;
+		    this._hpf.type = 'highpass';
+		  } else {
+		    var coef = generateDualBandCoefficients(
+		        CROSSOVER_FREQUENCY, this._context.sampleRate);
+		    this._lpf = this._context.createIIRFilter(coef.lowpassB, coef.lowpassA);
+		    this._hpf = this._context.createIIRFilter(coef.hipassB, coef.hipassA);
+		  }
+
+		  this._splitterLow = this._context.createChannelSplitter(4);
+		  this._splitterHigh = this._context.createChannelSplitter(4);
+		  this._gainHighW = this._context.createGain();
+		  this._gainHighY = this._context.createGain();
+		  this._gainHighZ = this._context.createGain();
+		  this._gainHighX = this._context.createGain();
+		  this._merger = this._context.createChannelMerger(4);
+
+		  this._input.connect(this._hpf);
+		  this._hpf.connect(this._splitterHigh);
+		  this._splitterHigh.connect(this._gainHighW, 0);
+		  this._splitterHigh.connect(this._gainHighY, 1);
+		  this._splitterHigh.connect(this._gainHighZ, 2);
+		  this._splitterHigh.connect(this._gainHighX, 3);
+		  this._gainHighW.connect(this._merger, 0, 0);
+		  this._gainHighY.connect(this._merger, 0, 1);
+		  this._gainHighZ.connect(this._merger, 0, 2);
+		  this._gainHighX.connect(this._merger, 0, 3);
+
+		  this._input.connect(this._lpf);
+		  this._lpf.connect(this._splitterLow);
+		  this._splitterLow.connect(this._merger, 0, 0);
+		  this._splitterLow.connect(this._merger, 1, 1);
+		  this._splitterLow.connect(this._merger, 2, 2);
+		  this._splitterLow.connect(this._merger, 3, 3);
+
+		  // Apply gain correction to hi-passed pressure and velocity components:
+		  // Inverting sign is necessary as the low-passed and high-passed portion are
+		  // out-of-phase after the filtering.
+		  var now = this._context.currentTime;
+		  this._gainHighW.gain.setValueAtTime(-1 * GAIN_COEFFICIENTS[0], now);
+		  this._gainHighY.gain.setValueAtTime(-1 * GAIN_COEFFICIENTS[1], now);
+		  this._gainHighZ.gain.setValueAtTime(-1 * GAIN_COEFFICIENTS[2], now);
+		  this._gainHighX.gain.setValueAtTime(-1 * GAIN_COEFFICIENTS[3], now);
+
+		  // Input/output Proxy.
+		  this.input = this._input;
+		  this.output = this._merger;
+		}
+
+		module.exports = FOAPhaseMatchedFilter;
+
+
+	/***/ }),
+	/* 8 */
+	/***/ (function(module, exports) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		/**
+		 * @fileOverview Virtual speaker abstraction for first-order-ambisonics
+		 *               decoding.
+		 */
+
+		'use strict';
+
+		/**
+		 * @class FOAVirtualSpeaker
+		 * @description A virtual speaker with ambisonic decoding gain coefficients
+		 *              and HRTF convolution for first-order-ambisonics stream.
+		 *              Note that the subgraph directly connects to context's
+		 *              destination.
+		 * @param {AudioContext} context        Associated AudioContext.
+		 * @param {Object} options              Options for speaker.
+		 * @param {Array} options.coefficients  Decoding coefficients for (W,Y,Z,X).
+		 * @param {AudioBuffer} options.IR      Stereo IR buffer for HRTF convolution.
+		 * @param {Number} options.gain         Post-gain for the speaker.
+		 */
+		function FOAVirtualSpeaker (context, options) {
+		  if (options.IR.numberOfChannels !== 2)
+		    throw 'IR does not have 2 channels. cannot proceed.';
+
+		  this._active = false;
+
+		  this._context = context;
+
+		  this._input = this._context.createChannelSplitter(4);
+		  this._cW = this._context.createGain();
+		  this._cY = this._context.createGain();
+		  this._cZ = this._context.createGain();
+		  this._cX = this._context.createGain();
+		  this._convolver = this._context.createConvolver();
+		  this._gain = this._context.createGain();
+
+		  this._input.connect(this._cW, 0);
+		  this._input.connect(this._cY, 1);
+		  this._input.connect(this._cZ, 2);
+		  this._input.connect(this._cX, 3);
+		  this._cW.connect(this._convolver);
+		  this._cY.connect(this._convolver);
+		  this._cZ.connect(this._convolver);
+		  this._cX.connect(this._convolver);
+		  this._convolver.connect(this._gain);
+		  this._gain.connect(this._context.destination);
+
+		  this.enable();
+
+		  this._convolver.normalize = false;
+		  this._convolver.buffer = options.IR;
+		  this._gain.gain.value = options.gain;
+
+		  // Set gain coefficients for FOA ambisonic streams.
+		  this._cW.gain.value = options.coefficients[0];
+		  this._cY.gain.value = options.coefficients[1];
+		  this._cZ.gain.value = options.coefficients[2];
+		  this._cX.gain.value = options.coefficients[3];
+
+		  // Input proxy. Output directly connects to the destination.
+		  this.input = this._input;
+		}
+
+		FOAVirtualSpeaker.prototype.enable = function () {
+		  this._gain.connect(this._context.destination);
+		  this._active = true;
+		};
+
+		FOAVirtualSpeaker.prototype.disable = function () {
+		  this._gain.disconnect();
+		  this._active = false;
+		};
+
+		module.exports = FOAVirtualSpeaker;
+
+
+	/***/ }),
+	/* 9 */
+	/***/ (function(module, exports, __webpack_require__) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+
+		/**
+		 * @fileOverview Omnitone FOA decoder.
+		 */
+
+		'use strict';
+
+		var AudioBufferManager = __webpack_require__(2);
+		var FOARouter = __webpack_require__(5);
+		var FOARotator = __webpack_require__(6);
+		var FOAPhaseMatchedFilter = __webpack_require__(7);
+		var FOAVirtualSpeaker = __webpack_require__(8);
+		var FOASpeakerData = __webpack_require__(10);
+		var Utils = __webpack_require__(3);
+		var SystemVersion = __webpack_require__(11);
+
+		// By default, Omnitone fetches IR from the spatial media repository.
+		var HRTFSET_URL = 'https://raw.githubusercontent.com/GoogleChrome/omnitone/master/build/resources/';
+
+		// Post gain compensation value.
+		var POST_GAIN_DB = 0;
+
+
+		/**
+		 * @class Omnitone FOA decoder class.
+		 * @param {AudioContext} context      Associated AudioContext.
+		 * @param {VideoElement} videoElement Target video (or audio) element for
+		 *                                    streaming.
+		 * @param {Object} options
+		 * @param {String} options.HRTFSetUrl Base URL for the cube HRTF sets.
+		 * @param {Number} options.postGainDB Post-decoding gain compensation in dB.
+		 * @param {Array} options.channelMap  Custom channel map.
+		 */
+		function FOADecoder (context, videoElement, options) {
+		  this._isDecoderReady = false;
+		  this._context = context;
+		  this._videoElement = videoElement;
+		  this._decodingMode = 'ambisonic';
+
+		  this._postGainDB = POST_GAIN_DB;
+		  this._HRTFSetUrl = HRTFSET_URL;
+		  this._channelMap = FOARouter.CHANNEL_MAP.DEFAULT; // ACN
+
+		  if (options) {
+		    if (options.postGainDB)
+		      this._postGainDB = options.postGainDB;
+
+		    if (options.HRTFSetUrl)
+		      this._HRTFSetUrl = options.HRTFSetUrl;
+
+		    if (options.channelMap)
+		      this._channelMap = options.channelMap;
+		  }
+
+		  // Rearrange speaker data based on |options.HRTFSetUrl|.
+		  this._speakerData = [];
+		  for (var i = 0; i < FOASpeakerData.length; ++i) {
+		    this._speakerData.push({
+		      name: FOASpeakerData[i].name,
+		      url: this._HRTFSetUrl + '/' + FOASpeakerData[i].url,
+		      coef: FOASpeakerData[i].coef
+		    });
+		  }
+
+		  this._tempMatrix4 = new Float32Array(16);
+		}
+
+		/**
+		 * Initialize and load the resources for the decode.
+		 * @return {Promise}
+		 */
+		FOADecoder.prototype.initialize = function () {
+		  Utils.log('Version: ' + SystemVersion);
+		  Utils.log('Initializing... (mode: ' + this._decodingMode + ')');
+
+		  // Rerouting channels if necessary.
+		  var channelMapString = this._channelMap.toString();
+		  var defaultChannelMapString = FOARouter.CHANNEL_MAP.DEFAULT.toString();
+		  if (channelMapString !== defaultChannelMapString) {
+		    Utils.log('Remapping channels ([' + defaultChannelMapString + '] -> ['
+		      + channelMapString + '])');
+		  }
+
+		  this._audioElementSource = this._context.createMediaElementSource(
+		    this._videoElement);
+		  this._foaRouter = new FOARouter(this._context, this._channelMap);
+		  this._foaRotator = new FOARotator(this._context);
+		  this._foaPhaseMatchedFilter = new FOAPhaseMatchedFilter(this._context);
+
+		  this._audioElementSource.connect(this._foaRouter.input);
+		  this._foaRouter.output.connect(this._foaRotator.input);
+		  this._foaRotator.output.connect(this._foaPhaseMatchedFilter.input);
+
+		  this._foaVirtualSpeakers = [];
+
+		  // Bypass signal path.
+		  this._bypass = this._context.createGain();
+		  this._audioElementSource.connect(this._bypass);
+
+		  // Get the linear amplitude from the post gain option, which is in decibel.
+		  var postGainLinear = Math.pow(10, this._postGainDB/20);
+		  Utils.log('Gain compensation: ' + postGainLinear + ' (' + this._postGainDB
+		    + 'dB)');
+
+		  // This returns a promise so developers can use the decoder when it is ready.
+		  var me = this;
+		  return new Promise(function (resolve, reject) {
+		    new AudioBufferManager(me._context, me._speakerData,
+		      function (buffers) {
+		        for (var i = 0; i < me._speakerData.length; ++i) {
+		          me._foaVirtualSpeakers[i] = new FOAVirtualSpeaker(me._context, {
+		            coefficients: me._speakerData[i].coef,
+		            IR: buffers.get(me._speakerData[i].name),
+		            gain: postGainLinear
+		          });
+
+		          me._foaPhaseMatchedFilter.output.connect(
+		            me._foaVirtualSpeakers[i].input);
+		        }
+
+		        // Set the decoding mode.
+		        me.setMode(me._decodingMode);
+		        me._isDecoderReady = true;
+		        Utils.log('HRTF IRs are loaded successfully. The decoder is ready.');
+
+		        resolve();
+		      }, reject);
+		  });
+		};
+
+		/**
+		 * Set the rotation matrix for the sound field rotation.
+		 * @param {Array} rotationMatrix      3x3 rotation matrix (row-major
+		 *                                    representation)
+		 */
+		FOADecoder.prototype.setRotationMatrix = function (rotationMatrix) {
+		  this._foaRotator.setRotationMatrix(rotationMatrix);
+		};
+
+
+		/**
+		 * Update the rotation matrix from a Three.js camera object.
+		 * @param  {Object} cameraMatrix      The Matrix4 obejct of Three.js the camera.
+		 */
+		FOADecoder.prototype.setRotationMatrixFromCamera = function (cameraMatrix) {
+		  // Extract the inner array elements and inverse. (The actual view rotation is
+		  // the opposite of the camera movement.)
+		  Utils.invertMatrix4(this._tempMatrix4, cameraMatrix.elements);
+		  this._foaRotator.setRotationMatrix4(this._tempMatrix4);
+		};
+
+		/**
+		 * Set the decoding mode.
+		 * @param {String} mode               Decoding mode. When the mode is 'bypass'
+		 *                                    the decoder is disabled and bypass the
+		 *                                    input stream to the output. Setting the
+		 *                                    mode to 'ambisonic' activates the decoder.
+		 *                                    When the mode is 'off', all the
+		 *                                    processing is completely turned off saving
+		 *                                    the CPU power.
+		 */
+		FOADecoder.prototype.setMode = function (mode) {
+		  if (mode === this._decodingMode)
+		    return;
+
+		  switch (mode) {
+
+		    case 'bypass':
+		      this._decodingMode = 'bypass';
+		      for (var i = 0; i < this._foaVirtualSpeakers.length; ++i)
+		        this._foaVirtualSpeakers[i].disable();
+		      this._bypass.connect(this._context.destination);
+		      break;
+
+		    case 'ambisonic':
+		      this._decodingMode = 'ambisonic';
+		      for (var i = 0; i < this._foaVirtualSpeakers.length; ++i)
+		        this._foaVirtualSpeakers[i].enable();
+		      this._bypass.disconnect();
+		      break;
+
+		    case 'off':
+		      this._decodingMode = 'off';
+		      for (var i = 0; i < this._foaVirtualSpeakers.length; ++i)
+		        this._foaVirtualSpeakers[i].disable();
+		      this._bypass.disconnect();
+		      break;
+
+		    default:
+		      break;
+		  }
+
+		  Utils.log('Decoding mode changed. (' + mode + ')');
+		};
+
+		module.exports = FOADecoder;
+
+
+	/***/ }),
+	/* 10 */
+	/***/ (function(module, exports) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		/**
+		 * See also:
+		 * https://github.com/google/spatial-media/tree/master/spatial-audio
+		 */
+
+		/**
+		 * The data for FOAVirtualSpeaker. Each entry contains the URL for IR files and
+		 * the gain coefficients for the associated IR files. Note that the order of
+		 * coefficients follows the ACN channel ordering. (W,Y,Z,X)
+		 * @type {Array}
+		 */
+		var FOASpeakerData = [{
+		  name: 'E35_A135',
+		  url: 'E35_A135.wav',
+		  gainFactor: 1,
+		  coef: [.1250, 0.216495, 0.21653, -0.216495]
+		}, {
+		  name: 'E35_A-135',
+		  url: 'E35_A-135.wav',
+		  gainFactor: 1,
+		  coef: [.1250, -0.216495, 0.21653, -0.216495]
+		}, {
+		  name: 'E-35_A135',
+		  url: 'E-35_A135.wav',
+		  gainFactor: 1,
+		  coef: [.1250, 0.216495, -0.21653, -0.216495]
+		}, {
+		  name: 'E-35_A-135',
+		  url: 'E-35_A-135.wav',
+		  gainFactor: 1,
+		  coef: [.1250, -0.216495, -0.21653, -0.216495]
+		}, {
+		  name: 'E35_A45',
+		  url: 'E35_A45.wav',
+		  gainFactor: 1,
+		  coef: [.1250, 0.216495, 0.21653, 0.216495]
+		}, {
+		  name: 'E35_A-45',
+		  url: 'E35_A-45.wav',
+		  gainFactor: 1,
+		  coef: [.1250, -0.216495, 0.21653, 0.216495]
+		}, {
+		  name: 'E-35_A45',
+		  url: 'E-35_A45.wav',
+		  gainFactor: 1,
+		  coef: [.1250, 0.216495, -0.21653, 0.216495]
+		}, {
+		  name: 'E-35_A-45',
+		  url: 'E-35_A-45.wav',
+		  gainFactor: 1,
+		  coef: [.1250, -0.216495, -0.21653, 0.216495]
+		}];
+
+		module.exports = FOASpeakerData;
+
+
+	/***/ }),
+	/* 11 */
+	/***/ (function(module, exports) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		/**
+		 * @fileOverview Omnitone version.
+		 */
+
+		'use strict';
+
+		/**
+		 * Omnitone library version
+		 * @type {String}
+		 */
+		module.exports = '0.9.1';
+
+
+	/***/ }),
+	/* 12 */
+	/***/ (function(module, exports, __webpack_require__) {
+
+		/**
+		 * Copyright 2017 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		'use strict';
+
+		/**
+		 * @fileOverview Omnitone FOA decoder.
+		 */
+		var AudioBufferManager = __webpack_require__(2);
+		var FOARouter = __webpack_require__(5);
+		var FOARotator = __webpack_require__(6);
+		var FOAConvolver = __webpack_require__(4);
+		var Utils = __webpack_require__(3);
+		var SystemVersion = __webpack_require__(11);
+
+		// HRIR for optimized FOA rendering.
+		// TODO(hongchan): change this with the absolute URL.
+		var SH_MAXRE_HRIR_URL = 'resources/sh_hrir_o_1.wav';
+
+
+		/**
+		 * @class Omnitone FOA renderer class. Uses the optimized convolution technique.
+		 * @param {AudioContext} context          Associated AudioContext.
+		 * @param {Object} options
+		 * @param {String} options.HRIRUrl        Optional HRIR URL.
+		 * @param {String} options.renderingMode  Rendering mode.
+		 * @param {Array} options.channelMap      Custom channel map.
+		 */
+		function FOARenderer (context, options) {
+		  this._context = context;
+
+		  // Priming internal setting with |options|.
+		  this._HRIRUrl = SH_MAXRE_HRIR_URL;
+		  this._channelMap = FOARouter.CHANNEL_MAP.DEFAULT;
+		  this._renderingMode = 'ambisonic';
+		  if (options) {
+		    if (options.HRIRUrl)
+		      this._HRIRUrl = options.HRIRUrl;
+		    if (options.renderingMode)
+		      this._renderingMode = options.renderingMode;
+		    if (options.channelMap)
+		      this._channelMap = options.channelMap;
+		  }
+
+		  this._isRendererReady = false;
+		}
+
+
+		/**
+		 * Initialize and load the resources for the decode.
+		 * @return {Promise}
+		 */
+		FOARenderer.prototype.initialize = function () {
+		  Utils.log('Version: ' + SystemVersion);
+		  Utils.log('Initializing... (mode: ' + this._renderingMode + ')');
+		  Utils.log('Rendering via SH-MaxRE convolution.');
+
+		  this._tempMatrix4 = new Float32Array(16);
+
+		  return new Promise(this._initializeCallback.bind(this));
+		};
+
+
+		/**
+		 * Internal callback handler for |initialize| method.
+		 * @param {Function} resolve Promise resolution.
+		 * @param {Function} reject Promise rejection.
+		 */
+		FOARenderer.prototype._initializeCallback = function (resolve, reject) {
+		  var key = 'FOA_HRIR_AUDIOBUFFER';
+		  new AudioBufferManager(
+		      this._context,
+		      [{ name: key, url: this._HRIRUrl }],
+		      function (buffers) {
+		        this.input = this._context.createGain();
+		        this._bypass = this._context.createGain();
+		        this._foaRouter = new FOARouter(this._context, this._channelMap);
+		        this._foaRotator = new FOARotator(this._context);
+		        this._foaConvolver = new FOAConvolver(this._context, {
+		            IR: buffers.get(key)
+		          });
+		        this.output = this._context.createGain();
+
+		        this.input.connect(this._foaRouter.input);
+		        this.input.connect(this._bypass);
+		        this._foaRouter.output.connect(this._foaRotator.input);
+		        this._foaRotator.output.connect(this._foaConvolver.input);
+		        this._foaConvolver.output.connect(this.output);
+
+		        this.setChannelMap(this._channelMap);
+		        this.setRenderingMode(this._renderingMode);
+
+		        this._isRendererReady = true;
+		        Utils.log('HRIRs are loaded successfully. The renderer is ready.');
+		        resolve();
+		      }.bind(this),
+		      function (buffers) {
+		        var errorMessage = 'Initialization failed: ' + key + ' is '
+		            + buffers.get(0) + '.';
+		        Utils.log(errorMessage);
+		        reject(errorMessage);
+		      });
+		};
+
+		/**
+		 * Set the channel map.
+		 * @param {Array} channelMap          A custom channel map for FOA stream.
+		 */
+		FOARenderer.prototype.setChannelMap = function (channelMap) {
+		  if (!this._isRendererReady)
+		    return;
+
+		  if (channelMap.toString() !== this._channelMap.toString()) {
+		    Utils.log('Remapping channels ([' + this._channelMap.toString() + '] -> ['
+		      + channelMap.toString() + ']).');
+		    this._channelMap = channelMap.slice();
+		    this._foaRouter.setChannelMap(this._channelMap);
+		  }
+		};
+
+		/**
+		 * Set the rotation matrix for the sound field rotation.
+		 * @param {Array} rotationMatrix      3x3 rotation matrix (row-major
+		 *                                    representation)
+		 */
+		FOARenderer.prototype.setRotationMatrix = function (rotationMatrix) {
+		  if (!this._isRendererReady)
+		    return;
+
+		  this._foaRotator.setRotationMatrix(rotationMatrix);
+		};
+
+
+		/**
+		 * Update the rotation matrix from a Three.js camera object.
+		 * @param  {Object} cameraMatrix      The Matrix4 obejct of Three.js the camera.
+		 */
+		FOARenderer.prototype.setRotationMatrixFromCamera = function (cameraMatrix) {
+		  if (!this._isRendererReady)
+		    return;
+
+		  // Extract the inner array elements and inverse. (The actual view rotation is
+		  // the opposite of the camera movement.)
+		  Utils.invertMatrix4(this._tempMatrix4, cameraMatrix.elements);
+		  this._foaRotator.setRotationMatrix4(this._tempMatrix4);
+		};
+
+
+		/**
+		 * Set the decoding mode.
+		 * @param {String} mode               Decoding mode. When the mode is 'bypass'
+		 *                                    the decoder is disabled and bypass the
+		 *                                    input stream to the output. Setting the
+		 *                                    mode to 'ambisonic' activates the decoder.
+		 *                                    When the mode is 'off', all the
+		 *                                    processing is completely turned off saving
+		 *                                    the CPU power.
+		 */
+		FOARenderer.prototype.setRenderingMode = function (mode) {
+		  if (mode === this._renderingMode)
+		    return;
+
+		  switch (mode) {
+		    // Bypass mode: The convolution path is disabled, disconnected (thus consume
+		    // no CPU). Use bypass gain node to pass-through the input stream.
+		    case 'bypass':
+		      this._renderingMode = 'bypass';
+		      this._foaConvolver.disable();
+		      this._bypass.connect(this.output);
+		      break;
+
+		    // Ambisonic mode: Use the convolution and shut down the bypass path.
+		    case 'ambisonic':
+		      this._renderingMode = 'ambisonic';
+		      this._foaConvolver.enable();
+		      this._bypass.disconnect();
+		      break;
+
+		    // Off mode: Shut down all sound from the renderer.
+		    case 'off':
+		      this._renderingMode = 'off';
+		      this._foaConvolver.disable();
+		      this._bypass.disconnect();
+		      break;
+
+		    default:
+		      // Unsupported mode. Ignore it.
+		      Utils.log('Rendering mode "' + mode + '" is not supported.');
+		      return;
+		  }
+
+		  Utils.log('Rendering mode changed. (' + mode + ')');
+		};
+
+
+		module.exports = FOARenderer;
+
+
+	/***/ }),
+	/* 13 */
+	/***/ (function(module, exports) {
+
+		/**
+		 * Copyright 2016 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		/**
+		 * @fileOverview Sound field rotator for higher-order-ambisonics decoding.
+		 */
+
+		'use strict';
+
+		// Utility functions for rotation matrix computation.
+
+		/**
+		 * Kronecker Delta function.
+		 * @param {Number} i
+		 * @param {Number} j
+		 * @return {Number}
+		 */
+		function getKroneckerDelta(i, j) {
+		  return i === j ? 1 : 0;
+		};
+
+		/**
+		 * This is a convenience function to allow us to access a matrix array
+		 * in the same manner, assuming it is a (2l+1)x(2l+1) matrix.
+		 * [2] uses an odd convention of referring to the rows and columns using
+		 * centered indices, so the middle row and column are (0, 0) and the upper
+		 * left would have negative coordinates.
+		 * @param {Array} matrix               N matrices of gainNodes, each with
+		 *                                     (2n+1)x(2n+1) elements,
+		 *                                     where n=1,2,...,N.
+		 * @param {Number} l
+		 * @param {Number} i
+		 * @param {Number} j
+		 * @param {Number} gainValue
+		 */
+		function setCenteredElement(matrix, l, i, j, gainValue) {
+		  var index = (j + l) * (2 * l + 1) + (i + l); // Row-wise indexing.
+		  matrix[l - 1][index].gain.value = gainValue;
+		};
+
+		/**
+		 * This is a convenience function to allow us to access a matrix array
+		 * in the same manner, assuming it is a (2l+1)x(2l+1) matrix.
+		 * @param {Array} matrix               N matrices of gainNodes, each with
+		 *                                     (2n+1)x(2n+1) elements,
+		 *                                     where n=1,2,...,N.
+		 * @param {Number} l
+		 * @param {Number} i
+		 * @param {Number} j
+		 * @return {Number} Gain node's gain parameter value.
+		 */
+		function getCenteredElement(matrix, l, i, j) {
+		  var index = (j + l) * (2 * l + 1) + (i + l); // Row-wise indexing.
+		  return matrix[l - 1][index].gain.value;
+		};
+
+		/**
+		 * Helper function defined in [2] that is used by the functions U, V, W.
+		 * This should not be called on its own, as U, V, and W (and their coefficients)
+		 * select the appropriate matrix elements to access arguments |a| and |b|.
+		 * @param {Array} matrix               N matrices of gainNodes, each with
+		 *                                     (2n+1)x(2n+1) elements,
+		 *                                     where n=1,2,...,N.
+		 * @param {Number} i
+		 * @param {Number} a
+		 * @param {Number} b
+		 * @param {Number} l
+		 * @return {Number}
+		 */
+		function P(matrix, i, a, b, l) {
+		  if (b === l) {
+		    return getCenteredElement(matrix, 1, i, 1) *
+		      getCenteredElement(matrix, l - 1, a, l - 1) -
+		      getCenteredElement(matrix, 1, i, -1) *
+		      getCenteredElement(matrix, l - 1, a, -l + 1);
+		  } else if (b === -l) {
+		    return getCenteredElement(matrix, 1, i, 1) *
+		      getCenteredElement(matrix, l - 1, a, -l + 1) +
+		      getCenteredElement(matrix, 1, i, -1) *
+		      getCenteredElement(matrix, l - 1, a, l - 1);
+		  } else {
+		    return getCenteredElement(matrix, 1, i, 0) *
+		      getCenteredElement(matrix, l - 1, a, b);
+		  }
+		};
+
+		/**
+		 * The functions U, V, and W should only be called if the correspondingly
+		 * named coefficient u, v, w from the function ComputeUVWCoeff() is non-zero.
+		 * When the coefficient is 0, these would attempt to access matrix elements that
+		 * are out of bounds. The vector of rotations, |r|, must have the |l - 1|
+		 * previously completed band rotations. These functions are valid for |l >= 2|.
+		 * @param {Array} matrix               N matrices of gainNodes, each with
+		 *                                     (2n+1)x(2n+1) elements,
+		 *                                     where n=1,2,...,N.
+		 * @param {Number} m
+		 * @param {Number} n
+		 * @param {Number} l
+		 * @return {Number}
+		 */
+		function U(matrix, m, n, l) {
+		  /**
+		   * Although [1, 2] split U into three cases for m == 0, m < 0, m > 0
+		   * the actual values are the same for all three cases.
+		   */
+		  return P(matrix, 0, m, n, l);
+		};
+
+		/**
+		 * The functions U, V, and W should only be called if the correspondingly
+		 * named coefficient u, v, w from the function ComputeUVWCoeff() is non-zero.
+		 * When the coefficient is 0, these would attempt to access matrix elements that
+		 * are out of bounds. The vector of rotations, |r|, must have the |l - 1|
+		 * previously completed band rotations. These functions are valid for |l >= 2|.
+		 * @param {Array} matrix               N matrices of gainNodes, each with
+		 *                                     (2n+1)x(2n+1) elements,
+		 *                                     where n=1,2,...,N.
+		 * @param {Number} m
+		 * @param {Number} n
+		 * @param {Number} l
+		 * @return {Number}
+		 */
+		function V(matrix, m, n, l) {
+		  if (m === 0) {
+		    return P(matrix, 1, 1, n, l) + P(matrix, -1, -1, n, l);
+		  } else if (m > 0) {
+		    var d = getKroneckerDelta(m, 1);
+		    return P(matrix, 1, m - 1, n, l) * Math.sqrt(1 + d) -
+		        P(matrix, -1, -m + 1, n, l) * (1 - d);
+		  } else {
+		    // Note there is apparent errata in [1,2,2b] dealing with this particular
+		    // case. [2b] writes it should be P*(1-d)+P*(1-d)^0.5
+		    // [1] writes it as P*(1+d)+P*(1-d)^0.5, but going through the math by hand,
+		    // you must have it as P*(1-d)+P*(1+d)^0.5 to form a 2^.5 term, which
+		    // parallels the case where m > 0.
+		    var d = getKroneckerDelta(m, -1);
+		    return P(matrix, 1, m + 1, n, l) * (1 - d) +
+		        P(matrix, -1, -m - 1, n, l) * Math.sqrt(1 + d);
+		  }
+		};
+
+		/**
+		 * The functions U, V, and W should only be called if the correspondingly
+		 * named coefficient u, v, w from the function ComputeUVWCoeff() is non-zero.
+		 * When the coefficient is 0, these would attempt to access matrix elements that
+		 * are out of bounds. The vector of rotations, |r|, must have the |l - 1|
+		 * previously completed band rotations. These functions are valid for |l >= 2|.
+		 * @param {Array} matrix               N matrices of gainNodes, each with
+		 *                                     (2n+1)x(2n+1) elements,
+		 *                                     where n=1,2,...,N.
+		 * @param {Number} m
+		 * @param {Number} n
+		 * @param {Number} l
+		 */
+		function W (matrix, m, n, l) {
+		  // Whenever this happens, w is also 0 so W can be anything.
+		  if (m === 0)
+		    return 0;
+
+		  return m > 0
+		    ? P(matrix, 1, m + 1, n, l) + P(matrix, -1, -m - 1, n, l)
+		    : P(matrix, 1, m - 1, n, l) - P(matrix, -1, -m + 1, n, l);
+		};
+
+		/**
+		 * Calculates the coefficients applied to the U, V, and W functions. Because
+		 * their equations share many common terms they are computed simultaneously.
+		 * @param {Number} m
+		 * @param {Number} n
+		 * @param {Number} l
+		 * @return {Array} 3 coefficients for U, V and W functions.
+		 */
+		function computeUVWCoeff(m, n, l) {
+		  var d = getKroneckerDelta(m, 0);
+		  var reciprocalDenominator = Math.abs(n) === l
+		      ? 1 / (2 * l * (2 * l - 1)) : 1 / ((l + n) * (l - n));
+
+		  return [
+		    Math.sqrt((l + m) * (l - m) * reciprocalDenominator),
+		    0.5 * (1 - 2 * d) * Math.sqrt((1 + d) * (l + Math.abs(m) - 1) *
+		        (l + Math.abs(m)) * reciprocalDenominator),
+		    -0.5 * (1 - d) * Math.sqrt((l - Math.abs(m) - 1) * (l - Math.abs(m))) *
+		        reciprocalDenominator
+		  ];
+		};
+
+		/**
+		 * Calculates the (2l+1)x(2l+1) rotation matrix for the band l.
+		 * This uses the matrices computed for band 1 and band l-1 to compute the
+		 * matrix for band l. |rotations| must contain the previously computed l-1
+		 * rotation matrices.
+		 *
+		 * This implementation comes from p. 5 (6346), Table 1 and 2 in [2] taking
+		 * into account the corrections from [2b].
+		 * @param {Array} matrix               N matrices of gainNodes, each with
+		 *                                     (2n+1)x(2n+1) elements,
+		 *                                     where n=1,2,...,N.
+		 * @param {Number} l
+		 */
+		function computeBandRotation (matrix, l) {
+		  // The lth band rotation matrix has rows and columns equal to the number of
+		  // coefficients within that band (-l <= m <= l implies 2l + 1 coefficients).
+		  for (var m = -l; m <= l; m++) {
+		    for (var n = -l; n <= l; n++) {
+		      var uvwCoefficients = computeUVWCoeff(m, n, l);
+
+		      // The functions U, V, W are only safe to call if the coefficients
+		      // u, v, w are not zero.
+		      if (Math.abs(uvwCoefficients[0]) > 0)
+		        uvwCoefficients[0] *= U(matrix, m, n, l);
+		      if (Math.abs(uvwCoefficients[1]) > 0)
+		        uvwCoefficients[1] *= V(matrix, m, n, l);
+		      if (Math.abs(uvwCoefficients[2]) > 0)
+		        uvwCoefficients[2] *= W(matrix, m, n, l);
+
+		      setCenteredElement(matrix, l, m, n,
+		          uvwCoefficients[0] + uvwCoefficients[1] + uvwCoefficients[2]);
+		    }
+		  }
+		};
+
+		/**
+		 * Compute the HOA rotation matrix after setting the transform matrix.
+		 * @param {Array} matrix               N matrices of gainNodes, each with
+		 *                                     (2n+1)x(2n+1) elements, where n=1,2,...,
+		 *                                     N.
+		 */
+		function computeHOAMatrices (matrix) {
+		  // We start by computing the 2nd-order matrix from the 1st-order matrix.
+		  for (var i = 2; i <= matrix.length; i++)
+		    computeBandRotation(matrix, i);
+		};
+
+		/**
+		 * @class Higher-order-ambisonic decoder based on gain node network.
+		 *        We expect the order of the channels to conform to ACN ordering.
+		 *        Below are the helper methods to compute SH rotation using recursion.
+		 *        The code uses maths described in the following papers:
+		 *        [1]  R. Green, "Spherical Harmonic Lighting: The Gritty Details",
+		 *             GDC 2003,
+		 *          http://www.research.scea.com/gdc2003/spherical-harmonic-lighting.pdf
+		 *        [2]  J. Ivanic and K. Ruedenberg, "Rotation Matrices for Real
+		 *             Spherical Harmonics. Direct Determination by Recursion", J. Phys.
+		 *             Chem., vol. 100, no. 15, pp. 6342-6347, 1996.
+		 *             http://pubs.acs.org/doi/pdf/10.1021/jp953350u
+		 *        [2b] Corrections to initial publication:
+		 *             http://pubs.acs.org/doi/pdf/10.1021/jp9833350
+		 * @param {AudioContext} context    Associated AudioContext.
+		 * @param {Number} ambisonicOrder   Ambisonic order.
+		 */
+		function HOARotator(context, ambisonicOrder) {
+		  this._context = context;
+		  this._ambisonicOrder = ambisonicOrder;
+
+		  // We need to determine the number of channels K based on the ambisonic order
+		  // N where K = (N + 1)^2.
+		  var numberOfChannels = (ambisonicOrder + 1) * (ambisonicOrder + 1);
+
+		  this._splitter = this._context.createChannelSplitter(numberOfChannels);
+		  this._merger = this._context.createChannelMerger(numberOfChannels);
+
+		  // Create a set of per-order rotation matrices using gain nodes.
+		  this._gainNodeMatrix = [];
+		  var orderOffset;
+		  var rows;
+		  var inputIndex;
+		  var outputIndex;
+		  var matrixIndex;
+		  for (var i = 1; i <= ambisonicOrder; i++) {
+		    // Each ambisonic order requires a separate (2l + 1) x (2l + 1) rotation
+		    // matrix. We compute the offset value as the first channel index of the
+		    // current order where
+		    //   k_last = l^2 + l + m,
+		    // and let m = -l
+		    //   k_last = l^2
+		    orderOffset = i * i;
+
+		    // Uses row-major indexing.
+		    rows = (2 * i + 1);
+
+		    this._gainNodeMatrix[i - 1] = [];
+		    for (var j = 0; j < rows; j++) {
+		      inputIndex = orderOffset + j;
+		      for (var k = 0; k < rows; k++) {
+		        outputIndex = orderOffset + k;
+		        matrixIndex = j * rows + k;
+		        this._gainNodeMatrix[i - 1][matrixIndex] = this._context.createGain();
+		        this._splitter.connect(
+		            this._gainNodeMatrix[i - 1][matrixIndex], inputIndex);
+		        this._gainNodeMatrix[i - 1][matrixIndex].connect(
+		            this._merger, 0, outputIndex);
+		      }
+		    }
+		  }
+
+		  // W-channel is not involved in rotation, skip straight to ouput.
+		  this._splitter.connect(this._merger, 0, 0);
+
+		  // Default Identity matrix.
+		  this.setRotationMatrix(new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]));
+
+		  // Input/Output proxy.
+		  this.input = this._splitter;
+		  this.output = this._merger;
+		};
+
+		/**
+		 * Set 3x3 matrix for soundfield rotation. (gl-matrix.js style)
+		 * @param {Array} rotationMatrix    A 3x3 matrix of soundfield rotation. The
+		 *                                  matrix is in the col-major representation.
+		 */
+		HOARotator.prototype.setRotationMatrix = function (rotationMatrix) {
+		  // Ambisonic spherical coordinates flip the signs for left/right and
+		  // front/back compared to OpenGL.
+		  this._gainNodeMatrix[0][0].gain.value = -rotationMatrix[0];
+		  this._gainNodeMatrix[0][1].gain.value = -rotationMatrix[1];
+		  this._gainNodeMatrix[0][2].gain.value = -rotationMatrix[2];
+		  this._gainNodeMatrix[0][3].gain.value = rotationMatrix[3];
+		  this._gainNodeMatrix[0][4].gain.value = rotationMatrix[4];
+		  this._gainNodeMatrix[0][5].gain.value = rotationMatrix[5];
+		  this._gainNodeMatrix[0][6].gain.value = -rotationMatrix[6];
+		  this._gainNodeMatrix[0][7].gain.value = -rotationMatrix[7];
+		  this._gainNodeMatrix[0][8].gain.value = -rotationMatrix[8];
+		  computeHOAMatrices(this._gainNodeMatrix);
+		};
+
+		/**
+		 * Set 4x4 matrix for soundfield rotation. Uses col-major representation.
+		 * (Three.js style)
+		 * @param {Array} rotationMatrix4   A 4x4 matrix of soundfield rotation.
+		 */
+		HOARotator.prototype.setRotationMatrix4 = function (rotationMatrix4) {
+		  this._gainNodeMatrix[0][0].gain.value = -rotationMatrix4[0];
+		  this._gainNodeMatrix[0][1].gain.value = -rotationMatrix4[1];
+		  this._gainNodeMatrix[0][2].gain.value = -rotationMatrix4[2];
+		  this._gainNodeMatrix[0][3].gain.value = rotationMatrix4[4];
+		  this._gainNodeMatrix[0][4].gain.value = rotationMatrix4[5];
+		  this._gainNodeMatrix[0][5].gain.value = rotationMatrix4[6];
+		  this._gainNodeMatrix[0][6].gain.value = -rotationMatrix4[8];
+		  this._gainNodeMatrix[0][7].gain.value = -rotationMatrix4[9];
+		  this._gainNodeMatrix[0][8].gain.value = -rotationMatrix4[10];
+		  computeHOAMatrices(this._gainNodeMatrix);
+		};
+
+		/**
+		 * Returns the current rotation matrix.
+		 * @return {Array}                  A 3x3 matrix of soundfield rotation. The
+		 *                                  matrix is in the col-major representation.
+		 */
+		HOARotator.prototype.getRotationMatrix = function () {
+		  var rotationMatrix = Float32Array(9);
+		  rotationMatrix[0] = -this._gainNodeMatrix[0][0].gain.value;
+		  rotationMatrix[1] = -this._gainNodeMatrix[0][1].gain.value;
+		  rotationMatrix[2] = -this._gainNodeMatrix[0][2].gain.value;
+		  rotationMatrix[3] = this._gainNodeMatrix[0][3].gain.value;
+		  rotationMatrix[4] = this._gainNodeMatrix[0][4].gain.value;
+		  rotationMatrix[5] = this._gainNodeMatrix[0][5].gain.value;
+		  rotationMatrix[6] = -this._gainNodeMatrix[0][6].gain.value;
+		  rotationMatrix[7] = -this._gainNodeMatrix[0][7].gain.value;
+		  rotationMatrix[8] = -this._gainNodeMatrix[0][8].gain.value;
+		  return rotationMatrix;
+		};
+
+		/**
+		 * Get the current ambisonic order.
+		 * @return {Number}
+		 */
+		HOARotator.prototype.getAmbisonicOrder = function() {
+		  return this._ambisonicOrder;
+		};
+
+
+		module.exports = HOARotator;
+
+
+	/***/ }),
+	/* 14 */
+	/***/ (function(module, exports) {
+
+		/**
+		 * Copyright 2017 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		/**
+		 * @fileOverview A collection of convolvers. Can be used for the optimized HOA
+		 *               binaural rendering. (e.g. SH-MaxRe HRTFs)
+		 */
+
+		/**
+		 * @class HOAConvolver
+		 * @description A collection of convolvers for N-channel HOA stream.
+		 * @param {AudioContext} context          Associated AudioContext.
+		 * @param {Object} options
+		 * @param {Number} options.ambisonicOrder Ambisonic order (default is 3).
+		 * @param {AudioBuffer} options.IRBuffer  IR Audiobuffer for convolution. The
+		 *                                        number of channels must be (N+1)^2
+		 *                                        where N is the ambisonic order.
+		 */
+		function HOAConvolver(context, options) {
+
+		  this._active = false;
+		  this._context = context;
+
+		  // If unspecified, the default ambisonic mode is third order.
+		  this._ambisonicOrder = options.ambisonicOrder ? options.ambisonicOrder : 3;
+
+		  // We need to determine the number of channels K based on the ambisonic
+		  // order N where K = (N+1)^2.
+		  this._numberOfChannels =
+		      (this._ambisonicOrder + 1) * (this._ambisonicOrder + 1);
+
+		  // Ensure that the ambisonic order matches the IR channel count.
+		  // TODO(hoch): Error reporting should be unified. Don't use |throw|.
+		  if (options.IRBuffer.numberOfChannels !== this._numberOfChannels) {
+		    throw 'The order of ambisonic (' + ambisonicOrder + ') requires ' +
+		        numberOfChannels + '-channel IR buffer. The given IR buffer has ' +
+		        options.IRBuffer.numberOfChannels + ' channels.';
+		  }
+
+		  this._buildAudioGraph();
+		  this._setHRIRBuffer(options.IRBuffer);
+
+		  this.enable();
+		}
+
+		// Build the audio graph for HOA processing.
+		//
+		// For TOA convolution:
+		// input -> splitter(16) -[0,1]-> merger(2) -> convolver(2) -> splitter(2)
+		//                       -[2,3]-> merger(2) -> convolver(2) -> splitter(2)
+		//                       -[4,5]-> ... (6 more, 8 branches total)
+		HOAConvolver.prototype._buildAudioGraph = function (options) {
+		  // Compute the number of stereo convolvers needed.
+		  var numberOfStereoChannels = Math.ceil(this._numberOfChannels / 2);
+
+		  this._inputSplitter =
+		      this._context.createChannelSplitter(this._numberOfChannels);
+		  this._stereoMergers = [];
+		  this._convolvers = [];
+		  this._stereoSplitters = [];
+		  this._positiveIndexSphericalHarmonics = this._context.createGain();
+		  this._negativeIndexSphericalHarmonics = this._context.createGain();
+		  this._inverter = this._context.createGain();
+		  this._binauralMerger = this._context.createChannelMerger(2);
+		  this._outputGain = this._context.createGain();
+
+		  for (var i = 0; i < numberOfStereoChannels; ++i) {
+		    this._stereoMergers[i] = this._context.createChannelMerger(2);
+		    this._convolvers[i] = this._context.createConvolver();
+		    this._stereoSplitters[i] = this._context.createChannelSplitter(2);
+
+		    this._convolvers[i].normalize = false;
+		  }
+
+		  for (var l = 0; l <= this._ambisonicOrder; ++l) {
+		    for (var m = -l; m <= l; m++) {
+		      // We compute the ACN index (k) of ambisonics channel using the degree (l)
+		      // and index (m): k = l^2 + l + m
+		      var acnIndex = l * l + l + m;
+		      var stereoIndex = Math.floor(acnIndex / 2);
+
+		      // Split channels from input into array of stereo convolvers.
+		      // Then create a network of mergers that produces the stereo output.
+		      this._inputSplitter.connect(
+		          this._stereoMergers[stereoIndex], acnIndex, acnIndex % 2);
+		      this._stereoMergers[stereoIndex].connect(this._convolvers[stereoIndex]);
+		      this._convolvers[stereoIndex].connect(this._stereoSplitters[stereoIndex]);
+
+		      // Positive index (m >= 0) spherical harmonics are symmetrical around the
+		      // front axis, while negative index (m < 0) spherical harmonics are
+		      // anti-symmetrical around the front axis. We will exploit this symmetry
+		      // to reduce the number of convolutions required when rendering to a
+		      // symmetrical binaural renderer.
+		      if (m >= 0) {
+		        this._stereoSplitters[stereoIndex]
+		            .connect(this._positiveIndexSphericalHarmonics, acnIndex % 2);
+		      } else {
+		        this._stereoSplitters[stereoIndex]
+		            .connect(this._negativeIndexSphericalHarmonics, acnIndex % 2);
+		      }
+		    }
+		  }
+		  this._positiveIndexSphericalHarmonics.connect(this._binauralMerger, 0, 0);
+		  this._positiveIndexSphericalHarmonics.connect(this._binauralMerger, 0, 1);
+		  this._negativeIndexSphericalHarmonics.connect(this._binauralMerger, 0, 0);
+		  this._negativeIndexSphericalHarmonics.connect(this._inverter);
+		  this._inverter.connect(this._binauralMerger, 0, 1);
+
+		  // For asymmetric index.
+		  this._inverter.gain.value = -1;
+
+		  // Input/Output proxy.
+		  this.input = this._inputSplitter;
+		  this.output = this._outputGain;
+		};
+
+		HOAConvolver.prototype._setHRIRBuffer = function (buffer) {
+		  // For the optimum performance/resource usage, we use stereo convolvers
+		  // instead of mono convolvers. In Web Audio API, the convolution on
+		  // >3 channels activates the "true stereo" mode in theconvolver, which is not
+		  // compatible to HOA convolution.
+		  //
+		  // TODO(hoch): This duplciates IR buffers. Consider optimizing the memory
+		  // usage.
+
+		  // Compute the number of stereo buffers to create from a given buffer.
+		  var numberOfStereoBuffers = Math.ceil(buffer.numberOfChannels / 2);
+
+		  // Generate Math.ceil(K/2) stereo buffers from a K-channel IR buffer.
+		  for (var i = 0; i < numberOfStereoBuffers; ++i) {
+		    var stereoHRIRBuffer =
+		        this._context.createBuffer(2, buffer.length, buffer.sampleRate);
+		    stereoHRIRBuffer.copyToChannel(buffer.getChannelData(i * 2), 0);
+
+		    // Skip right-channel if it exceeds buffer channel count.
+		    var rightChannelIndex = i * 2 + 1;
+		    if (rightChannelIndex < buffer.numberOfChannels) {
+		      stereoHRIRBuffer.copyToChannel(
+		        buffer.getChannelData(rightChannelIndex), 1);
+		    }
+		    this._convolvers[i].buffer = stereoHRIRBuffer;
+		  }
+		  this.enable();
+		};
+
+		HOAConvolver.prototype.enable = function () {
+		  if (this._active) return;
+		  this._binauralMerger.connect(this._outputGain);
+		  this._active = true;
+		};
+
+		HOAConvolver.prototype.disable = function () {
+		  if (!this._active) return;
+		  this._binauralMerger.disconnect();
+		  this._active = false;
+		};
+
+
+		module.exports = HOAConvolver;
+
+
+	/***/ }),
+	/* 15 */
+	/***/ (function(module, exports, __webpack_require__) {
+
+		/**
+		 * Copyright 2017 Google Inc. All Rights Reserved.
+		 * Licensed under the Apache License, Version 2.0 (the "License");
+		 * you may not use this file except in compliance with the License.
+		 * You may obtain a copy of the License at
+		 *
+		 *     http://www.apache.org/licenses/LICENSE-2.0
+		 *
+		 * Unless required by applicable law or agreed to in writing, software
+		 * distributed under the License is distributed on an "AS IS" BASIS,
+		 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+		 * See the License for the specific language governing permissions and
+		 * limitations under the License.
+		 */
+
+		'use strict';
+
+		/**
+		 * @fileOverview Omnitone HOA decoder.
+		 */
+
+		// Internal dependencies.
+		var AudioBufferManager = __webpack_require__(2);
+		var HOARotator = __webpack_require__(13);
+		var HOAConvolver = __webpack_require__(14);
+		var Utils = __webpack_require__(3);
+		var SystemVersion = __webpack_require__(11);
+
+		// HRIRs for optimized HOA rendering.
+		// TODO(hongchan): change this with the absolute URL.
+		var SH_MAXRE_HRIR_URLS = [
+		  'resources/sh_hrir_o_3_ch0-ch7.wav',
+		  'resources/sh_hrir_o_3_ch8-ch15.wav'
+		];
+
+
+		/**
+		 * @class Omnitone HOA renderer class. Uses the optimized convolution technique.
+		 * @param {AudioContext} context            Associated AudioContext.
+		 * @param {Object} options
+		 * @param {Array} options.HRIRUrl           Optional HRIR URLs in an array.
+		 * @param {String} options.renderingMode    Rendering mode.
+		 * @param {Number} options.ambisonicOrder   Ambisonic order (default is 3).
+		 */
+		function HOARenderer(context, options) {
+		  this._context = context;
+
+		  this._HRIRUrls = SH_MAXRE_HRIR_URLS;
+		  this._renderingMode = 'ambisonic';
+		  this._ambisonicOrder = 3;
+
+		  if (options) {
+		    if (options.HRIRUrl)
+		      this._HRIRUrls = options.HRIRUrl;
+		    if (options.renderingMode)
+		      this._renderingMode = options.renderingMode;
+		    if (options.ambisonicOrder)
+		      this._ambisonicOrder = options.ambisonicOrder;
+		  }
+
+		  this._numberOfChannels =
+		      (this._ambisonicOrder + 1) * (this._ambisonicOrder + 1);
+		  this._tempMatrix4 = new Float32Array(16);
+
+		  this._isRendererReady = false;
+		}
+
+
+		/**
+		 * Initialize and load the resources for the decode.
+		 * @return {Promise}
+		 */
+		HOARenderer.prototype.initialize = function () {
+		  Utils.log('Version: ' + SystemVersion);
+		  Utils.log('Initializing... (mode: ' + this._renderingMode +
+		      ', order: ' + this._ambisonicOrder + ')');
+
+		  return new Promise(this._initializeCallback.bind(this));
+		};
+
+
+		/**
+		 * Internal callback handler for |initialize| method.
+		 * @param {Function} resolve Promise resolution.
+		 * @param {Function} reject Promise rejection.
+		 */
+		HOARenderer.prototype._initializeCallback = function (resolve, reject) {
+		  var hoaHRIRBuffer;
+
+		  // Constrcut a consolidated HOA HRIR (e.g. 16 channels for TOA).
+		  // Handle multiple chunks of HRIR buffer data splitted by 8 channels each.
+		  // This is because Chrome cannot decode the audio file >8  channels.
+		  var audioBufferData = [];
+		  this._HRIRUrls.forEach(function (key, index, urls) {
+		    audioBufferData.push({ name: key, url: urls[index] });
+		  });
+
+		  new AudioBufferManager(
+		      this._context,
+		      audioBufferData,
+		      function (buffers) {
+		        var accumulatedChannelCount = 0;
+		        buffers.forEach(function (buffer) {
+		          // Create a K channel buffer to integrate individual IR buffers.
+		          if (!hoaHRIRBuffer) {
+		            hoaHRIRBuffer = this._context.createBuffer(
+		                  this._numberOfChannels, buffer.length, buffer.sampleRate);
+		          }
+
+		          for (var channel = 0; channel < buffer.numberOfChannels; ++channel) {
+		            hoaHRIRBuffer.copyToChannel(
+		                buffer.getChannelData(channel),
+		                accumulatedChannelCount + channel);
+		          }
+
+		          accumulatedChannelCount += buffer.numberOfChannels;
+		        }.bind(this));
+
+		        if (accumulatedChannelCount === this._numberOfChannels) {
+		          this._buildAudioGraph(hoaHRIRBuffer);
+		          this._isRendererReady = true;
+		          Utils.log('Rendering via SH-MaxRE convolution.');
+		          resolve();
+		        } else {
+		          var errorMessage = 'Only ' + accumulatedChannelCount +
+		              ' HRIR channels were loaded (expected ' + this._numberOfChannels +
+		              '). The renderer will not function correctly.';
+		          Utils.log(errorMessage);
+		          reject(errorMessage);
+		        }
+		      }.bind(this),
+		      function (buffers) {
+		        // TODO: why is it failing?
+		        var errorMessage = 'Initialization failed.';
+		        Utils.log(errorMessage);
+		        reject(errorMessage);
+		      }.bind(this));
+		};
+
+
+		/**
+		 * Internal method that builds the audio graph.
+		 */
+		HOARenderer.prototype._buildAudioGraph = function (hoaHRIRBuffer) {
+		  this.input = this._context.createGain();
+		  this.output = this._context.createGain();
+		  this._bypass = this._context.createGain();
+
+		  this._hoaRotator = new HOARotator(this._context, this._ambisonicOrder);
+		  this._hoaConvolver = new HOAConvolver(this._context, {
+		      IRBuffer: hoaHRIRBuffer,
+		      ambisonicOrder: this._ambisonicOrder
+		    });
+
+		  this.input.connect(this._hoaRotator.input);
+		  this.input.connect(this._bypass);
+		  this._hoaRotator.output.connect(this._hoaConvolver.input);
+		  this._hoaConvolver.output.connect(this.output);
+
+		  this.setRenderingMode(this._renderingMode);
+		};
+
+
+		/**
+		 * Set the rotation matrix for the sound field rotation.
+		 * @param {Array} rotationMatrix      3x3 rotation matrix (row-major
+		 *                                    representation)
+		 */
+		HOARenderer.prototype.setRotationMatrix = function (rotationMatrix) {
+		  if (!this._isRendererReady) return;
+		  this._hoaRotator.setRotationMatrix(rotationMatrix);
+		};
+
+
+		/**
+		 * Update the rotation matrix from a Three.js camera object.
+		 * @param  {Object} cameraMatrix      The Matrix4 obejct of Three.js the camera.
+		 */
+		HOARenderer.prototype.setRotationMatrixFromCamera = function (cameraMatrix) {
+		  if (!this._isRendererReady) return;
+
+		  // Extract the inner array elements and inverse. (The actual view rotation is
+		  // the opposite of the camera movement.)
+		  Utils.invertMatrix4(this._tempMatrix4, cameraMatrix.elements);
+		  this._hoaRotator.setRotationMatrix4(this._tempMatrix4);
+		};
+
+
+		/**
+		 * Set the decoding mode.
+		 * @param {String} mode               Decoding mode. When the mode is 'bypass'
+		 *                                    the decoder is disabled and bypass the
+		 *                                    input stream to the output. Setting the
+		 *                                    mode to 'ambisonic' activates the decoder.
+		 *                                    When the mode is 'off', all the
+		 *                                    processing is completely turned off saving
+		 *                                    the CPU power.
+		 */
+		HOARenderer.prototype.setRenderingMode = function (mode) {
+		  if (mode === this._renderingMode) return;
+		  switch (mode) {
+		    // Bypass mode: The convolution path is disabled, disconnected (thus consume
+		    // no CPU). Use bypass gain node to pass-through the input stream.
+		    case 'bypass':
+		      this._renderingMode = 'bypass';
+		      this._hoaConvolver.disable();
+		      this._bypass.connect(this.output);
+		      break;
+
+		    // Ambisonic mode: Use the convolution and shut down the bypass path.
+		    case 'ambisonic':
+		      this._renderingMode = 'ambisonic';
+		      this._hoaConvolver.enable();
+		      this._bypass.disconnect();
+		      break;
+
+		    // Off mode: Shut down all sound from the renderer.
+		    case 'off':
+		      this._renderingMode = 'off';
+		      this._hoaConvolver.disable();
+		      this._bypass.disconnect();
+		      break;
+
+		    default:
+		      // Unsupported mode. Ignore it.
+		      Utils.log('Rendering mode "' + mode + '" is not supported.');
+		      return;
+		  }
+
+		  Utils.log('Rendering mode changed. (' + mode + ')');
+		};
+
+
+		module.exports = HOARenderer;
+
+
+	/***/ })
+	/******/ ])
+	});
+	;
 
 /***/ }),
 /* 4 */
@@ -725,12 +2919,42 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @file Songbird library common utilities.
+	 * @file Songbird library common utilities, mathematical constants,
+	 * and default values.
 	 * @author Andrew Allen <bitllama@google.com>
 	 */
 
 	'use strict';
 
+	// Math constants.
+	/** @type {Number} */
+	exports.TWO_PI = 6.28318530717959;
+	/** @type {Number} */
+	exports.TWENTY_FOUR_LOG10 = 55.2620422318571;
+	/** @type {Number} */
+	exports.LOG1000 = 6.90775527898214;
+	/** @type {Number} */
+	exports.LOG2_DIV2 = 0.346573590279973;
+	/** @type {Number} */
+	exports.DEGREES_TO_RADIANS = 0.017453292519943;
+	/** @type {Number} */
+	exports.RADIANS_TO_DEGREES = 57.295779513082323;
+	/** @type {Number} */
+	exports.EPSILON_FLOAT = 1e-8;
+	/** @type {Float32Array} */
+	exports.DEFAULT_POSITION = [0, 0, 0];
+	/** @type {Float32Array} */
+	exports.DEFAULT_ORIENTATION = [0, 0, 0];
+	/** @type {Float32Array} */
+	exports.DEFAULT_FORWARD = [0, 0, 1];
+	/** @type {Float32Array} */
+	exports.DEFAULT_UP = [0, 1, 0];
+	/** @type {Float32Array} */
+	exports.DEFAULT_RIGHT = [1, 0, 0];
+	/** @type {Number} */
+	exports.DEFAULT_SPEED_OF_SOUND = 343;
+
+	// Helper functions
 	/**
 	 * Songbird library logging function.
 	 * @type {Function}
@@ -820,228 +3044,307 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @file Late reverberation filter for Ambisonic content.
+	 * @file Source model to spatialize an audio buffer.
 	 * @author Andrew Allen <bitllama@google.com>
 	 */
 
 	'use strict';
 
 	// Internal dependencies.
-	var Global = __webpack_require__(3);
+	var Directivity = __webpack_require__(6);
+	var Attenuation = __webpack_require__(7);
+	var Encoder = __webpack_require__(8);
 	var Utils = __webpack_require__(4);
+	//var Room = require('./room.js');
 
 	/**
-	 * @class LateReflections
-	 * @description Late-reflections reverberation filter for Ambisonic content.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @class Source
+	 * @description Source model to spatialize an audio buffer.
+	 * @param {Songbird} songbird Associated {@link Songbird Songbird} instance.
 	 * @param {Object} options
-	 * @param {Array} options.durations
-	 * Multiband RT60 durations (in seconds) for each frequency band, listed as
-	 * {@link REVERB_BANDS REVERB_BANDS}. Defaults to
-	 * {@link LateReflections.DEFAULT_DURATIONS DEFAULT_DURATIONS}.
-	 * @param {Number} options.predelay Pre-delay (in milliseconds). Defaults to
-	 * {@link LateReflections.PREDELAY_MS PREDELAY_MS}.
-	 * @param {Number} options.gain Output gain (linear). Defaults to
-	 * {@link LateReflections.DEFAULT_GAIN DEFAULT_GAIN}.
-	 * @param {Number} options.bandwidth Bandwidth (in octaves) for each frequency
-	 * band. Defaults to {@link LateReflections.BANDWIDTH BANDWIDTH}.
-	 * @param {Number} options.tailonset Length (in milliseconds) of impulse
-	 * response to apply a half-Hann window. Defaults to
-	 * {@link LateReflections.TAIL_ONSET_MS TAIL_ONSET_MS}.
+	 * @param {Float32Array} options.position
+	 * The source's initial position (in meters), where origin is the center of
+	 * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+	 * @param {Float32Array} options.orientation
+	 * The source's initial orientation (roll, pitch and yaw, in radians). Defaults
+	 * to {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
+	 * @param {Number} options.minDistance
+	 * Min. distance (in meters). Defaults to
+	 * {@linkcode Attenuation.MIN_DISTANCE MIN_DISTANCE}.
+	 * @param {Number} options.maxDistance
+	 * Max. distance (in meters). Defaults to
+	 * {@linkcode Attenuation.MAX_DISTANCE MAX_DISTANCE}.
+	 * @param {string} options.rolloff
+	 * Rolloff model to use, chosen from options in
+	 * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+	 * {@linkcode Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+	 * @param {Number} options.gain Input gain (linear). Defaults to
+	 * {@linkcode Source.DEFAULT_GAIN DEFAULT_GAIN}.
+	 * @param {Number} options.alpha Directivity alpha. Defaults to
+	 * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
+	 * @param {Number} options.exponent Directivity exponent. Defaults to
+	 * {@linkcode Directivity.DEFAULT_EXPONENT DEFAULT_EXPONENT}.
+	 * @param {Number} options.sourceWidth
+	 * Source width (in degrees). Where 0 degrees is a point source and 360 degrees
+	 * is an omnidirectional source. Defaults to
+	 * {@linkcode Encoder.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
 	 */
-	function LateReflections (context, options) {
+	function Source (songbird, options) {
 	  // Public variables.
 	  /**
-	   * Input {@link
+	   * Mono (1-channel) input {@link
 	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
 	   * @member {AudioNode} input
-	   * @memberof LateReflections
-	   * @instance
-	   */
-	  /**
-	   * Output {@link
-	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
-	   * @member {AudioNode} output
-	   * @memberof LateReflections
+	   * @memberof Source
 	   * @instance
 	   */
 
-	  this._context = context;
-
-	  // Use defaults for undefined arguments
+	  // Use defaults for undefined arguments.
 	  if (options == undefined) {
-	    options = {};
+	    options = new Object();
 	  }
-	  if (options.durations == undefined) {
-	    options.durations = LateReflections.DEFAULT_DURATIONS;
+	  if (options.position == undefined) {
+	    options.position = Utils.DEFAULT_POSITION;
 	  }
-	  if (options.predelay == undefined) {
-	    options.predelay = LateReflections.PREDELAY_MS;
+	  if (options.orientation == undefined) {
+	    options.orientation = Utils.DEFAULT_ORIENTATION;
+	  }
+	  if (options.minDistance == undefined) {
+	    options.minDistance = Attenuation.DEFAULT_MIN_DISTANCE;
+	  }
+	  if (options.maxDistance == undefined) {
+	    options.maxDistance = Attenuation.DEFAULT_MAX_DISTANCE;
+	  }
+	  if (options.rolloff == undefined) {
+	    options.rolloff = Attenuation.DEFAULT_ROLLOFF;
 	  }
 	  if (options.gain == undefined) {
-	    options.gain = LateReflections.DEFAULT_GAIN;
+	    options.gain = Source.DEFAULT_GAIN;
 	  }
-	  if (options.bandwidth == undefined) {
-	    options.bandwidth = LateReflections.BANDWIDTH;
+	  if (options.alpha == undefined) {
+	    options.alpha = Directivity.DEFAULT_ALPHA;
 	  }
-	  if (options.tailonset == undefined) {
-	    options.tailonset = LateReflections.TAIL_ONSET_MS;
+	  if (options.exponent == undefined) {
+	    options.exponent = Directivity.DEFAULT_EXPONENT;
+	  }
+	  if (options.sourceWidth == undefined) {
+	    options.sourceWidth = Encoder.DEFAULT_SOURCE_WIDTH;
 	  }
 
-	  // Assign pre-computed variables.
-	  var delaySecs = options.predelay / 1000;
-	  this._bandwidthCoeff = options.bandwidth * Global.LOG2_DIV2;
-	  this._tailonsetSamples = options.tailonset / 1000;
+	  // Member variables.
+	  this._scene = songbird;
+	  this._position = new Float32Array(3);
+	  this._forward = new Float32Array(3);
+	  this._up = new Float32Array(3);
+	  this._right = new Float32Array(3);
 
-	  // Create nodes.
+	  // Create audio nodes.
+	  var context = songbird._context;
 	  this.input = context.createGain();
-	  this._predelay = context.createDelay(delaySecs);
-	  this._convolver = context.createConvolver();
-	  this.output = context.createGain();
-
-	  // Set reverb attenuation.
-	  this.output.gain.value = options.gain;
-
-	  // Disable normalization.
-	  this._convolver.normalize = false;
+	  this._directivity = new Directivity(context, {
+	    alpha: options.alpha,
+	    exponent: options.exponent
+	  });
+	  this._toEarly = context.createGain();
+	  this._toLate = context.createGain();
+	  this._attenuation = new Attenuation(context, {
+	    minDistance: options.minDistance,
+	    maxDistance: options.maxDistance,
+	    rolloff: options.rolloff
+	  });
+	  this._encoder = new Encoder(context, {
+	    ambisonicOrder: songbird._ambisonicOrder,
+	    sourceWidth: options.sourceWidth
+	  });
 
 	  // Connect nodes.
-	  this.input.connect(this._predelay);
-	  this._predelay.connect(this._convolver);
-	  this._convolver.connect(this.output);
+	  this.input.connect(this._toLate);
 
-	  // Compute IR using RT60 values.
-	  this.setDurations(options.durations);
+	  // Only connect if late reflections isn't disabled.
+	  if (songbird._room._useLateReflections) {
+	    this._toLate.connect(songbird._room.late.input);
+	  }
+
+	  this.input.connect(this._attenuation.input);
+	  this._attenuation.output.connect(this._toEarly);
+	  this._toEarly.connect(songbird._room.early.input);
+
+	  this._attenuation.output.connect(this._directivity.input);
+	  this._directivity.output.connect(this._encoder.input);
+	  this._encoder.output.connect(songbird._listener.input);
+
+	  // Assign initial conditions.
+	  this.setPosition(options.position[0], options.position[1],
+	    options.position[2]);
+	  this.setOrientation(options.orientation[0], options.orientation[1],
+	    options.orientation[2]);
+	  this.input.gain.value = options.gain;
 	}
 
 	/**
-	 * Re-compute a new impulse response by providing Multiband RT60 durations.
-	 * @param {Array} durations
-	 * Multiband RT60 durations (in seconds) for each frequency band, listed as
-	 * {@link REVERB_BANDS REVERB_BANDS}.
+	 * Set source's position (in meters), where origin is the center of
+	 * the room.
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
 	 */
-	LateReflections.prototype.setDurations = function (durations) {
-	  if (durations.length !== Global.NUMBER_REVERB_BANDS) {
-	    Utils.log("Warning: invalid number of RT60 values provided to reverb.");
-	    return;
+	Source.prototype.setPosition = function (x, y, z) {
+	  var dx = new Float32Array(3);
+
+	  // Assign new position.
+	  this._position[0] = x;
+	  this._position[1] = y;
+	  this._position[2] = z;
+
+	  // Handle far-field effect.
+	  var distance = this._scene._room.getDistanceOutsideRoom(
+	    this._position[0], this._position[1], this._position[2]);
+	  var gain = _computeDistanceOutsideRoom(distance);
+	  this._toLate.gain.value = gain;
+	  this._toEarly.gain.value = gain;
+
+	  // Compute distance to listener.
+	  for (var i = 0; i < 3; i++) {
+	    dx[i] = this._position[i] - this._scene._listener.position[i];
 	  }
+	  var distance = Math.sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
 
-	  // Compute impulse response.
-	  var durationsSamples = new Float32Array(Global.NUMBER_REVERB_BANDS);
-	  var sampleRate = this._context.sampleRate;
+	  // Normalize direction vector.
+	  dx[0] /= distance;
+	  dx[1] /= distance;
+	  dx[2] /= distance;
 
-	  for (var i = 0; i < durations.length; i++) {
-	    // Clamp within suitable range.
-	    durations[i] =
-	      Math.max(0, Math.min(LateReflections.MAX_DURATION, durations[i]));
+	  // Compuete angle of direction vector.
+	  var azimuth = Math.atan2(-dx[0], dx[2]) * Utils.RADIANS_TO_DEGREES;
+	  var elevation = Math.atan2(dx[1],
+	    Math.sqrt(dx[0] * dx[0] + dx[2] * dx[2])) * Utils.RADIANS_TO_DEGREES;
 
-	    // Convert seconds to samples.
-	    durationsSamples[i] = Math.round(durations[i] * sampleRate *
-	      LateReflections.DURATION_MULTIPLIER);
-	  };
-
-	  // Determine max RT60 length in samples.
-	  var durationsSamplesMax = 0;
-	  for (var i = 0; i < durationsSamples.length; i++) {
-	    if (durationsSamples[i] > durationsSamplesMax) {
-	      durationsSamplesMax = durationsSamples[i];
-	    }
-	  }
-
-	  // Skip this step if there is no reverberation to compute.
-	  if (durationsSamplesMax < 1) {
-	    durationsSamplesMax = 1;
-	  }
-
-	  // Create impulse response buffer.
-	  var buffer = this._context.createBuffer(1, durationsSamplesMax, sampleRate);
-	  var bufferData = buffer.getChannelData(0);
-
-	  // Create noise signal (computed once, referenced in each band's routine).
-	  var noiseSignal = new Float32Array(durationsSamplesMax);
-	  for (var i = 0; i < durationsSamplesMax; i++) {
-	    noiseSignal[i] = Math.random() * 2 - 1;
-	  }
-
-	  // Compute the decay rate per-band and filter the decaying noise signal.
-	  for (var i = 0; i < Global.NUMBER_REVERB_BANDS; i++) {
-	  //for (var i = 0; i < 1; i++) {
-	    // Compute decay rate.
-	    //TODO(bitllama): Remove global usage.
-	    var decayRate = -Global.LOG1000 / durationsSamples[i];
-
-	    // Construct a standard one-zero, two-pole bandpass filter:
-	    // H(z) = (b0 * z^0 + b1 * z^-1 + b2 * z^-2) / (1 + a1 * z^-1 + a2 * z^-2)
-	    var omega = Global.TWO_PI * LateReflections.REVERB_BANDS[i] / sampleRate;
-	    var sinOmega = Math.sin(omega);
-	    var alpha = sinOmega * Math.sinh(this._bandwidthCoeff * omega / sinOmega);
-	    var a0CoeffReciprocal = 1 / (1 + alpha);
-	    var b0Coeff = alpha * a0CoeffReciprocal;
-	    var a1Coeff = -2 * Math.cos(omega) * a0CoeffReciprocal;
-	    var a2Coeff = (1 - alpha) * a0CoeffReciprocal;
-
-	    // We optimize since b2 = -b0, b1 = 0.
-	    // Update equation for two-pole bandpass filter:
-	    //   u[n] = x[n] - a1 * x[n-1] - a2 * x[n-2]
-	    //   y[n] = b0 * (u[n] - u[n-2])
-	    var um1 = 0;
-	    var um2 = 0;
-	    for (var j = 0; j < durationsSamples[i]; j++) {
-	      // Exponentially-decaying white noise.
-	      var x = noiseSignal[j] * Math.exp(decayRate * j);
-
-	      // Filter signal with bandpass filter and add to output.
-	      var u = x - a1Coeff * um1 - a2Coeff * um2;
-	      bufferData[j] += b0Coeff * (u - um2);
-
-	      // Update coefficients.
-	      um2 = um1;
-	      um1 = u;
-	    }
-	  }
-
-	  // Create and apply half of a Hann window to the beginning of the IR.
-	  var halfHannLength =
-	    Math.round(this._tailonsetSamples);
-	  for (var i = 0; i < Math.min(bufferData.length, halfHannLength); i++) {
-	    var halfHann =
-	      0.5 * (1 - Math.cos(Global.TWO_PI * i / (2 * halfHannLength - 1)));
-	      bufferData[i] *= halfHann;
-	  }
-	  this._convolver.buffer = buffer;
+	  // Set distance/directivity/direction values.
+	  this._attenuation.setDistance(distance);
+	  this._directivity.computeAngle(this._forward, dx);
+	  this._encoder.setDirection(azimuth, elevation);
 	}
 
-	/** The default bandwidth (in octaves) of the center frequencies.
-	 * @type {Number}
-	 */
-	LateReflections.BANDWIDTH = 1;
-	/** The default multiplier applied when computing tail lengths.
-	 * @type {Number}
-	 */
-	LateReflections.DURATION_MULTIPLIER = 1;
-	/** @type {Number} */
-	LateReflections.PREDELAY_MS = 1.5;
-	/** @type {Number} */
-	LateReflections.TAIL_ONSET_MS = 3.8;
-	/** @type {Number} */
-	LateReflections.DEFAULT_GAIN = 0.01;
-	/** @type {Number} */
-	LateReflections.MAX_DURATION = 3;
 	/**
-	 * Center frequencies of the multiband reverberation engine.
-	 * Nine bands are computed by: 31.25 * 2^(0:8).
-	 * @type {Array}
+	 * Set source's angle relative to the listener's position.
+	 * Azimuth is counterclockwise (0-360). Elevation range is 90 to -90.
+	 * @param {Number} azimuth (in degrees). Defaults to
+	 * {@linkcode Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+	 * @param {Number} elevation (in degrees). Defaults to
+	 * {@linkcode Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+	 * @param {Number} distance (in meters). Defaults to
+	 * {@linkcode Source.DEFAULT_DISTANCE DEFAULT_DISTANCE}.
 	 */
-	LateReflections.REVERB_BANDS = [
-	  31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000
-	];
-	/** @type {Float32Array} */
-	LateReflections.DEFAULT_DURATIONS =
-	  new Float32Array(LateReflections.REVERB_BANDS.length);
+	Source.prototype.setAngleFromListener = function (azimuth, elevation,
+	                                                  distance) {
+	  // Use defaults for undefined arguments.
+	  if (azimuth == undefined) {
+	    azimuth = Attenuation.DEFAULT_AZIMUTH;
+	  }
+	  if (elevation == undefined) {
+	    elevation = Attenuation.DEFAULT_ELEVATION;
+	  }
+	  if (distance == undefined) {
+	    distance = Source.DEFAULT_DISTANCE;
+	  }
+	  var theta = azimuth * Utils.DEGREES_TO_RADIANS;
+	  var phi = elevation * Utils.DEGREES_TO_RADIANS;
 
-	module.exports = LateReflections;
+	  // Polar -> Cartesian (direction from listener).
+	  var x = Math.sin(theta) * Math.cos(phi);
+	  var y = Math.sin(phi);
+	  var z = -Math.cos(theta) * Math.cos(phi);
+
+	  // Assign new position based on relationship to listener.
+	  this._position[0] = this._scene._listener.position[0] + x;
+	  this._position[1] = this._scene._listener.position[1] + y;
+	  this._position[2] = this._scene._listener.position[2] + z;
+
+	  // Handle far-field effect.
+	  var distance = this._scene._room.getDistanceOutsideRoom(
+	    this._position[0], this._position[1], this._position[2]);
+	  var gain = _computeDistanceOutsideRoom(distance);
+	  this._toLate.gain.value = gain;
+	  this._toEarly.gain.value = gain;
+
+	  // Set distance/directivity/direction values.
+	  this._attenuation.setDistance(distance);
+	  this._directivity.computeAngle(this._forward, [x, y, z]);
+	  this._encoder.setDirection(azimuth, elevation);
+	}
+
+	/**
+	 * Set source's orientation (in radians).
+	 * @param {Number} roll
+	 * @param {Number} pitch
+	 * @param {Number} yaw
+	 */
+	Source.prototype.setOrientation = function (roll, pitch, yaw) {
+	  var q = Utils.toQuaternion(roll, pitch, yaw);
+	  this._forward = Utils.rotateVector(Utils.DEFAULT_FORWARD, q);
+	  this._up = Utils.rotateVector(Utils.DEFAULT_UP, q);
+	  this._right = Utils.rotateVector(Utils.DEFAULT_RIGHT, q);
+	  this.setPosition(this._position[0], this._position[1], this._position[2]);
+	}
+
+	/**
+	 * Set the source width (in degrees). Where 0 degrees is a point source and 360
+	 * degrees is an omnidirectional source.
+	 * @param {Number} sourceWidth (in degrees).
+	 */
+	Source.prototype.setSourceWidth = function (sourceWidth) {
+	  this._encoder.setSourceWidth(sourceWidth);
+	  this.setPosition(this._position[0], this._position[1], this._position[2]);
+	}
+
+	/**
+	 * Set source's directivity pattern (defined by alpha), where 0 is an
+	 * omnidirectional pattern, 1 is a bidirectional pattern, 0.5 is a cardiod
+	 * pattern. The sharpness of the pattern is increased with the exponent.
+	 * @param {Number} alpha
+	 * Determines directivity pattern (0 to 1).
+	 * @param {Number} exponent
+	 * Determines the steepness of the directivity pattern (1 to Inf).
+	 */
+	Source.prototype.setDirectivityPattern = function (alpha, exponent) {
+	  this._directivity.setPattern(alpha, exponent);
+	  this.setPosition(this._position[0], this._position[1], this._position[2]);
+	}
+
+	// Helper functions.
+	// Determine the distance a source is outside of a room. Attenuate gain going
+	// to the reflections and reverb when the source is outside of the room.
+	function _computeDistanceOutsideRoom (distance)
+	{
+	  // We apply a linear ramp from 1 to 0 as the source is up to 1m outside.
+	  var gain = 1;
+	  if (distance > Utils.EPSILON_FLOAT) {
+	    gain = 1 - distance / Source.MAX_OUTSIDE_ROOM_DISTANCE;
+
+	    // Clamp gain between 0 and 1.
+	    gain = Math.max(0, Math.min(1, gain));
+	  }
+	  return gain;
+	}
+
+	// Static constants.
+	/**
+	 * Default input gain (linear).
+	 * @type {Number}
+	 */
+	Source.DEFAULT_GAIN = 1;
+	/**
+	 * Default distance from listener when setting angle.
+	 * @type {Number}
+	 */
+	Source.DEFAULT_DISTANCE = 1;
+	/**
+	 * Maximum outside-the-room distance to attenuate far-field sources by.
+	 * @type {Number}
+	 */
+	Source.MAX_OUTSIDE_ROOM_DISTANCE = 1;
+
+	module.exports = Source;
 
 /***/ }),
 /* 6 */
@@ -1064,500 +3367,138 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @file Ray-tracing-based early reflections model.
+	 * @file Directivity/occlusion filter.
 	 * @author Andrew Allen <bitllama@google.com>
 	 */
 
 	'use strict';
 
 	// Internal dependencies.
-	var Global = __webpack_require__(3);
+	var Utils = __webpack_require__(4);
 
 	/**
-	 * @class EarlyReflections
-	 * @description Ray-tracing-based early reflections model.
+	 * @class Directivity
+	 * @description Directivity/occlusion filter.
 	 * @param {AudioContext} context
 	 * Associated {@link
 	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
 	 * @param {Object} options
-	 * @param {Object} options.dimensions
-	 * Room dimensions (in meters). Defaults to
-	 * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
-	 * @param {Object} options.coefficients
-	 * Multiband reflection coefficients per wall. Defaults to
-	 * {@link EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS
-	 * DEFAULT_REFLECTION_COEFFICIENTS}.
-	 * @param {Number} options.speedOfSound
-	 * (in meters / second). Defaults to {@link SPEED_OF_SOUND SPEED_OF_SOUND}.
-	 * @param {Float32Array} options.listenerPosition
-	 * (in meters). Defaults to
-	 * {@link DEFAULT_POSITION DEFAULT_POSITION}.
+	 * @param {Number} options.alpha
+	 * Determines directivity pattern (0 to 1). See
+	 * {@link Directivity#setPattern setPattern} for more details. Defaults to
+	 * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
+	 * @param {Number} options.exponent
+	 * Determines the steepness of the directivity pattern (1 to Inf). See
+	 * {@link Directivity#setPattern setPattern} for more details. Defaults to
+	 * {@linkcode Directivity.DEFAULT_EXPONENT DEFAULT_EXPONENT}.
 	 */
-	function EarlyReflections (context, options) {
+	function Directivity (context, options) {
 	  // Public variables.
 	  /**
-	   * The room's speed of sound (in meters/second).
-	   * @member {Number} speedOfSound
-	   * @memberof EarlyReflections
-	   * @instance
-	   */
-	  /**
-	   * Input {@link
+	   * Mono (1-channel) input {@link
 	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
 	   * @member {AudioNode} input
-	   * @memberof EarlyReflections
+	   * @memberof Directivity
 	   * @instance
 	   */
 	  /**
-	   * Output {@link
+	   * Mono (1-channel) output {@link
 	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
 	   * @member {AudioNode} output
-	   * @memberof EarlyReflections
+	   * @memberof Directivity
 	   * @instance
 	   */
 
-	  // Assign defaults for undefined options.
-	  if (options == undefined) {
-	    options = {};
-	  }
-	  if (options.speedOfSound == undefined) {
-	    options.speedOfSound = Global.SPEED_OF_SOUND;
-	  }
-	  if (options.listenerPosition == undefined) {
-	    options.listenerPosition = Global.DEFAULT_POSITION;
-	  }
-	  if (options.coefficients == undefined) {
-	    options.coefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
-	  }
-
-	  this.speedOfSound = options.speedOfSound;
-
-	  // Create nodes.
-	  this.input = context.createGain();
-	  this.output = context.createGain();
-	  this._lowpass = context.createBiquadFilter();
-	  this._delays = {};
-	  this._gains = {}; // ReflectionCoeff / Attenuation
-	  this._inverters = {};
-	  this._merger = context.createChannelMerger(4); // First-order encoding only.
-
-	  // Connect audio graph for each wall reflection.
-	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
-	    this._delays[property] = context.createDelay(EarlyReflections.MAX_DURATION);
-	    this._gains[property] = context.createGain();
-	  }
-	  this._inverters.right = context.createGain();
-	  this._inverters.down = context.createGain();
-	  this._inverters.back = context.createGain();
-
-	  // Initialize lowpass filter.
-	  this._lowpass.type = 'lowpass';
-	  this._lowpass.frequency.value = EarlyReflections.CUTOFF_FREQUENCY;
-	  this._lowpass.Q.value = 0;
-
-	  // Initialize encoder directions, set delay times and gains to 0.
-	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
-	    this._delays[property].delayTime.value = 0;
-	    this._gains[property].gain.value = 0;
-	  }
-
-	  // Initialize inverters for opposite walls ('right', 'down', 'back' only).
-	  this._inverters.right.gain.value = -1;
-	  this._inverters.down.gain.value = -1;
-	  this._inverters.back.gain.value = -1;
-
-	  // Connect nodes.
-	  this.input.connect(this._lowpass);
-	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
-	    this._lowpass.connect(this._delays[property]);
-	    this._delays[property].connect(this._gains[property]);
-	    this._gains[property].connect(this._merger, 0, 0);
-	  }
-
-	  // Connect gains to ambisonic channel output.
-	  this._gains.left.connect(this._merger, 0, 1);     // Left: [1 1 0 0]
-
-	  this._gains.right.connect(this._inverters.right); // Right: [1 -1 0 0]
-	  this._inverters.right.connect(this._merger, 0, 1);
-
-	  this._gains.up.connect(this._merger, 0, 2);       // Up: [1 0 1 0]
-
-	  this._gains.down.connect(this._inverters.down);   // Down: [1 0 -1 0]
-	  this._inverters.down.connect(this._merger, 0, 2);
-
-	  this._gains.front.connect(this._merger, 0, 3);    // Front: [1 0 0 1]
-
-	  this._gains.back.connect(this._inverters.back);   // Back: [1 0 0 -1]
-	  this._inverters.back.connect(this._merger, 0, 3);
-	  this._merger.connect(this.output);
-
-	  // Initialize.
-	  this._listenerPosition = options.listenerPosition;
-	  this.setRoomProperties(options.dimensions, options.coefficients);
-	}
-
-	/**
-	 * Set the listener's position (in meters),
-	 * where [0,0,0] is the center of the room.
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
-	 */
-	EarlyReflections.prototype.setListenerPosition = function (x, y, z) {
-	  // Assign listener position.
-	  this._listenerPosition = [x, y, z];
-
-	  // Determine distances to each wall.
-	  var distances = {
-	    left : this._halfDimensions.width + x + EarlyReflections.MIN_DISTANCE,
-	    right : this._halfDimensions.width - x + EarlyReflections.MIN_DISTANCE,
-	    front : this._halfDimensions.depth + z + EarlyReflections.MIN_DISTANCE,
-	    back : this._halfDimensions.depth - z + EarlyReflections.MIN_DISTANCE,
-	    down : this._halfDimensions.height + y + EarlyReflections.MIN_DISTANCE,
-	    up : this._halfDimensions.height - y + EarlyReflections.MIN_DISTANCE,
-	  };
-
-	  // Assign delay & attenuation values using distances.
-	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
-	    // Compute and assign delay (in seconds).
-	    var delayInSecs = distances[property] / this.speedOfSound;
-	    this._delays[property].delayTime.value = delayInSecs;
-
-	    // Compute and assign gain, uses logarithmic rolloff: "g = R / (d + 1)"
-	    var attenuation = this._coefficients[property] / distances[property];
-	    this._gains[property].gain.value = attenuation;
-	  }
-	}
-
-	/**
-	 * Set the room's properties which determines the characteristics of reflections.
-	 * @param {Object} dimensions
-	 * Room dimensions (in meters). Defaults to
-	 * {@link EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
-	 * @param {Object} coefficients
-	 * Multiband reflection coeffs per wall. Defaults to
-	 * {@link EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS
-	 * DEFAULT_REFLECTION_COEFFICIENTS}.
-	 */
-	EarlyReflections.prototype.setRoomProperties = function (dimensions,
-	                                                         coefficients) {
-	  if (dimensions == undefined) {
-	    dimensions = EarlyReflections.DEFAULT_DIMENSIONS;
-	  }
-	  if (coefficients == undefined) {
-	    coefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
-	  }
-	  this._coefficients = coefficients;
-
-	  // Sanitize dimensions and store half-dimensions.
-	  this._halfDimensions = {};
-	  this._halfDimensions.width = dimensions.width * 0.5;
-	  this._halfDimensions.height = dimensions.height * 0.5;
-	  this._halfDimensions.depth = dimensions.depth * 0.5;
-
-	  // Update listener position with new room properties.
-	  this.setListenerPosition(this._listenerPosition[0],
-	    this._listenerPosition[1], this._listenerPosition[2]);
-	}
-
-	/** @type {Number} */
-	EarlyReflections.MAX_DURATION = 0.5;
-	/** @type {Number} */
-	EarlyReflections.CUTOFF_FREQUENCY = 6400; // Uses -12dB cutoff.
-	/** @type {Object} */
-	EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS = {
-	  left : 0, right : 0, front : 0, back : 0, down : 0, up : 0
-	};
-	/** @type {Number} */
-	EarlyReflections.MIN_DISTANCE = 1;
-	/**
-	 * Default dimensions (in meters).
-	 * @type {Object}
-	 */
-	EarlyReflections.DEFAULT_DIMENSIONS = {
-	  width : 0, height : 0, depth : 0
-	};
-
-	module.exports = EarlyReflections;
-
-/***/ }),
-/* 7 */
-/***/ (function(module, exports, __webpack_require__) {
-
-	/**
-	 * @license
-	 * Copyright 2016 Google Inc. All Rights Reserved.
-	 * Licensed under the Apache License, Version 2.0 (the "License");
-	 * you may not use this file except in compliance with the License.
-	 * You may obtain a copy of the License at
-	 *
-	 *     http://www.apache.org/licenses/LICENSE-2.0
-	 *
-	 * Unless required by applicable law or agreed to in writing, software
-	 * distributed under the License is distributed on an "AS IS" BASIS,
-	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-	 * See the License for the specific language governing permissions and
-	 * limitations under the License.
-	 */
-
-	/**
-	 * @file Source model to spatialize an audio buffer.
-	 * @author Andrew Allen <bitllama@google.com>
-	 */
-
-	'use strict';
-
-	// Internal dependencies.
-	var Attenuation = __webpack_require__(8);
-	var Encoder = __webpack_require__(9);
-	var Global = __webpack_require__(3);
-	var Utils = __webpack_require__(4);
-
-	/**
-	 * @class Source
-	 * @description Source model to spatialize an audio buffer.
-	 * @param {Listener} listener Associated Listener.
-	 * @param {Object} options
-	 * @param {Number} options.minDistance Min. distance (in meters).
-	 * @param {Number} options.maxDistance Max. distance (in meters).
-	 * @param {Number} options.gain Gain (linear).
-	 * @param {Float32Array} options.position
-	 * Position [x,y,z] (in meters).
-	 * @param {Float32Array} options.orientation
-	 * Orientation [roll, pitch, yaw] (in radians).
-	 * @param {string} options.rolloff
-	 */
-	function Source (listener, options) {
-	  // Public variables.
-	  /**
-	   * Input to .connect() input AudioNodes to.
-	   * @member {AudioNode} input
-	   * @memberof Source
-	   */
-
-	  // Assign defaults for undefined options.
+	  // Use defaults for undefined arguments.
 	  if (options == undefined) {
 	    options = new Object();
 	  }
-	  if (options.gain == undefined) {
-	    options.gain = Global.DEFAULT_GAIN_LINEAR;
+	  if (options.alpha == undefined) {
+	    options.alpha = Directivity.DEFAULT_ALPHA;
 	  }
-	  if (options.position == undefined) {
-	    options.position = Global.DEFAULT_POSITION;
-	  }
-	  if (options.orientation == undefined) {
-	    options.orientation = Global.DEFAULT_ORIENTATION;
-	  }
-	  if (options.rolloff == undefined) {
-	    options.rolloff = Attenuation.DEFAULT_ROLLOFF_MODEL;
+	  if (options.exponent == undefined) {
+	    options.exponent = Directivity.DEFAULT_EXPONENT;
 	  }
 
-	  this._listener = listener;
-	  this._position = new Float32Array(3);
-	  this._forward = new Float32Array(3);
-	  this._up = new Float32Array(3);
-	  this._right = new Float32Array(3);
-	  this._directivity_alpha = 0;
-	  this._directivity_order = 1;
+	  // Create audio node.
+	  this._context = context;
+	  this._lowpass = context.createBiquadFilter();
 
-	  // Create nodes.
-	  var context = listener._context;
-	  this.input = context.createGain();
-	  this._directivity = context.createBiquadFilter();
-	  this._toEarly = context.createGain();
-	  this._toLate = context.createGain();
-	  this._attenuation =
-	    new Attenuation(context, options);
-	  this._encoder =
-	    new Encoder(context, listener._ambisonicOrder);
+	  // Initialize filter coefficients.
+	  this._lowpass.type = 'lowpass';
+	  this._lowpass.Q.value = 0;
+	  this._lowpass.frequency.value = context.sampleRate * 0.5;
 
-	  // Initialize Directivity filter.
-	  this._directivity.type = 'lowpass';
-	  this._directivity.Q.value = 0;
-	  this._directivity.frequency.value = listener._context.sampleRate * 0.5;
+	  this._cosTheta = 0;
+	  this.setPattern(options.alpha, options.exponent);
 
-	  // Connect nodes.
-	  this.input.connect(this._toLate);
-	  this._toLate.connect(listener._room.late.input);
-
-	  this.input.connect(this._attenuation.input);
-	  this._attenuation.output.connect(this._toEarly);
-	  this._toEarly.connect(listener._room.early.input);
-
-	  this._attenuation.output.connect(this._directivity);
-	  this._directivity.connect(this._encoder.input);
-	  this._encoder.output.connect(listener.output);
-
-	  // Assign initial conditions.
-	  this.setPosition(options.position[0], options.position[1],
-	    options.position[2]);
-	  this.setOrientation(options.orientation[0], options.orientation[1],
-	    options.orientation[2]);
-	  this.input.gain.value = options.gain;
+	  // Input/Output proxy.
+	  this.input = this._lowpass;
+	  this.output = this._lowpass;
 	}
 
 	/**
-	 * Set source's position (in meters).
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
+	 * Compute the filter using the source's forward orientation and the listener's
+	 * position.
+	 * @param {Float32Array} forward The source's forward vector (normalized).
+	 * @param {Float32Array} direction The direction from the source to the
+	 * listener (normalized).
 	 */
-	Source.prototype.setPosition = function (x, y, z) {
-	  var dx = new Float32Array(3);
-
-	  // Assign new position.
-	  this._position[0] = x;
-	  this._position[1] = y;
-	  this._position[2] = z;
-	  this._computeDistanceOutsideRoom();
-
-	  // Compute distance to listener.
-	  for (var i = 0; i < 3; i++) {
-	    dx[i] = this._position[i] - this._listener._position[i];
+	Directivity.prototype.computeAngle = function (forward, direction) {
+	  var coeff = 1;
+	  if (this._alpha > Utils.EPSILON_FLOAT) {
+	    var cosTheta = forward[0] * direction[0] + forward[1] * direction[1] +
+	      forward[2] * direction[2];
+	    coeff = (1 - this._alpha) + this._alpha * cosTheta;
+	    coeff = Math.pow(Math.abs(coeff), this._exponent);
 	  }
-	  var distance = Math.sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
-
-	  // Normalize direction vector.
-	  dx[0] /= distance;
-	  dx[1] /= distance;
-	  dx[2] /= distance;
-
-	  // Compute directivity pattern.
-	  this._computeDirectivity(dx);
-
-	  // Compuete angle of direction vector.
-	  var azimuth = Math.atan2(-dx[0], dx[2]) * Global.RADIANS_TO_DEGREES;
-	  var elevation = Math.atan2(dx[1],
-	    Math.sqrt(dx[0] * dx[0] + dx[2] * dx[2])) * Global.RADIANS_TO_DEGREES;
-
-	  // Set distance/direction values.
-	  this._attenuation.setDistance(distance);
-	  this._encoder.setDirection(azimuth, elevation);
-	}
-
-	/**
-	 * Set source's angle relative to the listener's position.
-	 * Azimuth is counterclockwise (0-360). Elevation range is 90 to -90.
-	 * @param {Number} azimuth (in degrees).
-	 * @param {Number} elevation (in degrees) [defaults to 0].
-	 * @param {Number} distance (in meters) [defaults to 1].
-	 */
-	Source.prototype.setAngleFromListener = function (azimuth, elevation,
-	                                                  distance) {
-	  if (azimuth == undefined) {
-	    azimuth = Attenuation.DEFAULT_AZIMUTH;
-	  }
-	  if (elevation == undefined) {
-	    elevation = Attenuation.DEFAULT_ELEVATION;
-	  }
-	  if (distance == undefined) {
-	    distance = Source.DEFAULT_DISTANCE;
-	  }
-	  var theta = azimuth * Global.DEGREES_TO_RADIANS;
-	  var phi = elevation * Global.DEGREES_TO_RADIANS;
-
-	  // Polar -> Cartesian (direction from listener).
-	  var x = Math.sin(theta) * Math.cos(phi);
-	  var y = Math.sin(phi);
-	  var z = -Math.cos(theta) * Math.cos(phi);
-
-	  // Compute directivity pattern.
-	  this._computeDirectivity([x, y, z]);
-
-	  // Assign new position based on relationship to listener.
-	  this._position[0] = this._listener._position[0] + x;
-	  this._position[1] = this._listener._position[1] + y;
-	  this._position[2] = this._listener._position[2] + z;
-	  this._computeDistanceOutsideRoom();
-
-	  // Set distance/direction values.
-	  this._attenuation.setDistance(distance);
-	  this._encoder.setDirection(azimuth, elevation);
-	}
-
-	/**
-	 * Set source's orientation (in radians).
-	 * @param {Number} roll
-	 * @param {Number} pitch
-	 * @param {Number} yaw
-	 */
-	Source.prototype.setOrientation = function (roll, pitch, yaw) {
-	  var q = Utils.toQuaternion(roll, pitch, yaw);
-	  this._forward = Utils.rotateVector(Global.DEFAULT_FORWARD, q);
-	  this._up = Utils.rotateVector(Global.DEFAULT_UP, q);
-	  this._right = Utils.rotateVector(Global.DEFAULT_RIGHT, q);
-	}
-
-	Source.prototype.setSpread = function (spread) {
+	  this._lowpass.frequency.value = this._context.sampleRate * 0.5 * coeff;
 	}
 
 	/**
 	 * Set source's directivity pattern (defined by alpha), where 0 is an
 	 * omnidirectional pattern, 1 is a bidirectional pattern, 0.5 is a cardiod
-	 * pattern. The sharpness of the pattern is increased with order.
+	 * pattern. The sharpness of the pattern is increased with the exponent.
 	 * @param {Number} alpha
-	 * Determines directivity pattern (0 to 1).
-	 * @param {Number} order
-	 * Determines the steepness of the directivity pattern (1 to Inf).
+	 * Determines directivity pattern (0 to 1). Defaults to
+	 * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
+	 * @param {Number} exponent
+	 * Determines the steepness of the directivity pattern (1 to Inf). Defaults to
+	 * {@linkcode Directivity.DEFAULT_EXPONENT DEFAULT_EXPONENT}.
 	 */
-	Source.prototype.setDirectivity = function (alpha, order) {
-	  // Clamp between 0 and 1.
-	  this._directivity_alpha = Math.min(1, Math.max(0, alpha));
-
-	  if (order !== undefined) {
-	    // Clamp between 1 and Inf.
-	    this._directivity_order = Math.min(1, order);
+	Directivity.prototype.setPattern = function (alpha, exponent) {
+	  if (alpha == undefined) {
+	    alpha = Directivity.DEFAULT_ALPHA;
 	  }
-	}
-
-	// Compute directivity using standard microphone patterns.
-	// Assign coeff to control a lowpass filter.
-	Source.prototype._computeDirectivity = function (direction_to_listener) {
-	  var coeff = 1.0;
-	  if (this._directivity_alpha > Global.EPSILON_FLOAT) {
-	    var cosTheta = this._forward[0] * direction_to_listener[0] +
-	      this._forward[1] * direction_to_listener[1] +
-	      this._forward[2] * direction_to_listener[2];
-	    coeff = (1 - this._directivity_alpha) + this._directivity_alpha * cosTheta;
-	    coeff = Math.pow(Math.abs(coeff), this._directivity_order);
+	  if (exponent == undefined) {
+	    exponent = Directivity.DEFAULT_EXPONENT;
 	  }
 
-	  // Apply low-pass filter.
-	  this._directivity.frequency.value =
-	    this._listener._context.sampleRate * 0.5 * coeff;
+	  // Clamp and set values.
+	  this._alpha = Math.min(1, Math.max(0, alpha));
+	  this._exponent = Math.max(1, exponent);
+
+	  // Update angle calculation using new values.
+	  this.computeAngle([this._cosTheta * this._cosTheta, 0, 0], [1, 0, 0]);
 	}
 
-	// Determine the distance a source is outside of a room. Attenuate gain going
-	// to the reflections and reverb when the source is outside of the room.
-	Source.prototype._computeDistanceOutsideRoom = function ()
-	{
-	  var dx = Math.max(0,
-	    -this._listener._room.early._halfDimensions['width'] - this._position[0],
-	    this._position[0] - this._listener._room.early._halfDimensions['width']);
-	  var dy = Math.max(0,
-	    -this._listener._room.early._halfDimensions['height'] - this._position[1],
-	    this._position[1] - this._listener._room.early._halfDimensions['height']);
-	  var dz = Math.max(0,
-	    -this._listener._room.early._halfDimensions['depth'] - this._position[2],
-	    this._position[2] - this._listener._room.early._halfDimensions['depth']);
-	  var distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+	// Static variables
+	/**
+	 * The default alpha (i.e. microphone pattern).
+	 * @type {Number}
+	 */
+	Directivity.DEFAULT_ALPHA = 0;
+	/**
+	 * The default exponent (i.e. pattern sharpness).
+	 * @type {Number}
+	 */
+	Directivity.DEFAULT_EXPONENT = 1;
 
-	  // We apply a linear ramp from 1 to 0 as the source is up to 1m outside.
-	  var gain = 1;
-	  if (distance > Global.EPSILON_FLOAT) {
-	    gain = Math.max(1, 1 - distance);
-	  }
-	  this._toLate.gain.value = gain;
-	  this._toEarly.gain.value = gain;
-	}
+	module.exports = Directivity;
 
-	/** @type {Number} */
-	Source.DEFAULT_DISTANCE = 1;
-
-	module.exports = Source;
 
 /***/ }),
-/* 8 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	/**
@@ -1584,7 +3525,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	'use strict';
 
 	// Internal dependencies.
-	var Global = __webpack_require__(3);
 	var Utils = __webpack_require__(4);
 
 	/**
@@ -1596,14 +3536,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Object} options
 	 * @param {Number} options.minDistance
 	 * Min. distance (in meters). Defaults to
-	 * {@link Attenuation.MIN_DISTANCE MIN_DISTANCE}.
+	 * {@linkcode Attenuation.DEFAULT_MIN_DISTANCE DEFAULT_MIN_DISTANCE}.
 	 * @param {Number} options.maxDistance
 	 * Max. distance (in meters). Defaults to
-	 * {@link Attenuation.MAX_DISTANCE MAX_DISTANCE}.
+	 * {@linkcode Attenuation.DEFAULT_MAX_DISTANCE DEFAULT_MAX_DISTANCE}.
 	 * @param {string} options.rolloff
 	 * Rolloff model to use, chosen from options in
-	 * {@link Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
-	 * {@link Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+	 * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+	 * {@linkcode Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
 	 */
 	function Attenuation (context, options) {
 	  // Public variables.
@@ -1620,29 +3560,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	   * @instance
 	   */
 	  /**
-	   * Input {@link
+	   * Mono (1-channel) input {@link
 	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
 	   * @member {AudioNode} input
 	   * @memberof Attenuation
 	   * @instance
 	   */
 	  /**
-	   * Output {@link
+	   * Mono (1-channel) output {@link
 	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
 	   * @member {AudioNode} output
 	   * @memberof Attenuation
 	   * @instance
 	   */
 
-	   // Use defaults for undefined arguments
+	  // Use defaults for undefined arguments.
 	  if (options == undefined) {
 	    options = new Object();
 	  }
 	  if (options.minDistance == undefined) {
-	    options.minDistance = Attenuation.MIN_DISTANCE;
+	    options.minDistance = Attenuation.DEFAULT_MIN_DISTANCE;
 	  }
 	  if (options.maxDistance == undefined) {
-	    options.maxDistance = Attenuation.MAX_DISTANCE;
+	    options.maxDistance = Attenuation.DEFAULT_MAX_DISTANCE;
 	  }
 	  if (options.rolloff == undefined) {
 	    options.rolloff = Attenuation.DEFAULT_ROLLOFF;
@@ -1675,7 +3615,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      gain = 0;
 	    } else if (distance > this.minDistance) {
 	      var range = this.maxDistance - this.minDistance;
-	      if (range > Global.EPSILON_FLOAT) {
+	      if (range > Utils.EPSILON_FLOAT) {
 	        // Compute the distance attenuation value by the logarithmic curve
 	        // "1 / (d + 1)" with an offset of |minDistance|.
 	        var relativeDistance = distance - this.minDistance;
@@ -1689,7 +3629,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      gain = 0;
 	    } else if (distance > this.minDistance) {
 	      var range = this.maxDistance - this.minDistance;
-	      if (range > Global.EPSILON_FLOAT) {
+	      if (range > Utils.EPSILON_FLOAT) {
 	        gain = (this.maxDistance - distance) / range;
 	      }
 	    }
@@ -1701,8 +3641,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Set rolloff.
 	 * @param {string} rolloff
 	 * Rolloff model to use, chosen from options in
-	 * {@link Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
-	 * {@link Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+	 * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
+	 * {@linkcode Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
 	 */
 	Attenuation.prototype.setRolloff = function (rolloff) {
 	  var isValidModel = ~Attenuation.ROLLOFFS.indexOf(rolloff);
@@ -1718,6 +3658,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._rolloff = rolloff;
 	}
 
+	// Static constants.
 	/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none').
 	 * @type {Array}
 	 */
@@ -1727,15 +3668,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 	Attenuation.DEFAULT_ROLLOFF = 'logarithmic';
 	/** @type {Number} */
-	Attenuation.MIN_DISTANCE = 1;
+	Attenuation.DEFAULT_MIN_DISTANCE = 1;
 	/** @type {Number} */
-	Attenuation.MAX_DISTANCE = 1000;
+	Attenuation.DEFAULT_MAX_DISTANCE = 1000;
 
 
 	module.exports = Attenuation;
 
 /***/ }),
-/* 9 */
+/* 8 */
 /***/ (function(module, exports, __webpack_require__) {
 
 	/**
@@ -1755,14 +3696,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	/**
-	 * @file Spatially encodes input using spherical harmonics.
+	 * @file Spatially encodes input using weighted spherical harmonics.
 	 * @author Andrew Allen <bitllama@google.com>
 	 */
 
 	'use strict';
 
 	// Internal dependencies.
-	var Tables = __webpack_require__(10);
+	var Tables = __webpack_require__(9);
 	var Utils = __webpack_require__(4);
 
 	/**
@@ -1774,38 +3715,63 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Object} options
 	 * @param {Number} options.ambisonicOrder
 	 * Desired ambisonic Order. Defaults to
-	 * {@link DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
+	 * {@linkcode Encoder.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
 	 * @param {Number} options.azimuth
 	 * Azimuth (in degrees). Defaults to
-	 * {@link Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+	 * {@linkcode Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
 	 * @param {Number} options.elevation
 	 * Elevation (in degrees). Defaults to
-	 * {@link Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+	 * {@linkcode Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+	 * @param {Number} options.sourceWidth
+	 * Source width (in degrees). Where 0 degrees is a point source and 360 degrees
+	 * is an omnidirectional source. Defaults to
+	 * {@linkcode Encoder.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
 	 */
-	function Encoder (context, ambisonicOrder) {
+	function Encoder (context, options) {
 	  // Public variables.
 	  /**
-	   * Input {@link
+	   * Mono (1-channel) input {@link
 	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
 	   * @member {AudioNode} input
 	   * @memberof Encoder
 	   * @instance
 	   */
 	  /**
-	   * Output {@link
+	   * Ambisonic (multichannel) output {@link
 	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
 	   * @member {AudioNode} output
 	   * @memberof Encoder
 	   * @instance
 	   */
-	  this._ambisonicOrder = ambisonicOrder;
-	  if (this._ambisonicOrder > Encoder.MAX_ORDER) {
-	    Utils.log('(Error):\nUnable to render ambisonic order',
-	      ambisonic_order, '(Max order is', Encoder.MAX_ORDER,
-	      ')\nUsing max order instead.');
-	    this._ambisonicOrder = Encoder.MAX_ORDER;
+
+	  // Use defaults for undefined arguments.
+	  if (options == undefined) {
+	    options = new Object();
+	  }
+	  if (options.ambisonicOrder == undefined) {
+	    options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
+	  }
+	  if (options.azimuth == undefined) {
+	    options.azimuth = Encoder.DEFAULT_AZIMUTH;
+	  }
+	  if (options.elevation == undefined) {
+	    options.elevation = Encoder.DEFAULT_ELEVATION;
+	  }
+	  if (options.sourceWidth == undefined) {
+	    options.sourceWidth = Encoder.DEFAULT_SOURCE_WIDTH;
 	  }
 
+	  // Assign fixed ambisonic order.
+	  // TODO(bitllama): Support dynamic orders?
+	  if (options.ambisonicOrder > Encoder.MAX_ORDER) {
+	    Utils.log('(Error):\nUnable to render ambisonic order',
+	      options.ambisonicOrder, '(Max order is', Encoder.MAX_ORDER,
+	      ')\nUsing max order instead.');
+	    options.ambisonicOrder = Encoder.MAX_ORDER;
+	  }
+	  this._ambisonicOrder = options.ambisonicOrder;
+
+	  // Create audio graph.
 	  var num_channels = (this._ambisonicOrder + 1) * (this._ambisonicOrder + 1);
 	  this._merger = context.createChannelMerger(num_channels);
 	  this._masterGain = context.createGain();
@@ -1816,6 +3782,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	    this._channelGain[i].connect(this._merger, 0, i);
 	  }
 
+	  // Set initial angle and source width.
+	  this._azimuth = options.azimuth;
+	  this._elevation = options.elevation;
+	  this.setSourceWidth(options.sourceWidth);
+
 	  // Input/Output proxy.
 	  this.input = this._masterGain;
 	  this.output = this._merger;
@@ -1825,10 +3796,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Set the direction of the encoded source signal.
 	 * @param {Number} azimuth
 	 * Azimuth (in degrees). Defaults to
-	 * {@link Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+	 * {@linkcode Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
 	 * @param {Number} elevation
 	 * Elevation (in degrees). Defaults to
-	 * {@link Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+	 * {@linkcode Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
 	 */
 	Encoder.prototype.setDirection = function (azimuth, elevation) {
 	  // Format input direction to nearest indices.
@@ -1839,7 +3810,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	    elevation = Encoder.DEFAULT_ELEVATION;
 	  }
 
-	  azimuth = Math.round(azimuth % 360);
+	  // Store the formatted input (for updating source width).
+	  this._azimuth = azimuth;
+	  this._elevation = elevation;
+
+	  // Format direction for index lookups.
+	  var azimuth = Math.round(azimuth % 360);
 	  if (azimuth < 0) {
 	    azimuth += 360;
 	  }
@@ -1847,6 +3823,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  // Assign gains to each output.
 	  for (var i = 1; i <= this._ambisonicOrder; i++) {
+	    var degreeWeight = Tables.MAX_RE_WEIGHTS[this._spreadIndex][i - 1];
 	    for (var j = -i; j <= i; j++) {
 	      var acnChannel = (i * i) + i + j;
 	      var elevationIndex = i * (i + 1) / 2 + Math.abs(j) - 1;
@@ -1858,30 +3835,55 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 	        val *= Tables.SPHERICAL_HARMONICS[0][azimuth][azimuthIndex];
 	      }
-	      this._channelGain[acnChannel].gain.value = val;
+	      this._channelGain[acnChannel].gain.value = val * degreeWeight;
 	    }
 	  }
 	}
 
-	//TODO(bitllama): finish spread function!!!
-	Encoder.prototype.setSpread = function (spread) {
-	  spread = Math.min(360, Math.max(0, spread));
-	  if (spread > Globals.MinSpreadPerAmbisonicOrder[this._ambisonicOrder]) {
-
-	  }
+	/**
+	 * Set the source width (in degrees). Where 0 degrees is a point source and 360
+	 * degrees is an omnidirectional source. Defaults to
+	 * {@linkcode Encoder.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
+	 * @param {Number} sourceWidth (in degrees).
+	 */
+	Encoder.prototype.setSourceWidth = function (sourceWidth) {
+	  // The MAX_RE_WEIGHTS is a 360x(MAX_ORDER+1) size table.
+	  this._spreadIndex = Math.min(359, Math.max(0, Math.round(sourceWidth)));
+	  this.setDirection(this._azimuth, this._elevation);
 	}
 
-	/** @type {Number} */
+	// Static constants.
+	/**
+	 * Default azimuth (in degrees). Suitable range is 0 to 360.
+	 * @type {Number}
+	 */
 	Encoder.DEFAULT_AZIMUTH = 0;
-	/** @type {Number} */
+	/**
+	 * Default elevation (in degres).
+	 * Suitable range is from -90 (below) to 90 (above).
+	 * @type {Number} */
 	Encoder.DEFAULT_ELEVATION = 0;
-	/** @type {Number} */
+	/**
+	 * The maximum allowed ambisonic order, specified by the
+	 * {@linkcode Tables.SPHERICAL_HARMONICS spherical harmonics table}.
+	 * @type {Number}
+	 */
 	Encoder.MAX_ORDER = Tables.SPHERICAL_HARMONICS[0][0].length / 2;
+	/**
+	 * The default ambisonic order.
+	 * @type {Number}
+	 */
+	Encoder.DEFAULT_AMBISONIC_ORDER = 1;
+	/**
+	 * The default source width.
+	 * @type {Number}
+	 */
+	Encoder.DEFAULT_SOURCE_WIDTH = 0;
 
 	module.exports = Encoder;
 
 /***/ }),
-/* 10 */
+/* 9 */
 /***/ (function(module, exports) {
 
 	/**
@@ -8964,6 +10966,981 @@ return /******/ (function(modules) { // webpackBootstrap
 	    0
 	  ]
 	];
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	/**
+	 * @license
+	 * Copyright 2017 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Complete room model with early and late reflections.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	// Internal dependencies.
+	var LateReflections = __webpack_require__(11);
+	var EarlyReflections = __webpack_require__(12);
+	var Utils = __webpack_require__(4);
+
+	/**
+	 * @class Room
+	 * @description Model that manages early and late reflections using acoustic
+	 * properties and listener position relative to a rectangular room.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @param {Object} options
+	 * @param {Float32Array} options.listenerPosition
+	 * The listener's initial position (in meters), where origin is the center of
+	 * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+	 * @param {Object} options.dimensions Room dimensions (in meters). Defaults to
+	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} options.materials Named acoustic materials per wall.
+	 * Defaults to {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+	 * @param {Number} options.speedOfSound
+	 * (in meters/second). Defaults to
+	 * {@linkcode DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
+	 * @param {Boolean} options.useLateReflections Enables/disables
+	 * {@link LateReflections LateReflections}, which uses a convolution reverb.
+	 * Can be disabled to improve performance on low-power devices. Defaults to
+	 * {@linkcode Room.USE_LATE_REFLECTIONS USE_LATE_REFLECTIONS}.
+	 */
+	function Room (context, options) {
+	  // Public variables.
+	  /**
+	   * EarlyReflections {@link EarlyReflections EarlyReflections} submodule.
+	   * @member {AudioNode} early
+	   * @memberof Room
+	   * @instance
+	   */
+	  /**
+	   * LateReflections {@link LateReflections LateReflections} submodule.
+	   * @member {AudioNode} late
+	   * @memberof Room
+	   * @instance
+	   */
+	  /**
+	   * Ambisonic (multichannel) output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} output
+	   * @memberof Room
+	   * @instance
+	   */
+
+	  // Use defaults for undefined arguments.
+	  if (options == undefined) {
+	    options = new Object();
+	  }
+	  if (options.listenerPosition == undefined) {
+	    options.listenerPosition = Utils.DEFAULT_POSITION;
+	  }
+	  if (options.dimensions == undefined) {
+	    options.dimensions = EarlyReflections.DEFAULT_DIMENSIONS;
+	  }
+	  if (options.materials == undefined) {
+	    options.materials = Room.DEFAULT_MATERIALS;
+	  }
+	  if (options.speedOfSound == undefined) {
+	    options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
+	  }
+	  if (options.useLateReflections == undefined) {
+	    options.useLateReflections = Room.USE_LATE_REFLECTIONS;
+	  }
+
+	  // Sanitize room-properties-related arguments.
+	  options.dimensions = _sanitizeDimensions(options.dimensions);
+	  var absorptionCoefficients = _getCoefficientsFromMaterials(options.materials);
+	  var reflectionCoefficients =
+	    _computeReflectionCoefficients(absorptionCoefficients);
+
+	  // Construct submodules for early and late reflections.
+	  this.early = new EarlyReflections(context, {
+	    dimensions : options.dimensions,
+	    coefficients : reflectionCoefficients,
+	    speedOfSound : options.speedOfSound,
+	    listenerPosition : options.listenerPosition
+	  });
+
+	  this._useLateReflections = options.useLateReflections;
+	  this.speedOfSound = options.speedOfSound;
+
+	  // Construct auxillary audio nodes.
+	  this.output = context.createGain();
+	  this.early.output.connect(this.output);
+
+	  // Only construct the late reflections if not disabled.
+	  if (this._useLateReflections) {
+	    var durations = _getDurationsFromProperties(options.dimensions,
+	      absorptionCoefficients, options.speedOfSound);
+	    this.late = new LateReflections(context, {
+	      durations : durations
+	    });
+
+	    this._merger = context.createChannelMerger(4);
+
+	    this.late.output.connect(this._merger, 0, 0);
+	    this._merger.connect(this.output);
+	  }
+	}
+
+	/**
+	 * Set the room's dimensions and wall materials.
+	 * @param {Object} dimensions Room dimensions (in meters). Defaults to
+	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} materials Named acoustic materials per wall. Defaults to
+	 * {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+	 */
+	Room.prototype.setProperties = function (dimensions, materials) {
+	  // Compute late response, skip if disabled.
+	  if (this._useLateReflections) {
+	    absorptionCoefficients = _getCoefficientsFromMaterials(materials);
+	    durations = _getDurationsFromProperties(dimensions, absorptionCoefficients,
+	      this.speedOfSound);
+	    this.late.setDurations(durations);
+	  }
+
+	  // Compute early response.
+	  this.early.speedOfSound = this.speedOfSound;
+	  var reflectionCoefficients =
+	    _computeReflectionCoefficients(absorptionCoefficients);
+	  this.early.setRoomProperties(dimensions, reflectionCoefficients);
+	}
+
+	/**
+	 * Set the listener's position (in meters), where origin is the center of
+	 * the room.
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 */
+	Room.prototype.setListenerPosition = function (x, y, z) {
+	  this.early.speedOfSound = this.speedOfSound;
+	  this.early.setListenerPosition(x, y, z);
+
+	  // Disable room effects if the listener is outside the room boundaries.
+	  var distance = this.getDistanceOutsideRoom(x, y, z);
+	  var gain = 1;
+	  if (distance > Utils.EPSILON_FLOAT) {
+	    gain = 1 - distance / Room.LISTENER_MAX_OUTSIDE_ROOM_DISTANCE;
+
+	    // Clamp gain between 0 and 1.
+	    gain = Math.max(0, Math.min(1, gain));
+	  }
+	  this.output.gain.value = gain;
+	}
+
+	/**
+	 * Compute distance outside room of provided position (in meters).
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 * @returns {Number}
+	 * Distance outside room (in meters). Returns 0 if inside room.
+	 */
+	Room.prototype.getDistanceOutsideRoom = function (x, y, z) {
+	  var dx = Math.max(0, -this.early._halfDimensions.width - x,
+	    x - this.early._halfDimensions.width);
+	  var dy = Math.max(0, -this.early._halfDimensions.height - y,
+	    y - this.early._halfDimensions.height);
+	  var dz = Math.max(0, -this.early._halfDimensions.depth - z,
+	    z - this.early._halfDimensions.depth);
+	  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+	}
+
+	// Static constants.
+	/**
+	 * Pre-defined frequency-dependent absorption coefficients for listed materials.
+	 * Currently supported materials are:
+	 * <ul>
+	 * <li>'transparent'</li>
+	 * <li>'acoustic-ceiling-tiles'</li>
+	 * <li>'brick-bare'</li>
+	 * <li>'brick-painted'</li>
+	 * <li>'concrete-block-coarse'</li>
+	 * <li>'concrete-block-painted'</li>
+	 * <li>'curtain-heavy'</li>
+	 * <li>'fiber-glass-insulation'</li>
+	 * <li>'glass-thin'</li>
+	 * <li>'glass-thick'</li>
+	 * <li>'grass'</li>
+	 * <li>'linoleum-on-concrete'</li>
+	 * <li>'marble'</li>
+	 * <li>'metal'</li>
+	 * <li>'parquet-on-concrete'</li>
+	 * <li>'plaster-smooth'</li>
+	 * <li>'plywood-panel'</li>
+	 * <li>'polished-concrete-or-tile'</li>
+	 * <li>'sheetrock'</li>
+	 * <li>'water-or-ice-surface'</li>
+	 * <li>'wood-ceiling'</li>
+	 * <li>'wood-panel'</li>
+	 * <li>'uniform'</li>
+	 * </ul>
+	 * @type {Object}
+	 */
+	Room.MATERIAL_COEFFICIENTS = {
+	  'transparent' :
+	  [1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000, 1.000],
+	  'acoustic-ceiling-tiles' :
+	  [0.672, 0.675, 0.700, 0.660, 0.720, 0.920, 0.880, 0.750, 1.000],
+	  'brick-bare' :
+	  [0.030, 0.030, 0.030, 0.030, 0.030, 0.040, 0.050, 0.070, 0.140],
+	  'brick-painted' :
+	  [0.006, 0.007, 0.010, 0.010, 0.020, 0.020, 0.020, 0.030, 0.060],
+	  'concrete-block-coarse' :
+	  [0.360, 0.360, 0.360, 0.440, 0.310, 0.290, 0.390, 0.250, 0.500],
+	  'concrete-block-painted' :
+	  [0.092, 0.090, 0.100, 0.050, 0.060, 0.070, 0.090, 0.080, 0.160],
+	  'curtain-heavy' :
+	  [0.073, 0.106, 0.140, 0.350, 0.550, 0.720, 0.700, 0.650, 1.000],
+	  'fiber-glass-insulation' :
+	  [0.193, 0.220, 0.220, 0.820, 0.990, 0.990, 0.990, 0.990, 1.000],
+	  'glass-thin' :
+	  [0.180, 0.169, 0.180, 0.060, 0.040, 0.030, 0.020, 0.020, 0.040],
+	  'glass-thick' :
+	  [0.350, 0.350, 0.350, 0.250, 0.180, 0.120, 0.070, 0.040, 0.080],
+	  'grass' :
+	  [0.050, 0.050, 0.150, 0.250, 0.400, 0.550, 0.600, 0.600, 0.600],
+	  'linoleum-on-concrete' :
+	  [0.020, 0.020, 0.020, 0.030, 0.030, 0.030, 0.030, 0.020, 0.040],
+	  'marble' :
+	  [0.010, 0.010, 0.010, 0.010, 0.010, 0.010, 0.020, 0.020, 0.0400],
+	  'metal' :
+	  [0.030, 0.035, 0.040, 0.040, 0.050, 0.050, 0.050, 0.070, 0.090],
+	  'parquet-on-concrete' :
+	  [0.028, 0.030, 0.040, 0.040, 0.070, 0.060, 0.060, 0.070, 0.140],
+	  'plaster-rough' :
+	  [0.017, 0.018, 0.020, 0.030, 0.040, 0.050, 0.040, 0.030, 0.060],
+	  'plaster-smooth' :
+	  [0.011, 0.012, 0.013, 0.015, 0.020, 0.030, 0.040, 0.050, 0.100],
+	  'plywood-panel' :
+	  [0.400, 0.340, 0.280, 0.220, 0.170, 0.090, 0.100, 0.110, 0.220],
+	  'polished-concrete-or-tile' :
+	  [0.008, 0.008, 0.010, 0.010, 0.015, 0.020, 0.020, 0.020, 0.040],
+	  'sheet-rock' :
+	  [0.290, 0.279, 0.290, 0.100, 0.050, 0.040, 0.070, 0.090, 0.180],
+	  'water-or-ice-surface' :
+	  [0.006, 0.006, 0.008, 0.008, 0.013, 0.015, 0.020, 0.025, 0.050],
+	  'wood-ceiling' :
+	  [0.150, 0.147, 0.150, 0.110, 0.100, 0.070, 0.060, 0.070, 0.140],
+	  'wood-panel' :
+	  [0.280, 0.280, 0.280, 0.220, 0.170, 0.090, 0.100, 0.110, 0.220],
+	  'uniform' :
+	  [0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500]
+	}
+	/**
+	 * Default materials that use strings from
+	 * {@linkcode Room.MATERIAL_COEFFICIENTS MATERIAL_COEFFICIENTS}
+	 * @type {Object}
+	 */
+	Room.DEFAULT_MATERIALS = {
+	  left : 'transparent', right : 'transparent', front : 'transparent',
+	  back : 'transparent', down : 'transparent', up : 'transparent'
+	};
+	/**
+	 * The number of bands to average over when computing reflection coefficients.
+	 * @type {Number}
+	 */
+	Room.NUMBER_AVERAGING_BANDS = 3;
+	/**
+	 * The starting band to average over when computing reflection coefficients.
+	 * @type {Number}
+	 */
+	Room.STARTING_AVERAGING_BAND = 4;
+	/**
+	 * The minimum threshold for room volume.
+	 * Room model is disabled if volume is below this value.
+	 * @type {Number} */
+	Room.MIN_ROOM_VOLUME = 1e-4;
+	/**
+	 * Air absorption coefficients per frequency band.
+	 * @type {Float32Array}
+	 */
+	Room.AIR_ABSORPTION_COEFFICIENTS =
+	  [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
+	/**
+	 * A scalar correction value to ensure Sabine and Eyring produce the same RT60
+	 * value at the cross-over threshold.
+	 * @type {Number} */
+	Room.EYRING_CORRECTION = 1.38;
+	/**
+	 * Maximum outside-the-room distance to attenuate far-field listener by.
+	 * @type {Number}
+	 */
+	Room.LISTENER_MAX_OUTSIDE_ROOM_DISTANCE = 1;
+	/**
+	 * Set to 'true' by default. Can be disabled to improve performance on low-power
+	 * devices.
+	 * @type {Boolean}
+	 */
+	Room.USE_LATE_REFLECTIONS = true;
+
+	// Helper functions.
+	function _getCoefficientsFromMaterials (materials) {
+	  // Initialize coefficients to use defaults.
+	  var coefficients = {};
+	  for (var property in Room.DEFAULT_MATERIALS) {
+	    coefficients[property] =
+	      Room.MATERIAL_COEFFICIENTS[Room.DEFAULT_MATERIALS[property]];
+	  }
+
+	  // Sanitize materials.
+	  if (materials == undefined) {
+	    materials = Room.DEFAULT_MATERIALS;
+	  }
+
+	  // Assign coefficients using provided materials.
+	  for (var property in Room.DEFAULT_MATERIALS) {
+	    if (materials.hasOwnProperty(property)) {
+	      if (materials[property] in Room.MATERIAL_COEFFICIENTS) {
+	        coefficients[property] =
+	          Room.MATERIAL_COEFFICIENTS[materials[property]];
+	      } else {
+	        Utils.log('Material \"' + materials[property] + '\" on wall \"' +
+	          property + '\" not found. Using \"' +
+	          Room.DEFAULT_MATERIALS[property] + '\".');
+	      }
+	    } else {
+	      Utils.log('Wall \"' + property + '\" is not defined. Default used.');
+	    }
+	  }
+	  return coefficients;
+	}
+
+	function _sanitizeCoefficients (coefficients) {
+	  if (coefficients == undefined) {
+	    coefficients = {};
+	  }
+	  for (var property in Room.DEFAULT_MATERIALS) {
+	    if (!(coefficients.hasOwnProperty(property))) {
+	      // If element is not present, use default coefficients.
+	      coefficients[property] =
+	        Room.MATERIAL_COEFFICIENTS[Room.DEFAULT_MATERIALS[property]];
+	    }
+	  }
+	  return coefficients;
+	}
+
+	function _sanitizeDimensions (dimensions) {
+	  if (dimensions == undefined) {
+	    dimensions = {};
+	  }
+	  for (var property in EarlyReflections.DEFAULT_DIMENSIONS) {
+	    if (!(dimensions.hasOwnProperty(property))) {
+	      dimensions[property] = EarlyReflections.DEFAULT_DIMENSIONS[property];
+	    }
+	  }
+	  return dimensions;
+	}
+
+	function _getDurationsFromProperties (dimensions, coefficients, speedOfSound) {
+	  var durations = new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
+
+	  // Sanitize inputs.
+	  dimensions = _sanitizeDimensions(dimensions);
+	  coefficients = _sanitizeCoefficients(coefficients);
+	  if (speedOfSound == undefined) {
+	    speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
+	  }
+
+	  // Acoustic constant.
+	  var k = Utils.TWENTY_FOUR_LOG10 / speedOfSound;
+
+	  // Compute volume, skip if room is not present.
+	  var volume = dimensions.width * dimensions.height * dimensions.depth;
+	  if (volume < Room.MIN_ROOM_VOLUME) {
+	    return durations;
+	  }
+
+	  // Room surface area.
+	  var leftRightArea = dimensions.width * dimensions.height;
+	  var floorCeilingArea = dimensions.width * dimensions.depth;
+	  var frontBackArea = dimensions.depth * dimensions.height;
+	  var totalArea = 2 * (leftRightArea + floorCeilingArea + frontBackArea);
+	  for (var i = 0; i < LateReflections.NUMBER_FREQUENCY_BANDS; i++) {
+	    // Effective absorptive area.
+	    var absorbtionArea =
+	      (coefficients.left[i] + coefficients.right[i]) * leftRightArea +
+	      (coefficients.down[i] + coefficients.up[i]) * floorCeilingArea +
+	      (coefficients.front[i] + coefficients.back[i]) * frontBackArea;
+	    var meanAbsorbtionArea = absorbtionArea / totalArea;
+
+	    // Compute reverberation using one of two algorithms, depending on area [1].
+	    // [1] Beranek, Leo L. "Analysis of Sabine and Eyring equations and their
+	    //     application to concert hall audience and chair absorption." The
+	    //     Journal of the Acoustical Society of America, Vol. 120, No. 3.
+	    //     (2006), pp. 1399-1399.
+	    if (meanAbsorbtionArea <= 0.5) {
+	      // Sabine equation.
+	      durations[i] = k * volume / (absorbtionArea + 4 *
+	        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
+	    } else {
+	      // Eyring equation.
+	      durations[i] = Room.EYRING_CORRECTION * k * volume / (-totalArea *
+	        Math.log(1 - meanAbsorbtionArea) + 4 *
+	        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
+	    }
+	  }
+	  return durations;
+	}
+
+	function _computeReflectionCoefficients (absorptionCoefficients) {
+	  var reflectionCoefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+	    // Compute average absorption coefficient (per wall).
+	    for (var j = 0; j < Room.NUMBER_AVERAGING_BANDS; j++) {
+	      var bandIndex = j + Room.STARTING_AVERAGING_BAND;
+	      reflectionCoefficients[property] +=
+	        absorptionCoefficients[property][bandIndex];
+	    }
+	    reflectionCoefficients[property] /= Room.NUMBER_AVERAGING_BANDS;
+
+	    // Convert absorption coefficient to reflection coefficient.
+	    reflectionCoefficients[property] =
+	      Math.sqrt(1 - reflectionCoefficients[property]);
+	  }
+	  return reflectionCoefficients;
+	}
+
+	module.exports = Room;
+
+
+/***/ }),
+/* 11 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	/**
+	 * @license
+	 * Copyright 2016 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Late reverberation filter for Ambisonic content.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	// Internal dependencies.
+	var Utils = __webpack_require__(4);
+
+	/**
+	 * @class LateReflections
+	 * @description Late-reflections reverberation filter for Ambisonic content.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @param {Object} options
+	 * @param {Array} options.durations
+	 * Multiband RT60 durations (in seconds) for each frequency band, listed as
+	 * {@linkcode LateReflections.FREQUENCY_BANDS FREQUENCY_BANDS}. Defaults to
+	 * {@linkcode LateReflections.DEFAULT_DURATIONS DEFAULT_DURATIONS}.
+	 * @param {Number} options.predelay Pre-delay (in milliseconds). Defaults to
+	 * {@linkcode LateReflections.DEFAULT_PREDELAY DEFAULT_PREDELAY}.
+	 * @param {Number} options.gain Output gain (linear). Defaults to
+	 * {@linkcode LateReflections.DEFAULT_GAIN DEFAULT_GAIN}.
+	 * @param {Number} options.bandwidth Bandwidth (in octaves) for each frequency
+	 * band. Defaults to
+	 * {@linkcode LateReflections.DEFAULT_BANDWIDTH DEFAULT_BANDWIDTH}.
+	 * @param {Number} options.tailonset Length (in milliseconds) of impulse
+	 * response to apply a half-Hann window. Defaults to
+	 * {@linkcode LateReflections.DEFAULT_TAIL_ONSET DEFAULT_TAIL_ONSET}.
+	 */
+	function LateReflections (context, options) {
+	  // Public variables.
+	  /**
+	   * Mono (1-channel) input {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} input
+	   * @memberof LateReflections
+	   * @instance
+	   */
+	  /**
+	   * Mono (1-channel) output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} output
+	   * @memberof LateReflections
+	   * @instance
+	   */
+
+	  // Use defaults for undefined arguments.
+	  if (options == undefined) {
+	    options = new Object();
+	  }
+	  if (options.durations == undefined) {
+	    options.durations = LateReflections.DEFAULT_DURATIONS;
+	  }
+	  if (options.predelay == undefined) {
+	    options.predelay = LateReflections.DEFAULT_PREDELAY;
+	  }
+	  if (options.gain == undefined) {
+	    options.gain = LateReflections.DEFAULT_GAIN;
+	  }
+	  if (options.bandwidth == undefined) {
+	    options.bandwidth = LateReflections.DEFAULT_BANDWIDTH;
+	  }
+	  if (options.tailonset == undefined) {
+	    options.tailonset = LateReflections.DEFAULT_TAIL_ONSET;
+	  }
+
+	  // Assign pre-computed variables.
+	  var delaySecs = options.predelay / 1000;
+	  this._bandwidthCoeff = options.bandwidth * Utils.LOG2_DIV2;
+	  this._tailonsetSamples = options.tailonset / 1000;
+
+	  // Create nodes.
+	  this._context = context;
+	  this.input = context.createGain();
+	  this._predelay = context.createDelay(delaySecs);
+	  this._convolver = context.createConvolver();
+	  this.output = context.createGain();
+
+	  // Set reverb attenuation.
+	  this.output.gain.value = options.gain;
+
+	  // Disable normalization.
+	  this._convolver.normalize = false;
+
+	  // Connect nodes.
+	  this.input.connect(this._predelay);
+	  this._predelay.connect(this._convolver);
+	  this._convolver.connect(this.output);
+
+	  // Compute IR using RT60 values.
+	  this.setDurations(options.durations);
+	}
+
+	/**
+	 * Re-compute a new impulse response by providing Multiband RT60 durations.
+	 * @param {Array} durations
+	 * Multiband RT60 durations (in seconds) for each frequency band, listed as
+	 * {@linkcode LateReflections.FREQUENCY_BANDS FREQUENCY_BANDS}.
+	 */
+	LateReflections.prototype.setDurations = function (durations) {
+	  if (durations.length !== LateReflections.NUMBER_FREQUENCY_BANDS) {
+	    Utils.log("Warning: invalid number of RT60 values provided to reverb.");
+	    return;
+	  }
+
+	  // Compute impulse response.
+	  var durationsSamples =
+	    new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
+	  var sampleRate = this._context.sampleRate;
+
+	  for (var i = 0; i < durations.length; i++) {
+	    // Clamp within suitable range.
+	    durations[i] =
+	      Math.max(0, Math.min(LateReflections.MAX_DURATION, durations[i]));
+
+	    // Convert seconds to samples.
+	    durationsSamples[i] = Math.round(durations[i] * sampleRate *
+	      LateReflections.DURATION_MULTIPLIER);
+	  };
+
+	  // Determine max RT60 length in samples.
+	  var durationsSamplesMax = 0;
+	  for (var i = 0; i < durationsSamples.length; i++) {
+	    if (durationsSamples[i] > durationsSamplesMax) {
+	      durationsSamplesMax = durationsSamples[i];
+	    }
+	  }
+
+	  // Skip this step if there is no reverberation to compute.
+	  if (durationsSamplesMax < 1) {
+	    durationsSamplesMax = 1;
+	  }
+
+	  // Create impulse response buffer.
+	  var buffer = this._context.createBuffer(1, durationsSamplesMax, sampleRate);
+	  var bufferData = buffer.getChannelData(0);
+
+	  // Create noise signal (computed once, referenced in each band's routine).
+	  var noiseSignal = new Float32Array(durationsSamplesMax);
+	  for (var i = 0; i < durationsSamplesMax; i++) {
+	    noiseSignal[i] = Math.random() * 2 - 1;
+	  }
+
+	  // Compute the decay rate per-band and filter the decaying noise signal.
+	  for (var i = 0; i < LateReflections.NUMBER_FREQUENCY_BANDS; i++) {
+	  //for (var i = 0; i < 1; i++) {
+	    // Compute decay rate.
+	    //TODO(bitllama): Remove global usage.
+	    var decayRate = -Utils.LOG1000 / durationsSamples[i];
+
+	    // Construct a standard one-zero, two-pole bandpass filter:
+	    // H(z) = (b0 * z^0 + b1 * z^-1 + b2 * z^-2) / (1 + a1 * z^-1 + a2 * z^-2)
+	    var omega = Utils.TWO_PI * LateReflections.FREQUENCY_BANDS[i] / sampleRate;
+	    var sinOmega = Math.sin(omega);
+	    var alpha = sinOmega * Math.sinh(this._bandwidthCoeff * omega / sinOmega);
+	    var a0CoeffReciprocal = 1 / (1 + alpha);
+	    var b0Coeff = alpha * a0CoeffReciprocal;
+	    var a1Coeff = -2 * Math.cos(omega) * a0CoeffReciprocal;
+	    var a2Coeff = (1 - alpha) * a0CoeffReciprocal;
+
+	    // We optimize since b2 = -b0, b1 = 0.
+	    // Update equation for two-pole bandpass filter:
+	    //   u[n] = x[n] - a1 * x[n-1] - a2 * x[n-2]
+	    //   y[n] = b0 * (u[n] - u[n-2])
+	    var um1 = 0;
+	    var um2 = 0;
+	    for (var j = 0; j < durationsSamples[i]; j++) {
+	      // Exponentially-decaying white noise.
+	      var x = noiseSignal[j] * Math.exp(decayRate * j);
+
+	      // Filter signal with bandpass filter and add to output.
+	      var u = x - a1Coeff * um1 - a2Coeff * um2;
+	      bufferData[j] += b0Coeff * (u - um2);
+
+	      // Update coefficients.
+	      um2 = um1;
+	      um1 = u;
+	    }
+	  }
+
+	  // Create and apply half of a Hann window to the beginning of the
+	  // impulse response.
+	  var halfHannLength =
+	    Math.round(this._tailonsetSamples);
+	  for (var i = 0; i < Math.min(bufferData.length, halfHannLength); i++) {
+	    var halfHann =
+	      0.5 * (1 - Math.cos(Utils.TWO_PI * i / (2 * halfHannLength - 1)));
+	      bufferData[i] *= halfHann;
+	  }
+	  this._convolver.buffer = buffer;
+	}
+
+	// Static constants.
+	/** The default bandwidth (in octaves) of the center frequencies.
+	 * @type {Number}
+	 */
+	LateReflections.DEFAULT_BANDWIDTH = 1;
+	/** The default multiplier applied when computing tail lengths.
+	 * @type {Number}
+	 */
+	LateReflections.DURATION_MULTIPLIER = 1;
+	/**
+	 * The late reflections pre-delay (in milliseconds).
+	 * @type {Number}
+	 */
+	LateReflections.DEFAULT_PREDELAY = 1.5;
+	/**
+	 * The length of the beginning of the impulse response to apply a
+	 * half-Hann window to.
+	 * @type {Number}
+	 */
+	LateReflections.DEFAULT_TAIL_ONSET = 3.8;
+	/**
+	 * The default gain (linear).
+	 * @type {Number}
+	 */
+	LateReflections.DEFAULT_GAIN = 0.01;
+	/**
+	 * The maximum impulse response length (in seconds).
+	 * @type {Number}
+	 */
+	LateReflections.MAX_DURATION = 3;
+	/**
+	 * Center frequencies of the multiband late reflections.
+	 * Nine bands are computed by: 31.25 * 2^(0:8).
+	 * @type {Array}
+	 */
+	LateReflections.FREQUENCY_BANDS = [
+	  31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000
+	];
+	/**
+	 * The number of frequency bands.
+	 */
+	LateReflections.NUMBER_FREQUENCY_BANDS = LateReflections.FREQUENCY_BANDS.length;
+	/**
+	 * The default multiband RT60 durations (in seconds).
+	 * @type {Float32Array}
+	 */
+	LateReflections.DEFAULT_DURATIONS =
+	  new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
+
+	module.exports = LateReflections;
+
+/***/ }),
+/* 12 */
+/***/ (function(module, exports, __webpack_require__) {
+
+	/**
+	 * @license
+	 * Copyright 2016 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Ray-tracing-based early reflections model.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+	// Internal dependencies.
+	var Utils = __webpack_require__(4);
+
+	/**
+	 * @class EarlyReflections
+	 * @description Ray-tracing-based early reflections model.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @param {Object} options
+	 * @param {Object} options.dimensions
+	 * Room dimensions (in meters). Defaults to
+	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} options.coefficients
+	 * Frequency-independent reflection coeffs per wall. Defaults to
+	 * {@linkcode EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS
+	 * DEFAULT_REFLECTION_COEFFICIENTS}.
+	 * @param {Number} options.speedOfSound
+	 * (in meters / second). Defaults to {@linkcode DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
+	 * @param {Float32Array} options.listenerPosition
+	 * (in meters). Defaults to
+	 * {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+	 */
+	function EarlyReflections (context, options) {
+	  // Public variables.
+	  /**
+	   * The room's speed of sound (in meters/second).
+	   * @member {Number} speedOfSound
+	   * @memberof EarlyReflections
+	   * @instance
+	   */
+	  /**
+	   * Mono (1-channel) input {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} input
+	   * @memberof EarlyReflections
+	   * @instance
+	   */
+	  /**
+	   * First-order ambisonic (4-channel) output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} output
+	   * @memberof EarlyReflections
+	   * @instance
+	   */
+
+	  // Use defaults for undefined arguments.
+	  if (options == undefined) {
+	    options = new Object();
+	  }
+	  if (options.speedOfSound == undefined) {
+	    options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
+	  }
+	  if (options.listenerPosition == undefined) {
+	    options.listenerPosition = Utils.DEFAULT_POSITION;
+	  }
+	  if (options.coefficients == undefined) {
+	    options.coefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+	  }
+
+	  // Assign room's speed of sound.
+	  this.speedOfSound = options.speedOfSound;
+
+	  // Create nodes.
+	  this.input = context.createGain();
+	  this.output = context.createGain();
+	  this._lowpass = context.createBiquadFilter();
+	  this._delays = {};
+	  this._gains = {}; // gainPerWall = (ReflectionCoeff / Attenuation)
+	  this._inverters = {}; // 3 of these are needed for right/back/down walls.
+	  this._merger = context.createChannelMerger(4); // First-order encoding only.
+
+	  // Connect audio graph for each wall reflection.
+	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+	    this._delays[property] = context.createDelay(EarlyReflections.MAX_DURATION);
+	    this._gains[property] = context.createGain();
+	  }
+	  this._inverters.right = context.createGain();
+	  this._inverters.down = context.createGain();
+	  this._inverters.back = context.createGain();
+
+	  // Initialize lowpass filter.
+	  this._lowpass.type = 'lowpass';
+	  this._lowpass.frequency.value = EarlyReflections.CUTOFF_FREQUENCY;
+	  this._lowpass.Q.value = 0;
+
+	  // Initialize encoder directions, set delay times and gains to 0.
+	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+	    this._delays[property].delayTime.value = 0;
+	    this._gains[property].gain.value = 0;
+	  }
+
+	  // Initialize inverters for opposite walls ('right', 'down', 'back' only).
+	  this._inverters.right.gain.value = -1;
+	  this._inverters.down.gain.value = -1;
+	  this._inverters.back.gain.value = -1;
+
+	  // Connect nodes.
+	  this.input.connect(this._lowpass);
+	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+	    this._lowpass.connect(this._delays[property]);
+	    this._delays[property].connect(this._gains[property]);
+	    this._gains[property].connect(this._merger, 0, 0);
+	  }
+
+	  // Connect gains to ambisonic channel output.
+	  this._gains.left.connect(this._merger, 0, 1);     // Left: [1 1 0 0]
+
+	  this._gains.right.connect(this._inverters.right); // Right: [1 -1 0 0]
+	  this._inverters.right.connect(this._merger, 0, 1);
+
+	  this._gains.up.connect(this._merger, 0, 2);       // Up: [1 0 1 0]
+
+	  this._gains.down.connect(this._inverters.down);   // Down: [1 0 -1 0]
+	  this._inverters.down.connect(this._merger, 0, 2);
+
+	  this._gains.front.connect(this._merger, 0, 3);    // Front: [1 0 0 1]
+
+	  this._gains.back.connect(this._inverters.back);   // Back: [1 0 0 -1]
+	  this._inverters.back.connect(this._merger, 0, 3);
+	  this._merger.connect(this.output);
+
+	  // Initialize.
+	  this._listenerPosition = options.listenerPosition;
+	  this.setRoomProperties(options.dimensions, options.coefficients);
+	}
+
+	/**
+	 * Set the listener's position (in meters),
+	 * where [0,0,0] is the center of the room.
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 */
+	EarlyReflections.prototype.setListenerPosition = function (x, y, z) {
+	  // Assign listener position.
+	  this._listenerPosition = [x, y, z];
+
+	  // Determine distances to each wall.
+	  var distances = {
+	    left : this._halfDimensions.width + x + EarlyReflections.MIN_DISTANCE,
+	    right : this._halfDimensions.width - x + EarlyReflections.MIN_DISTANCE,
+	    front : this._halfDimensions.depth + z + EarlyReflections.MIN_DISTANCE,
+	    back : this._halfDimensions.depth - z + EarlyReflections.MIN_DISTANCE,
+	    down : this._halfDimensions.height + y + EarlyReflections.MIN_DISTANCE,
+	    up : this._halfDimensions.height - y + EarlyReflections.MIN_DISTANCE,
+	  };
+
+	  // Assign delay & attenuation values using distances.
+	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
+	    // Compute and assign delay (in seconds).
+	    var delayInSecs = distances[property] / this.speedOfSound;
+	    this._delays[property].delayTime.value = delayInSecs;
+
+	    // Compute and assign gain, uses logarithmic rolloff: "g = R / (d + 1)"
+	    var attenuation = this._coefficients[property] / distances[property];
+	    this._gains[property].gain.value = attenuation;
+	  }
+	}
+
+	/**
+	 * Set the room's properties which determines the characteristics of
+	 * reflections.
+	 * @param {Object} dimensions
+	 * Room dimensions (in meters). Defaults to
+	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} coefficients
+	 * Frequency-independent reflection coeffs per wall. Defaults to
+	 * {@linkcode EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS
+	 * DEFAULT_REFLECTION_COEFFICIENTS}.
+	 */
+	EarlyReflections.prototype.setRoomProperties = function (dimensions,
+	                                                         coefficients) {
+	  if (dimensions == undefined) {
+	    dimensions = EarlyReflections.DEFAULT_DIMENSIONS;
+	  }
+	  if (coefficients == undefined) {
+	    coefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+	  }
+	  this._coefficients = coefficients;
+
+	  // Sanitize dimensions and store half-dimensions.
+	  this._halfDimensions = {};
+	  this._halfDimensions.width = dimensions.width * 0.5;
+	  this._halfDimensions.height = dimensions.height * 0.5;
+	  this._halfDimensions.depth = dimensions.depth * 0.5;
+
+	  // Update listener position with new room properties.
+	  this.setListenerPosition(this._listenerPosition[0],
+	    this._listenerPosition[1], this._listenerPosition[2]);
+	}
+
+	// Static constants.
+	/**
+	 * The maximum delay (in seconds) of a single wall reflection.
+	 * @type {Number}
+	 */
+	EarlyReflections.MAX_DURATION = 0.5;
+	/**
+	 * The -12dB cutoff frequency (in Hertz) for the lowpass filter applied to
+	 * all reflections.
+	 * @type {Number}
+	 */
+	EarlyReflections.CUTOFF_FREQUENCY = 6400; // Uses -12dB cutoff.
+	/**
+	 * The default reflection coefficients (where 0 = no reflection, 1 = perfect
+	 * reflection, -1 = mirrored reflection (180-degrees out of phase)).
+	 * @type {Object}
+	 */
+	EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS = {
+	  left : 0, right : 0, front : 0, back : 0, down : 0, up : 0
+	};
+	/**
+	 * The minimum distance we consider the listener to be to any given wall.
+	 * @type {Number}
+	 */
+	EarlyReflections.MIN_DISTANCE = 1;
+	/**
+	 * Default room dimensions (in meters).
+	 * @type {Object}
+	 */
+	EarlyReflections.DEFAULT_DIMENSIONS = {
+	  width : 0, height : 0, depth : 0
+	};
+
+	module.exports = EarlyReflections;
 
 /***/ })
 /******/ ])

@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-'use strict';
+/**
+ * @file Primary namespace for Songbird library.
+ * @author Andrew Allen <bitllama@google.com>
+ */
 
-// Primary namespace for Songbird library.
+ 'use strict';
+
 exports.Songbird = require('./songbird.js');

@@ -142,8 +142,8 @@
   </select><br/>
   <label for="eFloorMaterial" id="eFloorLabel">floor</label>
   <select id="eFloorMaterial" onchange="updateMaterials(this);">
-    <option value="Transparent">Transparent</option>
-    <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
+    <option value="transparent">transparent</option>
+    <option value="acoustic-ceiling-tiles">acoustic-ceiling-tiles</option>
     <option value="BrickBare">BrickBare</option>
     <option value="BrickPainted">BrickPainted</option>
     <option value="ConcreteBlockCoarse" selected>ConcreteBlockCoarse</option>
@@ -168,22 +168,22 @@
   </select><br/>
   <label for="eCeilingMaterial" id="eCeilingLabel">ceiling</label>
   <select id="eCeilingMaterial" onchange="updateMaterials(this);">
-    <option value="Transparent" selected>Transparent</option>
-    <option value="AcousticCeilingTiles">AcousticCeilingTiles</option>
-    <option value="BrickBare">BrickBare</option>
-    <option value="BrickPainted">BrickPainted</option>
-    <option value="ConcreteBlockCoarse">ConcreteBlockCoarse</option>
-    <option value="ConcreteBlockPainted">ConcreteBlockPainted</option>
-    <option value="CurtainHeavy">CurtainHeavy</option>
-    <option value="FiberGlassInsulation">FiberGlassInsulation</option>
-    <option value="GlassThin">GlassThin</option>
-    <option value="GlassThick">GlassThick</option>
-    <option value="Grass">Grass</option>
-    <option value="LinoleumOnConcrete">LinoleumOnConcrete</option>
-    <option value="Marble">Marble</option>
-    <option value="Metal">Metal</option>
-    <option value="ParquetOnConcrete">ParquetOnConcrete</option>
-    <option value="PlasterSmooth">PlasterSmooth</option>
+    <option value="transparent" selected>Transparent</option>
+    <option value="acousticCeilingTiles">AcousticCeilingTiles</option>
+    <option value="brickBare">BrickBare</option>
+    <option value="brickPainted">BrickPainted</option>
+    <option value="concreteBlockCoarse">ConcreteBlockCoarse</option>
+    <option value="concreteBlockPainted">ConcreteBlockPainted</option>
+    <option value="curtainHeavy">CurtainHeavy</option>
+    <option value="fiberGlassInsulation">FiberGlassInsulation</option>
+    <option value="glassThin">GlassThin</option>
+    <option value="glassThick">GlassThick</option>
+    <option value="grass">Grass</option>
+    <option value="linoleumOnConcrete">LinoleumOnConcrete</option>
+    <option value="marble">Marble</option>
+    <option value="metal">Metal</option>
+    <option value="parquetOnConcrete">ParquetOnConcrete</option>
+    <option value="plaster-smooth">PlasterSmooth</option>
     <option value="PlywoodPanel">PlywoodPanel</option>
     <option value="PolishedConcreteOrTile">PolishedConcreteOrTile</option>
     <option value="Sheetrock">Sheetrock</option>
@@ -211,7 +211,7 @@
     <label for="eSourceAZRange" id="eSourceAZLabel">z</label>
     <input id="eSourceAZRange" type="range" min="-45" max="45" value="-2"
       oninput="updateSourceAPosition(this);"/>
-    <button id="eSourceAPlayback" disabled>Play</button>
+    <button id="eSourceAPlayback">Play</button>
   </p>
   <p>
     <b>Source B position</b><br/>
@@ -230,7 +230,7 @@
     <label for="eSourceBZRange" id="eSourceBZLabel">z</label>
     <input id="eSourceBZRange" type="range" min="-45" max="45" value="3"
       oninput="updateSourceBPosition(this);"/>
-    <button id="eSourceBPlayback" disabled>Play</button>
+    <button id="eSourceBPlayback">Play</button>
   </p>
   <p>
     <b>Listener position</b><br/>
@@ -300,8 +300,8 @@
         sourceAParams['z']);
       juncoSourceB.setPosition(sourceBParams['x'], sourceBParams['y'],
         sourceBParams['z']);
-      juncoListener.setPosition(listenerParams['x'], listenerParams['y'],
-        listenerParams['z']);
+      juncoListener.setListenerPosition(
+        listenerParams['x'], listenerParams['y'], listenerParams['z']);
     }
 
     function updateDimensions(dimensionSelection) {
@@ -374,12 +374,14 @@
       }
 
       // Initialize Songbird, create Listener and Source(s).
-      var juncoOptions = {
-        ambisonicOrder : 3,
-      };
-      juncoListener = Songbird.createListener(context, juncoOptions);
-      juncoSourceA = Songbird.createSource(juncoListener, juncoOptions);
-      juncoSourceB = Songbird.createSource(juncoListener, juncoOptions);
+      juncoListener = new Songbird(context, {
+        ambisonicOrder: 3
+      });
+      juncoSourceA = juncoListener.createSource();
+      juncoSourceB = juncoListener.createSource();
+      audioElementSources[0].connect(juncoSourceA.input);
+      audioElementSources[1].connect(juncoSourceB.input);
+      juncoListener.output.connect(context.destination);
 
       // Initialize play button functionality.
       var sourcesPlayback = Array(audioSources.length);
@@ -397,31 +399,6 @@
           }
         };
       }
-
-      // Initialize Omnitone.
-      var omnitoneOptions = {
-        ambisonicOrder : juncoOptions.ambisonicOrder,
-        HRIRUrl: ['resources/sh_hrir_o_3_ch0-ch7.wav',
-                  'resources/sh_hrir_o_3_ch8-ch15.wav'],
-      };
-      var hoaRenderer = Omnitone.createHOARenderer(context, omnitoneOptions);
-      hoaRenderer.initialize().then(function () {
-        // Connect elements.
-        audioElementSources[0].connect(juncoSourceA.input);
-        audioElementSources[1].connect(juncoSourceB.input);
-        juncoListener.output.connect(hoaRenderer.input);
-        hoaRenderer.output.connect(context.destination);
-
-        // Enable playback.
-        sourcesPlayback[0].disabled = false;
-        sourcesPlayback[1].disabled = false;
-
-        // Initialize scene.
-        updateRoomProperties();
-        updatePositions();
-      }, function (onInitializationError) {
-        console.error(onInitializationError);
-      });
     };
     window.addEventListener('load', onLoad);
   </script>

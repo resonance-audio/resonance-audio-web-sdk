@@ -15,7 +15,7 @@
  */
 
 /**
- * @file Spatially encodes input using spherical harmonics.
+ * @file Spatially encodes input using weighted spherical harmonics.
  * @author Andrew Allen <bitllama@google.com>
  */
 
@@ -34,38 +34,63 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Object} options
  * @param {Number} options.ambisonicOrder
  * Desired ambisonic Order. Defaults to
- * {@link DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
+ * {@linkcode Encoder.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
  * @param {Number} options.azimuth
  * Azimuth (in degrees). Defaults to
- * {@link Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+ * {@linkcode Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
  * @param {Number} options.elevation
  * Elevation (in degrees). Defaults to
- * {@link Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+ * {@linkcode Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+ * @param {Number} options.sourceWidth
+ * Source width (in degrees). Where 0 degrees is a point source and 360 degrees
+ * is an omnidirectional source. Defaults to
+ * {@linkcode Encoder.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
  */
-function Encoder (context, ambisonicOrder) {
+function Encoder (context, options) {
   // Public variables.
   /**
-   * Input {@link
+   * Mono (1-channel) input {@link
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} input
    * @memberof Encoder
    * @instance
    */
   /**
-   * Output {@link
+   * Ambisonic (multichannel) output {@link
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} output
    * @memberof Encoder
    * @instance
    */
-  this._ambisonicOrder = ambisonicOrder;
-  if (this._ambisonicOrder > Encoder.MAX_ORDER) {
-    Utils.log('(Error):\nUnable to render ambisonic order',
-      ambisonic_order, '(Max order is', Encoder.MAX_ORDER,
-      ')\nUsing max order instead.');
-    this._ambisonicOrder = Encoder.MAX_ORDER;
+
+  // Use defaults for undefined arguments.
+  if (options == undefined) {
+    options = new Object();
+  }
+  if (options.ambisonicOrder == undefined) {
+    options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
+  }
+  if (options.azimuth == undefined) {
+    options.azimuth = Encoder.DEFAULT_AZIMUTH;
+  }
+  if (options.elevation == undefined) {
+    options.elevation = Encoder.DEFAULT_ELEVATION;
+  }
+  if (options.sourceWidth == undefined) {
+    options.sourceWidth = Encoder.DEFAULT_SOURCE_WIDTH;
   }
 
+  // Assign fixed ambisonic order.
+  // TODO(bitllama): Support dynamic orders?
+  if (options.ambisonicOrder > Encoder.MAX_ORDER) {
+    Utils.log('(Error):\nUnable to render ambisonic order',
+      options.ambisonicOrder, '(Max order is', Encoder.MAX_ORDER,
+      ')\nUsing max order instead.');
+    options.ambisonicOrder = Encoder.MAX_ORDER;
+  }
+  this._ambisonicOrder = options.ambisonicOrder;
+
+  // Create audio graph.
   var num_channels = (this._ambisonicOrder + 1) * (this._ambisonicOrder + 1);
   this._merger = context.createChannelMerger(num_channels);
   this._masterGain = context.createGain();
@@ -76,6 +101,11 @@ function Encoder (context, ambisonicOrder) {
     this._channelGain[i].connect(this._merger, 0, i);
   }
 
+  // Set initial angle and source width.
+  this._azimuth = options.azimuth;
+  this._elevation = options.elevation;
+  this.setSourceWidth(options.sourceWidth);
+
   // Input/Output proxy.
   this.input = this._masterGain;
   this.output = this._merger;
@@ -85,10 +115,10 @@ function Encoder (context, ambisonicOrder) {
  * Set the direction of the encoded source signal.
  * @param {Number} azimuth
  * Azimuth (in degrees). Defaults to
- * {@link Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+ * {@linkcode Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
  * @param {Number} elevation
  * Elevation (in degrees). Defaults to
- * {@link Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+ * {@linkcode Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
  */
 Encoder.prototype.setDirection = function (azimuth, elevation) {
   // Format input direction to nearest indices.
@@ -99,7 +129,12 @@ Encoder.prototype.setDirection = function (azimuth, elevation) {
     elevation = Encoder.DEFAULT_ELEVATION;
   }
 
-  azimuth = Math.round(azimuth % 360);
+  // Store the formatted input (for updating source width).
+  this._azimuth = azimuth;
+  this._elevation = elevation;
+
+  // Format direction for index lookups.
+  var azimuth = Math.round(azimuth % 360);
   if (azimuth < 0) {
     azimuth += 360;
   }
@@ -107,6 +142,7 @@ Encoder.prototype.setDirection = function (azimuth, elevation) {
 
   // Assign gains to each output.
   for (var i = 1; i <= this._ambisonicOrder; i++) {
+    var degreeWeight = Tables.MAX_RE_WEIGHTS[this._spreadIndex][i - 1];
     for (var j = -i; j <= i; j++) {
       var acnChannel = (i * i) + i + j;
       var elevationIndex = i * (i + 1) / 2 + Math.abs(j) - 1;
@@ -118,24 +154,49 @@ Encoder.prototype.setDirection = function (azimuth, elevation) {
         }
         val *= Tables.SPHERICAL_HARMONICS[0][azimuth][azimuthIndex];
       }
-      this._channelGain[acnChannel].gain.value = val;
+      this._channelGain[acnChannel].gain.value = val * degreeWeight;
     }
   }
 }
 
-//TODO(bitllama): finish spread function!!!
-Encoder.prototype.setSpread = function (spread) {
-  spread = Math.min(360, Math.max(0, spread));
-  if (spread > Globals.MinSpreadPerAmbisonicOrder[this._ambisonicOrder]) {
-
-  }
+/**
+ * Set the source width (in degrees). Where 0 degrees is a point source and 360
+ * degrees is an omnidirectional source. Defaults to
+ * {@linkcode Encoder.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
+ * @param {Number} sourceWidth (in degrees).
+ */
+Encoder.prototype.setSourceWidth = function (sourceWidth) {
+  // The MAX_RE_WEIGHTS is a 360x(MAX_ORDER+1) size table.
+  this._spreadIndex = Math.min(359, Math.max(0, Math.round(sourceWidth)));
+  this.setDirection(this._azimuth, this._elevation);
 }
 
-/** @type {Number} */
+// Static constants.
+/**
+ * Default azimuth (in degrees). Suitable range is 0 to 360.
+ * @type {Number}
+ */
 Encoder.DEFAULT_AZIMUTH = 0;
-/** @type {Number} */
+/**
+ * Default elevation (in degres).
+ * Suitable range is from -90 (below) to 90 (above).
+ * @type {Number} */
 Encoder.DEFAULT_ELEVATION = 0;
-/** @type {Number} */
+/**
+ * The maximum allowed ambisonic order, specified by the
+ * {@linkcode Tables.SPHERICAL_HARMONICS spherical harmonics table}.
+ * @type {Number}
+ */
 Encoder.MAX_ORDER = Tables.SPHERICAL_HARMONICS[0][0].length / 2;
+/**
+ * The default ambisonic order.
+ * @type {Number}
+ */
+Encoder.DEFAULT_AMBISONIC_ORDER = 1;
+/**
+ * The default source width.
+ * @type {Number}
+ */
+Encoder.DEFAULT_SOURCE_WIDTH = 0;
 
 module.exports = Encoder;

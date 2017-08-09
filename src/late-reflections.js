@@ -22,7 +22,6 @@
 'use strict';
 
 // Internal dependencies.
-var Global = require('./global.js');
 var Utils = require('./utils.js');
 
 /**
@@ -34,63 +33,63 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Object} options
  * @param {Array} options.durations
  * Multiband RT60 durations (in seconds) for each frequency band, listed as
- * {@link REVERB_BANDS REVERB_BANDS}. Defaults to
- * {@link LateReflections.DEFAULT_DURATIONS DEFAULT_DURATIONS}.
+ * {@linkcode LateReflections.FREQUENCY_BANDS FREQUENCY_BANDS}. Defaults to
+ * {@linkcode LateReflections.DEFAULT_DURATIONS DEFAULT_DURATIONS}.
  * @param {Number} options.predelay Pre-delay (in milliseconds). Defaults to
- * {@link LateReflections.PREDELAY_MS PREDELAY_MS}.
+ * {@linkcode LateReflections.DEFAULT_PREDELAY DEFAULT_PREDELAY}.
  * @param {Number} options.gain Output gain (linear). Defaults to
- * {@link LateReflections.DEFAULT_GAIN DEFAULT_GAIN}.
+ * {@linkcode LateReflections.DEFAULT_GAIN DEFAULT_GAIN}.
  * @param {Number} options.bandwidth Bandwidth (in octaves) for each frequency
- * band. Defaults to {@link LateReflections.BANDWIDTH BANDWIDTH}.
+ * band. Defaults to
+ * {@linkcode LateReflections.DEFAULT_BANDWIDTH DEFAULT_BANDWIDTH}.
  * @param {Number} options.tailonset Length (in milliseconds) of impulse
  * response to apply a half-Hann window. Defaults to
- * {@link LateReflections.TAIL_ONSET_MS TAIL_ONSET_MS}.
+ * {@linkcode LateReflections.DEFAULT_TAIL_ONSET DEFAULT_TAIL_ONSET}.
  */
 function LateReflections (context, options) {
   // Public variables.
   /**
-   * Input {@link
+   * Mono (1-channel) input {@link
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} input
    * @memberof LateReflections
    * @instance
    */
   /**
-   * Output {@link
+   * Mono (1-channel) output {@link
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} output
    * @memberof LateReflections
    * @instance
    */
 
-  this._context = context;
-
-  // Use defaults for undefined arguments
+  // Use defaults for undefined arguments.
   if (options == undefined) {
-    options = {};
+    options = new Object();
   }
   if (options.durations == undefined) {
     options.durations = LateReflections.DEFAULT_DURATIONS;
   }
   if (options.predelay == undefined) {
-    options.predelay = LateReflections.PREDELAY_MS;
+    options.predelay = LateReflections.DEFAULT_PREDELAY;
   }
   if (options.gain == undefined) {
     options.gain = LateReflections.DEFAULT_GAIN;
   }
   if (options.bandwidth == undefined) {
-    options.bandwidth = LateReflections.BANDWIDTH;
+    options.bandwidth = LateReflections.DEFAULT_BANDWIDTH;
   }
   if (options.tailonset == undefined) {
-    options.tailonset = LateReflections.TAIL_ONSET_MS;
+    options.tailonset = LateReflections.DEFAULT_TAIL_ONSET;
   }
 
   // Assign pre-computed variables.
   var delaySecs = options.predelay / 1000;
-  this._bandwidthCoeff = options.bandwidth * Global.LOG2_DIV2;
+  this._bandwidthCoeff = options.bandwidth * Utils.LOG2_DIV2;
   this._tailonsetSamples = options.tailonset / 1000;
 
   // Create nodes.
+  this._context = context;
   this.input = context.createGain();
   this._predelay = context.createDelay(delaySecs);
   this._convolver = context.createConvolver();
@@ -115,16 +114,17 @@ function LateReflections (context, options) {
  * Re-compute a new impulse response by providing Multiband RT60 durations.
  * @param {Array} durations
  * Multiband RT60 durations (in seconds) for each frequency band, listed as
- * {@link REVERB_BANDS REVERB_BANDS}.
+ * {@linkcode LateReflections.FREQUENCY_BANDS FREQUENCY_BANDS}.
  */
 LateReflections.prototype.setDurations = function (durations) {
-  if (durations.length !== Global.NUMBER_REVERB_BANDS) {
+  if (durations.length !== LateReflections.NUMBER_FREQUENCY_BANDS) {
     Utils.log("Warning: invalid number of RT60 values provided to reverb.");
     return;
   }
 
   // Compute impulse response.
-  var durationsSamples = new Float32Array(Global.NUMBER_REVERB_BANDS);
+  var durationsSamples =
+    new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
   var sampleRate = this._context.sampleRate;
 
   for (var i = 0; i < durations.length; i++) {
@@ -161,15 +161,15 @@ LateReflections.prototype.setDurations = function (durations) {
   }
 
   // Compute the decay rate per-band and filter the decaying noise signal.
-  for (var i = 0; i < Global.NUMBER_REVERB_BANDS; i++) {
+  for (var i = 0; i < LateReflections.NUMBER_FREQUENCY_BANDS; i++) {
   //for (var i = 0; i < 1; i++) {
     // Compute decay rate.
     //TODO(bitllama): Remove global usage.
-    var decayRate = -Global.LOG1000 / durationsSamples[i];
+    var decayRate = -Utils.LOG1000 / durationsSamples[i];
 
     // Construct a standard one-zero, two-pole bandpass filter:
     // H(z) = (b0 * z^0 + b1 * z^-1 + b2 * z^-2) / (1 + a1 * z^-1 + a2 * z^-2)
-    var omega = Global.TWO_PI * LateReflections.REVERB_BANDS[i] / sampleRate;
+    var omega = Utils.TWO_PI * LateReflections.FREQUENCY_BANDS[i] / sampleRate;
     var sinOmega = Math.sin(omega);
     var alpha = sinOmega * Math.sinh(this._bandwidthCoeff * omega / sinOmega);
     var a0CoeffReciprocal = 1 / (1 + alpha);
@@ -197,43 +197,65 @@ LateReflections.prototype.setDurations = function (durations) {
     }
   }
 
-  // Create and apply half of a Hann window to the beginning of the IR.
+  // Create and apply half of a Hann window to the beginning of the
+  // impulse response.
   var halfHannLength =
     Math.round(this._tailonsetSamples);
   for (var i = 0; i < Math.min(bufferData.length, halfHannLength); i++) {
     var halfHann =
-      0.5 * (1 - Math.cos(Global.TWO_PI * i / (2 * halfHannLength - 1)));
+      0.5 * (1 - Math.cos(Utils.TWO_PI * i / (2 * halfHannLength - 1)));
       bufferData[i] *= halfHann;
   }
   this._convolver.buffer = buffer;
 }
 
+// Static constants.
 /** The default bandwidth (in octaves) of the center frequencies.
  * @type {Number}
  */
-LateReflections.BANDWIDTH = 1;
+LateReflections.DEFAULT_BANDWIDTH = 1;
 /** The default multiplier applied when computing tail lengths.
  * @type {Number}
  */
 LateReflections.DURATION_MULTIPLIER = 1;
-/** @type {Number} */
-LateReflections.PREDELAY_MS = 1.5;
-/** @type {Number} */
-LateReflections.TAIL_ONSET_MS = 3.8;
-/** @type {Number} */
+/**
+ * The late reflections pre-delay (in milliseconds).
+ * @type {Number}
+ */
+LateReflections.DEFAULT_PREDELAY = 1.5;
+/**
+ * The length of the beginning of the impulse response to apply a
+ * half-Hann window to.
+ * @type {Number}
+ */
+LateReflections.DEFAULT_TAIL_ONSET = 3.8;
+/**
+ * The default gain (linear).
+ * @type {Number}
+ */
 LateReflections.DEFAULT_GAIN = 0.01;
-/** @type {Number} */
+/**
+ * The maximum impulse response length (in seconds).
+ * @type {Number}
+ */
 LateReflections.MAX_DURATION = 3;
 /**
- * Center frequencies of the multiband reverberation engine.
+ * Center frequencies of the multiband late reflections.
  * Nine bands are computed by: 31.25 * 2^(0:8).
  * @type {Array}
  */
-LateReflections.REVERB_BANDS = [
+LateReflections.FREQUENCY_BANDS = [
   31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000
 ];
-/** @type {Float32Array} */
+/**
+ * The number of frequency bands.
+ */
+LateReflections.NUMBER_FREQUENCY_BANDS = LateReflections.FREQUENCY_BANDS.length;
+/**
+ * The default multiband RT60 durations (in seconds).
+ * @type {Float32Array}
+ */
 LateReflections.DEFAULT_DURATIONS =
-  new Float32Array(LateReflections.REVERB_BANDS.length);
+  new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
 
 module.exports = LateReflections;
