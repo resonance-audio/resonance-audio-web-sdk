@@ -77,7 +77,14 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	 'use strict';
 
+	// Main module.
 	exports.Songbird = __webpack_require__(1);
+
+	// Testable Submodules.
+	exports.Songbird.Room = __webpack_require__(10);
+	exports.Songbird.Attenuation = __webpack_require__(7);
+	exports.Songbird.Encoder = __webpack_require__(8);
+	exports.Songbird.Utils = __webpack_require__(4);
 
 
 /***/ }),
@@ -111,7 +118,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	var Listener = __webpack_require__(2);
 	var Source = __webpack_require__(5);
 	var Room = __webpack_require__(10);
-	var LateReflections = __webpack_require__(11);
 	var EarlyReflections = __webpack_require__(12);
 	var Encoder = __webpack_require__(8);
 	var Utils = __webpack_require__(4);
@@ -226,10 +232,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * to {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
 	 * @param {Number} options.minDistance
 	 * Min. distance (in meters). Defaults to
-	 * {@linkcode Attenuation.MIN_DISTANCE MIN_DISTANCE}.
+	 * {@linkcode Attenuation.DEFAULT_MIN_DISTANCE DEFAULT_MIN_DISTANCE}.
 	 * @param {Number} options.maxDistance
 	 * Max. distance (in meters). Defaults to
-	 * {@linkcode Attenuation.MAX_DISTANCE MAX_DISTANCE}.
+	 * {@linkcode Attenuation.DEFAULT_MAX_DISTANCE DEFAULT_MAX_DISTANCE}.
 	 * @param {string} options.rolloff
 	 * Rolloff model to use, chosen from options in
 	 * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
@@ -268,8 +274,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 	Songbird.prototype.setListenerPosition = function (x, y, z) {
 	  this._listener.position[0] = x;
-	  this._listener.position[1] = x;
-	  this._listener.position[2] = x;
+	  this._listener.position[1] = y;
+	  this._listener.position[2] = z;
 	  this._room.setListenerPosition(x, y, z);
 	  for (var i = 0; i < this._sources.length; i++) {
 	    this._sources[i].setPosition(this._sources[i]._position[0],
@@ -288,12 +294,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	/**
-	 * Set the listener's orientation using a Three.js camera object.
+	 * Set the listener's position and orientation using a Three.js camera object.
 	 * @param {Object} cameraMatrix
 	 * The Matrix4 object of the Three.js camera.
 	 */
-	Songbird.prototype.setListenerOrientationFromCamera = function (cameraMatrix) {
-	  this._listener.setOrientationFromCamera(cameraMatrix);
+	Songbird.prototype.setListenerFromCamera = function (cameraMatrix) {
+	  // Compute listener orientation from camera matrix, extract position.
+	  this._listener.setFromCamera(cameraMatrix);
+
+	  // Update the rest of the scene using new listener position.
+	  this.setListenerPosition(this._listener.position[0],
+	    this._listener.position[1], this._listener.position[2]);
 	}
 
 	module.exports = Songbird;
@@ -392,6 +403,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  // Member variables.
 	  this.position = new Float32Array(3);
+	  this._tempMatrix4 = new Float32Array(16);
 
 	  // Select the appropriate HRIR filters using 8-channel chunks since
 	  // >8 channels is not yet supported by a majority of browsers.
@@ -399,19 +411,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var urls = [''];
 	  if (options.ambisonicOrder == 1) {
 	    urls = [
-	      'resources/sh_hrir_o_1.wav'
+	      '../build/resources/sh_hrir_o_1.wav'
 	    ];
 	  }
 	  else if (options.ambisonicOrder == 2) {
 	    urls = [
-	      'resources/sh_hrir_o_2_ch0-ch7.wav',
-	      'resources/sh_hrir_o_2_ch8.wav'
+	      '../build/resources/sh_hrir_o_2_ch0-ch7.wav',
+	      '../build/resources/sh_hrir_o_2_ch8.wav'
 	    ];
 	  }
 	  else if (options.ambisonicOrder == 3) {
 	    urls = [
-	      'resources/sh_hrir_o_3_ch0-ch7.wav',
-	      'resources/sh_hrir_o_3_ch8-ch15.wav'
+	      '../build/resources/sh_hrir_o_3_ch0-ch7.wav',
+	      '../build/resources/sh_hrir_o_3_ch8-ch15.wav'
 	    ];
 	  }
 	  else {
@@ -474,8 +486,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Object} cameraMatrix
 	 * The Matrix4 object of the Three.js camera.
 	 */
-	Listener.prototype.setOrientationFromCamera = function (cameraMatrix) {
-	  this._renderer.setRotationMatrixFromCamera(cameraMatrix);
+	Listener.prototype.setFromCamera = function (cameraMatrix) {
+	  // Extract the inner array elements and inverse. (The actual view rotation is
+	  // the opposite of the camera movement.)
+	  Utils.invertMatrix4(this._tempMatrix4, cameraMatrix.elements);
+	  this._renderer.setRotationMatrix4(this._tempMatrix4);
+	  this.position[0] = this._tempMatrix4[12];
+	  this.position[1] = this._tempMatrix4[13];
+	  this.position[2] = this._tempMatrix4[14];
 	}
 
 	module.exports = Listener;
@@ -612,9 +630,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		 *                                    { name, url, coef }
 		 * @return {Promise}
 		 */
-		Omnitone.loadAudioBuffers = function (context, speakerData) {
-		  return new Promise(function (resolve, reject) {
-		    new AudioBufferManager(context, speakerData, function (buffers) {
+		Omnitone.loadAudioBuffers = function(context, speakerData) {
+		  return new Promise(function(resolve, reject) {
+		    new AudioBufferManager(context, speakerData, function(buffers) {
 		      resolve(buffers);
 		    }, reject);
 		  });
@@ -625,7 +643,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * Router class.
 		 * @return {FOAConvolver}
 		 */
-		Omnitone.createFOAConvolver = function (context, options) {
+		Omnitone.createFOAConvolver = function(context, options) {
 		  return new FOAConvolver(context, options);
 		};
 
@@ -634,7 +652,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * Router class.
 		 * @return {FOARouter}
 		 */
-		Omnitone.createFOARouter = function (context, channelMap) {
+		Omnitone.createFOARouter = function(context, channelMap) {
 		  return new FOARouter(context, channelMap);
 		};
 
@@ -643,7 +661,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * Rotator class.
 		 * @return {FOARotator}
 		 */
-		Omnitone.createFOARotator = function (context) {
+		Omnitone.createFOARotator = function(context) {
 		  return new FOARotator(context);
 		};
 
@@ -652,7 +670,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * definition of PhaseMatchedFilter class.
 		 * @return {FOAPhaseMatchedFilter}
 		 */
-		Omnitone.createFOAPhaseMatchedFilter = function (context) {
+		Omnitone.createFOAPhaseMatchedFilter = function(context) {
 		  return new FOAPhaseMatchedFilter(context);
 		};
 
@@ -661,7 +679,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * definition of VirtualSpeaker class.
 		 * @return {FOAVirtualSpeaker}
 		 */
-		Omnitone.createFOAVirtualSpeaker = function (context, options) {
+		Omnitone.createFOAVirtualSpeaker = function(context, options) {
 		  return new FOAVirtualSpeaker(context, options);
 		};
 
@@ -677,7 +695,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @param {Array} options.routingDestination  Custom channel layout.
 		 * @return {FOADecoder}
 		 */
-		Omnitone.createFOADecoder = function (context, videoElement, options) {
+		Omnitone.createFOADecoder = function(context, videoElement, options) {
 		  return new FOADecoder(context, videoElement, options);
 		};
 
@@ -690,7 +708,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @param {Array} options.channelMap  Optional custom channel map.
 		 * @return {FOARenderer}
 		 */
-		Omnitone.createFOARenderer = function (context, options) {
+		Omnitone.createFOARenderer = function(context, options) {
 		  return new FOARenderer(context, options);
 		};
 
@@ -699,7 +717,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @param {AudioContext} context    Associated AudioContext.
 		 * @param {Number} ambisonicOrder   Ambisonic order.
 		 */
-		Omnitone.createHOARotator = function (context, ambisonicOrder) {
+		Omnitone.createHOARotator = function(context, ambisonicOrder) {
 		  return new HOARotator(context, ambisonicOrder);
 		};
 
@@ -713,7 +731,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 *                                        number of channels must be (N+1)^2
 		 *                                        where N is the ambisonic order.
 		 */
-		Omnitone.createHOAConvolver = function (context, options) {
+		Omnitone.createHOAConvolver = function(context, options) {
 		  return new HOAConvolver(context, options);
 		};
 
@@ -726,7 +744,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @param {String} options.renderingMode    Rendering mode.
 		 * @param {Number} options.ambisonicOrder   Ambisonic order (default is 3).
 		 */
-		Omnitone.createHOARenderer = function (context, options) {
+		Omnitone.createHOARenderer = function(context, options) {
 		  return new HOARenderer(context, options);
 		};
 
@@ -814,7 +832,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		          that._done(fileInfo.name, null);
 		        });
 		    } else {
-		      Utils.log('XHR Error: ' + fileInfo.url + ' (' + xhr.statusText
+		      Utils.log('XHR Error: ' + fileInfo.url + ' (' + xhr.statusText 
 		        + ')');
 		      that._done(fileInfo.name, null);
 		    }
@@ -900,49 +918,65 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @type {Function}
 		 * @param {any} Message to be printed out.
 		 */
-		exports.log = function () {
+		exports.log = function() {
 		  window.console.log.apply(window.console, [
-		    '%c[Omnitone]%c '
-		      + Array.prototype.slice.call(arguments).join(' ') + ' %c(@'
-		      + performance.now().toFixed(2) + 'ms)',
-		    'background: #BBDEFB; color: #FF5722; font-weight: 700',
-		    'font-weight: 400',
+		    '%c[Omnitone]%c ' + Array.prototype.slice.call(arguments).join(' ') +
+		        ' %c(@' + performance.now().toFixed(2) + 'ms)',
+		    'background: #BBDEFB; color: #FF5722; font-weight: 700', 'font-weight: 400',
 		    'color: #AAA'
 		  ]);
 		};
 
+
+		// Static temp storage for matrix inversion.
+		var a00, a01, a02, a03, a10, a11, a12, a13;
+		var a20, a21, a22, a23, a30, a31, a32, a33;
+		var b00, b01, b02, b03, b04, b05, b06, b07, b08, b09, b10, b11;
+		var det;
+
+
 		/**
-		 * A 4x4 matrix inversion utility.
-		 * @param {Array} out   the receiving matrix.
-		 * @param {Array} a     the source matrix.
-		 * @returns {Array} out
+		 * A 4x4 matrix inversion utility. This does not handle the case when the
+		 * arguments are not proper 4x4 matrices.
+		 * @param {Float32Array} out   The inverted result.
+		 * @param {Float32Array} a     The source matrix.
+		 * @returns {Float32Array} out
 		 */
-		exports.invertMatrix4 = function (out, a) {
-		  var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3],
-		      a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7],
-		      a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11],
-		      a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15],
-
-		      b00 = a00 * a11 - a01 * a10,
-		      b01 = a00 * a12 - a02 * a10,
-		      b02 = a00 * a13 - a03 * a10,
-		      b03 = a01 * a12 - a02 * a11,
-		      b04 = a01 * a13 - a03 * a11,
-		      b05 = a02 * a13 - a03 * a12,
-		      b06 = a20 * a31 - a21 * a30,
-		      b07 = a20 * a32 - a22 * a30,
-		      b08 = a20 * a33 - a23 * a30,
-		      b09 = a21 * a32 - a22 * a31,
-		      b10 = a21 * a33 - a23 * a31,
-		      b11 = a22 * a33 - a23 * a32,
-
-		      det = b00 * b11 - b01 * b10 + b02 * b09 +
-		            b03 * b08 - b04 * b07 + b05 * b06;
+		exports.invertMatrix4 = function(out, a) {
+		  a00 = a[0];
+		  a01 = a[1];
+		  a02 = a[2];
+		  a03 = a[3];
+		  a10 = a[4];
+		  a11 = a[5];
+		  a12 = a[6];
+		  a13 = a[7];
+		  a20 = a[8];
+		  a21 = a[9];
+		  a22 = a[10];
+		  a23 = a[11];
+		  a30 = a[12];
+		  a31 = a[13];
+		  a32 = a[14];
+		  a33 = a[15];
+		  b00 = a00 * a11 - a01 * a10;
+		  b01 = a00 * a12 - a02 * a10;
+		  b02 = a00 * a13 - a03 * a10;
+		  b03 = a01 * a12 - a02 * a11;
+		  b04 = a01 * a13 - a03 * a11;
+		  b05 = a02 * a13 - a03 * a12;
+		  b06 = a20 * a31 - a21 * a30;
+		  b07 = a20 * a32 - a22 * a30;
+		  b08 = a20 * a33 - a23 * a30;
+		  b09 = a21 * a32 - a22 * a31;
+		  b10 = a21 * a33 - a23 * a31;
+		  b11 = a22 * a33 - a23 * a32;
+		  det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
 
 		  if (!det)
 		    return null;
-		  det = 1.0 / det;
 
+		  det = 1.0 / det;
 		  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
 		  out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
 		  out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
@@ -961,11 +995,17 @@ return /******/ (function(modules) { // webpackBootstrap
 		  out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
 
 		  return out;
-		}
+		};
 
-		exports.getNumberOfChannelsFromAmbisonicOrder = function (order) {
+
+		/**
+		 * Get a total number of channels for a given ambisonic order.
+		 * @param {Number} order Ambisonic order
+		 * @return {Number}
+		 */
+		exports.getNumberOfChannelsFromAmbisonicOrder = function(order) {
 		  return (order + 1) * (order + 1);
-		}
+		};
 
 
 	/***/ }),
@@ -1496,7 +1536,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		    throw 'IR does not have 2 channels. cannot proceed.';
 
 		  this._active = false;
-
+		  
 		  this._context = context;
 
 		  this._input = this._context.createChannelSplitter(4);
@@ -1984,7 +2024,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		        resolve();
 		      }.bind(this),
 		      function (buffers) {
-		        var errorMessage = 'Initialization failed: ' + key + ' is '
+		        var errorMessage = 'Initialization failed: ' + key + ' is ' 
 		            + buffers.get(0) + '.';
 		        Utils.log(errorMessage);
 		        reject(errorMessage);
@@ -2137,7 +2177,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @param {Number} gainValue
 		 */
 		function setCenteredElement(matrix, l, i, j, gainValue) {
-		  var index = (j + l) * (2 * l + 1) + (i + l); // Row-wise indexing.
+		  var index = (j + l) * (2 * l + 1) + (i + l);  // Row-wise indexing.
 		  matrix[l - 1][index].gain.value = gainValue;
 		};
 
@@ -2153,7 +2193,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @return {Number} Gain node's gain parameter value.
 		 */
 		function getCenteredElement(matrix, l, i, j) {
-		  var index = (j + l) * (2 * l + 1) + (i + l); // Row-wise indexing.
+		  var index = (j + l) * (2 * l + 1) + (i + l);  // Row-wise indexing.
 		  return matrix[l - 1][index].gain.value;
 		};
 
@@ -2173,17 +2213,17 @@ return /******/ (function(modules) { // webpackBootstrap
 		function P(matrix, i, a, b, l) {
 		  if (b === l) {
 		    return getCenteredElement(matrix, 1, i, 1) *
-		      getCenteredElement(matrix, l - 1, a, l - 1) -
-		      getCenteredElement(matrix, 1, i, -1) *
-		      getCenteredElement(matrix, l - 1, a, -l + 1);
+		        getCenteredElement(matrix, l - 1, a, l - 1) -
+		        getCenteredElement(matrix, 1, i, -1) *
+		        getCenteredElement(matrix, l - 1, a, -l + 1);
 		  } else if (b === -l) {
 		    return getCenteredElement(matrix, 1, i, 1) *
-		      getCenteredElement(matrix, l - 1, a, -l + 1) +
-		      getCenteredElement(matrix, 1, i, -1) *
-		      getCenteredElement(matrix, l - 1, a, l - 1);
+		        getCenteredElement(matrix, l - 1, a, -l + 1) +
+		        getCenteredElement(matrix, 1, i, -1) *
+		        getCenteredElement(matrix, l - 1, a, l - 1);
 		  } else {
 		    return getCenteredElement(matrix, 1, i, 0) *
-		      getCenteredElement(matrix, l - 1, a, b);
+		        getCenteredElement(matrix, l - 1, a, b);
 		  }
 		};
 
@@ -2202,10 +2242,8 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @return {Number}
 		 */
 		function U(matrix, m, n, l) {
-		  /**
-		   * Although [1, 2] split U into three cases for m == 0, m < 0, m > 0
-		   * the actual values are the same for all three cases.
-		   */
+		  // Although [1, 2] split U into three cases for m == 0, m < 0, m > 0
+		  // the actual values are the same for all three cases.
 		  return P(matrix, 0, m, n, l);
 		};
 
@@ -2255,14 +2293,13 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @param {Number} n
 		 * @param {Number} l
 		 */
-		function W (matrix, m, n, l) {
+		function W(matrix, m, n, l) {
 		  // Whenever this happens, w is also 0 so W can be anything.
 		  if (m === 0)
 		    return 0;
 
-		  return m > 0
-		    ? P(matrix, 1, m + 1, n, l) + P(matrix, -1, -m - 1, n, l)
-		    : P(matrix, 1, m - 1, n, l) - P(matrix, -1, -m + 1, n, l);
+		  return m > 0 ? P(matrix, 1, m + 1, n, l) + P(matrix, -1, -m - 1, n, l) :
+		                 P(matrix, 1, m - 1, n, l) - P(matrix, -1, -m + 1, n, l);
 		};
 
 		/**
@@ -2275,13 +2312,15 @@ return /******/ (function(modules) { // webpackBootstrap
 		 */
 		function computeUVWCoeff(m, n, l) {
 		  var d = getKroneckerDelta(m, 0);
-		  var reciprocalDenominator = Math.abs(n) === l
-		      ? 1 / (2 * l * (2 * l - 1)) : 1 / ((l + n) * (l - n));
+		  var reciprocalDenominator =
+		      Math.abs(n) === l ? 1 / (2 * l * (2 * l - 1)) : 1 / ((l + n) * (l - n));
 
 		  return [
 		    Math.sqrt((l + m) * (l - m) * reciprocalDenominator),
-		    0.5 * (1 - 2 * d) * Math.sqrt((1 + d) * (l + Math.abs(m) - 1) *
-		        (l + Math.abs(m)) * reciprocalDenominator),
+		    0.5 * (1 - 2 * d) *
+		        Math.sqrt(
+		            (1 + d) * (l + Math.abs(m) - 1) * (l + Math.abs(m)) *
+		            reciprocalDenominator),
 		    -0.5 * (1 - d) * Math.sqrt((l - Math.abs(m) - 1) * (l - Math.abs(m))) *
 		        reciprocalDenominator
 		  ];
@@ -2300,7 +2339,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 *                                     where n=1,2,...,N.
 		 * @param {Number} l
 		 */
-		function computeBandRotation (matrix, l) {
+		function computeBandRotation(matrix, l) {
 		  // The lth band rotation matrix has rows and columns equal to the number of
 		  // coefficients within that band (-l <= m <= l implies 2l + 1 coefficients).
 		  for (var m = -l; m <= l; m++) {
@@ -2316,7 +2355,8 @@ return /******/ (function(modules) { // webpackBootstrap
 		      if (Math.abs(uvwCoefficients[2]) > 0)
 		        uvwCoefficients[2] *= W(matrix, m, n, l);
 
-		      setCenteredElement(matrix, l, m, n,
+		      setCenteredElement(
+		          matrix, l, m, n,
 		          uvwCoefficients[0] + uvwCoefficients[1] + uvwCoefficients[2]);
 		    }
 		  }
@@ -2328,7 +2368,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 *                                     (2n+1)x(2n+1) elements, where n=1,2,...,
 		 *                                     N.
 		 */
-		function computeHOAMatrices (matrix) {
+		function computeHOAMatrices(matrix) {
 		  // We start by computing the 2nd-order matrix from the 1st-order matrix.
 		  for (var i = 2; i <= matrix.length; i++)
 		    computeBandRotation(matrix, i);
@@ -2374,7 +2414,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		    // matrix. We compute the offset value as the first channel index of the
 		    // current order where
 		    //   k_last = l^2 + l + m,
-		    // and let m = -l
+		    // and var m = -l
 		    //   k_last = l^2
 		    orderOffset = i * i;
 
@@ -2412,18 +2452,12 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @param {Array} rotationMatrix    A 3x3 matrix of soundfield rotation. The
 		 *                                  matrix is in the col-major representation.
 		 */
-		HOARotator.prototype.setRotationMatrix = function (rotationMatrix) {
+		HOARotator.prototype.setRotationMatrix = function(rotationMatrix) {
 		  // Ambisonic spherical coordinates flip the signs for left/right and
 		  // front/back compared to OpenGL.
-		  this._gainNodeMatrix[0][0].gain.value = -rotationMatrix[0];
-		  this._gainNodeMatrix[0][1].gain.value = -rotationMatrix[1];
-		  this._gainNodeMatrix[0][2].gain.value = -rotationMatrix[2];
-		  this._gainNodeMatrix[0][3].gain.value = rotationMatrix[3];
-		  this._gainNodeMatrix[0][4].gain.value = rotationMatrix[4];
-		  this._gainNodeMatrix[0][5].gain.value = rotationMatrix[5];
-		  this._gainNodeMatrix[0][6].gain.value = -rotationMatrix[6];
-		  this._gainNodeMatrix[0][7].gain.value = -rotationMatrix[7];
-		  this._gainNodeMatrix[0][8].gain.value = -rotationMatrix[8];
+		  for (var i = 0; i < 9; ++i)
+		    this._gainNodeMatrix[0][i].gain.value = rotationMatrix[i];
+
 		  computeHOAMatrices(this._gainNodeMatrix);
 		};
 
@@ -2432,16 +2466,16 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * (Three.js style)
 		 * @param {Array} rotationMatrix4   A 4x4 matrix of soundfield rotation.
 		 */
-		HOARotator.prototype.setRotationMatrix4 = function (rotationMatrix4) {
-		  this._gainNodeMatrix[0][0].gain.value = -rotationMatrix4[0];
-		  this._gainNodeMatrix[0][1].gain.value = -rotationMatrix4[1];
-		  this._gainNodeMatrix[0][2].gain.value = -rotationMatrix4[2];
+		HOARotator.prototype.setRotationMatrix4 = function(rotationMatrix4) {
+		  this._gainNodeMatrix[0][0].gain.value = rotationMatrix4[0];
+		  this._gainNodeMatrix[0][1].gain.value = rotationMatrix4[1];
+		  this._gainNodeMatrix[0][2].gain.value = rotationMatrix4[2];
 		  this._gainNodeMatrix[0][3].gain.value = rotationMatrix4[4];
 		  this._gainNodeMatrix[0][4].gain.value = rotationMatrix4[5];
 		  this._gainNodeMatrix[0][5].gain.value = rotationMatrix4[6];
-		  this._gainNodeMatrix[0][6].gain.value = -rotationMatrix4[8];
-		  this._gainNodeMatrix[0][7].gain.value = -rotationMatrix4[9];
-		  this._gainNodeMatrix[0][8].gain.value = -rotationMatrix4[10];
+		  this._gainNodeMatrix[0][6].gain.value = rotationMatrix4[8];
+		  this._gainNodeMatrix[0][7].gain.value = rotationMatrix4[9];
+		  this._gainNodeMatrix[0][8].gain.value = rotationMatrix4[10];
 		  computeHOAMatrices(this._gainNodeMatrix);
 		};
 
@@ -2450,17 +2484,10 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @return {Array}                  A 3x3 matrix of soundfield rotation. The
 		 *                                  matrix is in the col-major representation.
 		 */
-		HOARotator.prototype.getRotationMatrix = function () {
+		HOARotator.prototype.getRotationMatrix = function() {
 		  var rotationMatrix = Float32Array(9);
-		  rotationMatrix[0] = -this._gainNodeMatrix[0][0].gain.value;
-		  rotationMatrix[1] = -this._gainNodeMatrix[0][1].gain.value;
-		  rotationMatrix[2] = -this._gainNodeMatrix[0][2].gain.value;
-		  rotationMatrix[3] = this._gainNodeMatrix[0][3].gain.value;
-		  rotationMatrix[4] = this._gainNodeMatrix[0][4].gain.value;
-		  rotationMatrix[5] = this._gainNodeMatrix[0][5].gain.value;
-		  rotationMatrix[6] = -this._gainNodeMatrix[0][6].gain.value;
-		  rotationMatrix[7] = -this._gainNodeMatrix[0][7].gain.value;
-		  rotationMatrix[8] = -this._gainNodeMatrix[0][8].gain.value;
+		  for (var i = 0; i < 9; ++i)
+		    rotationMatrix[i] = this._gainNodeMatrix[0][i].gain.value;
 		  return rotationMatrix;
 		};
 
@@ -2495,10 +2522,12 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * limitations under the License.
 		 */
 
+
 		/**
 		 * @fileOverview A collection of convolvers. Can be used for the optimized HOA
 		 *               binaural rendering. (e.g. SH-MaxRe HRTFs)
 		 */
+
 
 		/**
 		 * @class HOAConvolver
@@ -2511,7 +2540,6 @@ return /******/ (function(modules) { // webpackBootstrap
 		 *                                        where N is the ambisonic order.
 		 */
 		function HOAConvolver(context, options) {
-
 		  this._active = false;
 		  this._context = context;
 
@@ -2537,13 +2565,14 @@ return /******/ (function(modules) { // webpackBootstrap
 		  this.enable();
 		}
 
+
 		// Build the audio graph for HOA processing.
 		//
 		// For TOA convolution:
 		// input -> splitter(16) -[0,1]-> merger(2) -> convolver(2) -> splitter(2)
 		//                       -[2,3]-> merger(2) -> convolver(2) -> splitter(2)
 		//                       -[4,5]-> ... (6 more, 8 branches total)
-		HOAConvolver.prototype._buildAudioGraph = function (options) {
+		HOAConvolver.prototype._buildAudioGraph = function(options) {
 		  // Compute the number of stereo convolvers needed.
 		  var numberOfStereoChannels = Math.ceil(this._numberOfChannels / 2);
 
@@ -2586,11 +2615,11 @@ return /******/ (function(modules) { // webpackBootstrap
 		      // to reduce the number of convolutions required when rendering to a
 		      // symmetrical binaural renderer.
 		      if (m >= 0) {
-		        this._stereoSplitters[stereoIndex]
-		            .connect(this._positiveIndexSphericalHarmonics, acnIndex % 2);
+		        this._stereoSplitters[stereoIndex].connect(
+		            this._positiveIndexSphericalHarmonics, acnIndex % 2);
 		      } else {
-		        this._stereoSplitters[stereoIndex]
-		            .connect(this._negativeIndexSphericalHarmonics, acnIndex % 2);
+		        this._stereoSplitters[stereoIndex].connect(
+		            this._negativeIndexSphericalHarmonics, acnIndex % 2);
 		      }
 		    }
 		  }
@@ -2608,43 +2637,42 @@ return /******/ (function(modules) { // webpackBootstrap
 		  this.output = this._outputGain;
 		};
 
-		HOAConvolver.prototype._setHRIRBuffer = function (buffer) {
+
+		HOAConvolver.prototype._setHRIRBuffer = function(buffer) {
 		  // For the optimum performance/resource usage, we use stereo convolvers
 		  // instead of mono convolvers. In Web Audio API, the convolution on
 		  // >3 channels activates the "true stereo" mode in theconvolver, which is not
 		  // compatible to HOA convolution.
-		  //
-		  // TODO(hoch): This duplciates IR buffers. Consider optimizing the memory
-		  // usage.
 
 		  // Compute the number of stereo buffers to create from a given buffer.
 		  var numberOfStereoBuffers = Math.ceil(buffer.numberOfChannels / 2);
 
 		  // Generate Math.ceil(K/2) stereo buffers from a K-channel IR buffer.
 		  for (var i = 0; i < numberOfStereoBuffers; ++i) {
+		    var leftIndex = i * 2;
+		    var rightIndex = i * 2 + 1;
 		    var stereoHRIRBuffer =
 		        this._context.createBuffer(2, buffer.length, buffer.sampleRate);
-		    stereoHRIRBuffer.copyToChannel(buffer.getChannelData(i * 2), 0);
-
-		    // Skip right-channel if it exceeds buffer channel count.
-		    var rightChannelIndex = i * 2 + 1;
-		    if (rightChannelIndex < buffer.numberOfChannels) {
-		      stereoHRIRBuffer.copyToChannel(
-		        buffer.getChannelData(rightChannelIndex), 1);
+		    stereoHRIRBuffer.copyToChannel(buffer.getChannelData(leftIndex), 0);
+		    if (rightIndex < buffer.numberOfChannels) {
+		      stereoHRIRBuffer.copyToChannel(buffer.getChannelData(rightIndex), 1);
 		    }
 		    this._convolvers[i].buffer = stereoHRIRBuffer;
 		  }
-		  this.enable();
 		};
 
-		HOAConvolver.prototype.enable = function () {
-		  if (this._active) return;
+
+		HOAConvolver.prototype.enable = function() {
+		  if (this._active)
+		    return;
 		  this._binauralMerger.connect(this._outputGain);
 		  this._active = true;
 		};
 
-		HOAConvolver.prototype.disable = function () {
-		  if (!this._active) return;
+
+		HOAConvolver.prototype.disable = function() {
+		  if (!this._active)
+		    return;
 		  this._binauralMerger.disconnect();
 		  this._active = false;
 		};
@@ -2687,10 +2715,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 		// HRIRs for optimized HOA rendering.
 		// TODO(hongchan): change this with the absolute URL.
-		var SH_MAXRE_HRIR_URLS = [
-		  'resources/sh_hrir_o_3_ch0-ch7.wav',
-		  'resources/sh_hrir_o_3_ch8-ch15.wav'
-		];
+		var SH_MAXRE_HRIR_URLS =
+		    ['resources/sh_hrir_o_3_ch0-ch7.wav', 'resources/sh_hrir_o_3_ch8-ch15.wav'];
 
 
 		/**
@@ -2708,12 +2734,12 @@ return /******/ (function(modules) { // webpackBootstrap
 		  this._renderingMode = 'ambisonic';
 		  this._ambisonicOrder = 3;
 
-		  if (options) {
-		    if (options.HRIRUrl)
+		  if (options !== undefined) {
+		    if (options.HRIRUrl !== undefined)
 		      this._HRIRUrls = options.HRIRUrl;
-		    if (options.renderingMode)
+		    if (options.renderingMode !== undefined)
 		      this._renderingMode = options.renderingMode;
-		    if (options.ambisonicOrder)
+		    if (options.ambisonicOrder !== undefined)
 		      this._ambisonicOrder = options.ambisonicOrder;
 		  }
 
@@ -2729,9 +2755,10 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * Initialize and load the resources for the decode.
 		 * @return {Promise}
 		 */
-		HOARenderer.prototype.initialize = function () {
+		HOARenderer.prototype.initialize = function() {
 		  Utils.log('Version: ' + SystemVersion);
-		  Utils.log('Initializing... (mode: ' + this._renderingMode +
+		  Utils.log(
+		      'Initializing... (mode: ' + this._renderingMode +
 		      ', order: ' + this._ambisonicOrder + ')');
 
 		  return new Promise(this._initializeCallback.bind(this));
@@ -2743,52 +2770,44 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @param {Function} resolve Promise resolution.
 		 * @param {Function} reject Promise rejection.
 		 */
-		HOARenderer.prototype._initializeCallback = function (resolve, reject) {
+		HOARenderer.prototype._initializeCallback = function(resolve, reject) {
 		  var hoaHRIRBuffer;
 
 		  // Constrcut a consolidated HOA HRIR (e.g. 16 channels for TOA).
 		  // Handle multiple chunks of HRIR buffer data splitted by 8 channels each.
 		  // This is because Chrome cannot decode the audio file >8  channels.
 		  var audioBufferData = [];
-		  this._HRIRUrls.forEach(function (key, index, urls) {
-		    audioBufferData.push({ name: key, url: urls[index] });
+		  this._HRIRUrls.forEach(function(key, index, urls) {
+		    audioBufferData.push({name: index, url: urls[index]});
 		  });
 
 		  new AudioBufferManager(
-		      this._context,
-		      audioBufferData,
-		      function (buffers) {
-		        var accumulatedChannelCount = 0;
-		        buffers.forEach(function (buffer) {
+		      this._context, audioBufferData,
+		      function(buffers) {
+		        buffers.forEach(function(buffer, key, buffers) {
 		          // Create a K channel buffer to integrate individual IR buffers.
 		          if (!hoaHRIRBuffer) {
 		            hoaHRIRBuffer = this._context.createBuffer(
-		                  this._numberOfChannels, buffer.length, buffer.sampleRate);
+		                this._numberOfChannels, buffer.length, buffer.sampleRate);
 		          }
 
+		          // Determine channel offset for each buffer.
+		          var channelOffset = 0;
+		          for (var i = 0; i < key; i++) {
+		            channelOffset += buffers.get(key).numberOfChannels;
+		          }
 		          for (var channel = 0; channel < buffer.numberOfChannels; ++channel) {
 		            hoaHRIRBuffer.copyToChannel(
-		                buffer.getChannelData(channel),
-		                accumulatedChannelCount + channel);
+		                buffer.getChannelData(channel), channelOffset + channel);
 		          }
-
-		          accumulatedChannelCount += buffer.numberOfChannels;
 		        }.bind(this));
 
-		        if (accumulatedChannelCount === this._numberOfChannels) {
-		          this._buildAudioGraph(hoaHRIRBuffer);
-		          this._isRendererReady = true;
-		          Utils.log('Rendering via SH-MaxRE convolution.');
-		          resolve();
-		        } else {
-		          var errorMessage = 'Only ' + accumulatedChannelCount +
-		              ' HRIR channels were loaded (expected ' + this._numberOfChannels +
-		              '). The renderer will not function correctly.';
-		          Utils.log(errorMessage);
-		          reject(errorMessage);
-		        }
+		        this._buildAudioGraph(hoaHRIRBuffer);
+		        this._isRendererReady = true;
+		        Utils.log('Rendering via SH-MaxRE convolution.');
+		        resolve();
 		      }.bind(this),
-		      function (buffers) {
+		      function(buffers) {
 		        // TODO: why is it failing?
 		        var errorMessage = 'Initialization failed.';
 		        Utils.log(errorMessage);
@@ -2800,16 +2819,15 @@ return /******/ (function(modules) { // webpackBootstrap
 		/**
 		 * Internal method that builds the audio graph.
 		 */
-		HOARenderer.prototype._buildAudioGraph = function (hoaHRIRBuffer) {
+		HOARenderer.prototype._buildAudioGraph = function(hoaHRIRBuffer) {
 		  this.input = this._context.createGain();
 		  this.output = this._context.createGain();
 		  this._bypass = this._context.createGain();
 
 		  this._hoaRotator = new HOARotator(this._context, this._ambisonicOrder);
-		  this._hoaConvolver = new HOAConvolver(this._context, {
-		      IRBuffer: hoaHRIRBuffer,
-		      ambisonicOrder: this._ambisonicOrder
-		    });
+		  this._hoaConvolver = new HOAConvolver(
+		      this._context,
+		      {IRBuffer: hoaHRIRBuffer, ambisonicOrder: this._ambisonicOrder});
 
 		  this.input.connect(this._hoaRotator.input);
 		  this.input.connect(this._bypass);
@@ -2825,8 +2843,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @param {Array} rotationMatrix      3x3 rotation matrix (row-major
 		 *                                    representation)
 		 */
-		HOARenderer.prototype.setRotationMatrix = function (rotationMatrix) {
-		  if (!this._isRendererReady) return;
+		HOARenderer.prototype.setRotationMatrix = function(rotationMatrix) {
+		  if (!this._isRendererReady)
+		    return;
 		  this._hoaRotator.setRotationMatrix(rotationMatrix);
 		};
 
@@ -2835,8 +2854,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * Update the rotation matrix from a Three.js camera object.
 		 * @param  {Object} cameraMatrix      The Matrix4 obejct of Three.js the camera.
 		 */
-		HOARenderer.prototype.setRotationMatrixFromCamera = function (cameraMatrix) {
-		  if (!this._isRendererReady) return;
+		HOARenderer.prototype.setRotationMatrixFromCamera = function(cameraMatrix) {
+		  if (!this._isRendererReady)
+		    return;
 
 		  // Extract the inner array elements and inverse. (The actual view rotation is
 		  // the opposite of the camera movement.)
@@ -2855,8 +2875,9 @@ return /******/ (function(modules) { // webpackBootstrap
 		 *                                    processing is completely turned off saving
 		 *                                    the CPU power.
 		 */
-		HOARenderer.prototype.setRenderingMode = function (mode) {
-		  if (mode === this._renderingMode) return;
+		HOARenderer.prototype.setRenderingMode = function(mode) {
+		  if (mode === this._renderingMode)
+		    return;
 		  switch (mode) {
 		    // Bypass mode: The convolution path is disabled, disconnected (thus consume
 		    // no CPU). Use bypass gain node to pass-through the input stream.
@@ -2971,6 +2992,74 @@ return /******/ (function(modules) { // webpackBootstrap
 	  ]);
 	};
 
+	// Static temp storage for matrix inversion.
+	var a00, a01, a02, a03, a10, a11, a12, a13;
+	var a20, a21, a22, a23, a30, a31, a32, a33;
+	var b00, b01, b02, b03, b04, b05, b06, b07, b08, b09, b10, b11;
+	var det;
+
+	/**
+	 * A 4x4 matrix inversion utility. This does not handle the case when the
+	 * arguments are not proper 4x4 matrices.
+	 * @param {Float32Array} out   The inverted result.
+	 * @param {Float32Array} a     The source matrix.
+	 * @returns {Float32Array} out
+	 */
+	exports.invertMatrix4 = function(out, a) {
+	  a00 = a[0];
+	  a01 = a[1];
+	  a02 = a[2];
+	  a03 = a[3];
+	  a10 = a[4];
+	  a11 = a[5];
+	  a12 = a[6];
+	  a13 = a[7];
+	  a20 = a[8];
+	  a21 = a[9];
+	  a22 = a[10];
+	  a23 = a[11];
+	  a30 = a[12];
+	  a31 = a[13];
+	  a32 = a[14];
+	  a33 = a[15];
+	  b00 = a00 * a11 - a01 * a10;
+	  b01 = a00 * a12 - a02 * a10;
+	  b02 = a00 * a13 - a03 * a10;
+	  b03 = a01 * a12 - a02 * a11;
+	  b04 = a01 * a13 - a03 * a11;
+	  b05 = a02 * a13 - a03 * a12;
+	  b06 = a20 * a31 - a21 * a30;
+	  b07 = a20 * a32 - a22 * a30;
+	  b08 = a20 * a33 - a23 * a30;
+	  b09 = a21 * a32 - a22 * a31;
+	  b10 = a21 * a33 - a23 * a31;
+	  b11 = a22 * a33 - a23 * a32;
+	  det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+
+	  if (!det)
+	    return null;
+
+	  det = 1.0 / det;
+	  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+	  out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+	  out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+	  out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+	  out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+	  out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+	  out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+	  out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+	  out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+	  out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+	  out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+	  out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+	  out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+	  out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+	  out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+	  out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+
+	  return out;
+	};
+
 	/**
 	 * Quaternion constructor.
 	 * @type {Function}
@@ -3021,6 +3110,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	      [q[0], -q[1], -q[2], -q[3]]
 	  );
 	  return [p_n[1], p_n[2], p_n[3]];
+	}
+
+	/**
+	 * Normalize a 3-d vector.
+	 * @param {Float32Array} v 3-element vector.
+	 * @returns {Float32Array} 3-element vector.
+	 */
+	exports.normalizeVector = function (v) {
+	  var n = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+	  if (n > exports.EPSILON_FLOAT) {
+	    n = 1 / n;
+	    v[0] *= n;
+	    v[1] *= n;
+	    v[2] *= n;
+	  }
+	  return v;
 	}
 
 /***/ }),
@@ -3285,6 +3390,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._up = Utils.rotateVector(Utils.DEFAULT_UP, q);
 	  this._right = Utils.rotateVector(Utils.DEFAULT_RIGHT, q);
 	  this.setPosition(this._position[0], this._position[1], this._position[2]);
+	}
+
+	/**
+	 * Set source's position and orientation using a
+	 * Three.js modelViewMatrix Matrix4.
+	 * @param {Float32Array} matrix4
+	 * The Matrix4 representing the object position and rotation in world space.
+	 */
+	Source.prototype.setFromMatrix = function (matrix4) {
+	  this._right[0] = matrix4[0];
+	  this._right[1] = matrix4[1];
+	  this._right[2] = matrix4[2];
+	  this._up[0] = matrix4[4];
+	  this._up[1] = matrix4[5];
+	  this._up[2] = matrix4[6];
+	  this._forward[0] = matrix4[8];
+	  this._forward[1] = matrix4[9];
+	  this._forward[2] = matrix4[10];
+
+	  // Normalize to remove scaling.
+	  this._right = Utils.normalizeVector(this._right);
+	  this._up = Utils.normalizeVector(this._up);
+	  this._forward = Utils.normalizeVector(this._forward);
+
+	  // Update position.
+	  this.setPosition(matrix4[12], matrix4[13], matrix4[14]);
 	}
 
 	/**
@@ -3861,7 +3992,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	/**
 	 * Default elevation (in degres).
 	 * Suitable range is from -90 (below) to 90 (above).
-	 * @type {Number} */
+	 * @type {Number}
+	 */
 	Encoder.DEFAULT_ELEVATION = 0;
 	/**
 	 * The maximum allowed ambisonic order, specified by the
@@ -6820,979 +6952,979 @@ return /******/ (function(modules) { // webpackBootstrap
 	      -0.99984771,
 	      0.0174524058,
 	      0.99954313,
-	      0.0302238502,
+	      -0.0302238502,
 	      0.000263779628,
 	      -0.99908632,
 	      0.0427332148,
-	      0.000589739357,
+	      -0.000589739357,
 	      0.00000420248307
 	    ],
 	    [
 	      -0.999390841,
 	      0.0348994955,
 	      0.998173058,
-	      0.0604108796,
+	      -0.0604108796,
 	      0.00105479721,
 	      -0.996347725,
 	      0.0853558108,
-	      0.00235716137,
+	      -0.00235716137,
 	      0.000033604505
 	    ],
 	    [
 	      -0.99862951,
 	      0.0523359552,
 	      0.995891392,
-	      0.0905243,
+	      -0.0905243,
 	      0.00237208884,
 	      -0.991791308,
 	      0.12775746,
-	      0.00529688271,
+	      -0.00529688271,
 	      0.000113328853
 	    ],
 	    [
 	      -0.997564077,
 	      0.0697564706,
 	      0.992701054,
-	      0.120527439,
+	      -0.120527439,
 	      0.00421405,
 	      -0.985428751,
 	      0.169828475,
-	      0.00939994864,
+	      -0.00939994864,
 	      0.000268345029
 	    ],
 	    [
 	      -0.99619472,
 	      0.0871557444,
 	      0.988605797,
-	      0.150383726,
+	      -0.150383726,
 	      0.00657843612,
 	      -0.977276683,
 	      0.211460009,
-	      0.014653855,
+	      -0.014653855,
 	      0.000523393159
 	    ],
 	    [
 	      -0.994521916,
 	      0.104528464,
 	      0.98361069,
-	      0.18005681,
+	      -0.18005681,
 	      0.00946236681,
 	      -0.967356,
 	      0.252544463,
-	      0.0210425854,
+	      -0.0210425854,
 	      0.000902908447
 	    ],
 	    [
 	      -0.992546141,
 	      0.121869341,
 	      0.97772181,
-	      0.209510505,
+	      -0.209510505,
 	      0.0128623275,
 	      -0.955692589,
 	      0.292975664,
-	      0.0285466593,
+	      -0.0285466593,
 	      0.00143094664
 	    ],
 	    [
 	      -0.990268052,
 	      0.139173105,
 	      0.970946252,
-	      0.238708958,
+	      -0.238708958,
 	      0.0167741776,
 	      -0.942316413,
 	      0.33264932,
-	      0.0371431746,
+	      -0.0371431746,
 	      0.00213111029
 	    ],
 	    [
 	      -0.987688363,
 	      0.156434461,
 	      0.96329236,
-	      0.26761657,
+	      -0.26761657,
 	      0.0211931504,
 	      -0.927262187,
 	      0.37146312,
-	      0.0468058847,
+	      -0.0468058847,
 	      0.0030264766
 	    ],
 	    [
 	      -0.98480773,
 	      0.173648179,
 	      0.954769492,
-	      0.29619813,
+	      -0.29619813,
 	      0.0261138603,
 	      -0.910568774,
 	      0.409317106,
-	      0.0575052574,
+	      -0.0575052574,
 	      0.00413952675
 	    ],
 	    [
 	      -0.981627166,
 	      0.190809,
 	      0.9453879,
-	      0.324418813,
+	      -0.324418813,
 	      0.0315303169,
 	      -0.892279327,
 	      0.446113944,
-	      0.0692085773,
+	      -0.0692085773,
 	      0.00549207628
 	    ],
 	    [
 	      -0.978147626,
 	      0.207911685,
 	      0.935159087,
-	      0.352244258,
+	      -0.352244258,
 	      0.0374359153,
 	      -0.872441,
 	      0.481759191,
-	      0.08188,
+	      -0.08188,
 	      0.00710520707
 	    ],
 	    [
 	      -0.974370062,
 	      0.224951059,
 	      0.924095511,
-	      0.379640549,
+	      -0.379640549,
 	      0.043823462,
 	      -0.851105,
 	      0.516161561,
-	      0.0954807103,
+	      -0.0954807103,
 	      0.00899920426
 	    ],
 	    [
 	      -0.970295727,
 	      0.241921902,
 	      0.912210703,
-	      0.406574309,
+	      -0.406574309,
 	      0.0506851785,
 	      -0.828326404,
 	      0.549233,
-	      0.10996896,
+	      -0.10996896,
 	      0.0111934906
 	    ],
 	    [
 	      -0.965925813,
 	      0.258819044,
 	      0.899519,
-	      0.433012694,
+	      -0.433012694,
 	      0.0580127,
 	      -0.804163933,
 	      0.580889285,
-	      0.125300229,
+	      -0.125300229,
 	      0.0137065668
 	    ],
 	    [
 	      -0.96126169,
 	      0.275637358,
 	      0.886036098,
-	      0.458923548,
+	      -0.458923548,
 	      0.0657971054,
 	      -0.778679788,
 	      0.61104995,
-	      0.141427353,
+	      -0.141427353,
 	      0.0165559556
 	    ],
 	    [
 	      -0.956304729,
 	      0.29237169,
 	      0.87177819,
-	      0.484275252,
+	      -0.484275252,
 	      0.0740289,
 	      -0.751939535,
 	      0.639638543,
-	      0.158300623,
+	      -0.158300623,
 	      0.0197581388
 	    ],
 	    [
 	      -0.95105654,
 	      0.309017,
 	      0.856762767,
-	      0.509036958,
+	      -0.509036958,
 	      0.0826980695,
 	      -0.724011958,
 	      0.666583,
-	      0.175867945,
+	      -0.175867945,
 	      0.0233285148
 	    ],
 	    [
 	      -0.945518553,
 	      0.325568169,
 	      0.841008067,
-	      0.533178449,
+	      -0.533178449,
 	      0.0917940363,
 	      -0.694968879,
 	      0.691815674,
-	      0.194074973,
+	      -0.194074973,
 	      0.0272813439
 	    ],
 	    [
 	      -0.939692616,
 	      0.342020154,
 	      0.824533343,
-	      0.556670427,
+	      -0.556670427,
 	      0.101305731,
 	      -0.664884746,
 	      0.715273559,
-	      0.212865278,
+	      -0.212865278,
 	      0.0316297
 	    ],
 	    [
 	      -0.933580399,
 	      0.35836795,
 	      0.807358623,
-	      0.579484105,
+	      -0.579484105,
 	      0.111221552,
 	      -0.633836746,
 	      0.736898482,
-	      0.232180476,
+	      -0.232180476,
 	      0.0363854282
 	    ],
 	    [
 	      -0.927183867,
 	      0.37460658,
 	      0.789504826,
-	      0.601591825,
+	      -0.601591825,
 	      0.12152943,
 	      -0.601904333,
 	      0.756637275,
-	      0.251960427,
+	      -0.251960427,
 	      0.0415591113
 	    ],
 	    [
 	      -0.920504868,
 	      0.390731126,
 	      0.770993769,
-	      0.622966528,
+	      -0.622966528,
 	      0.132216811,
 	      -0.569169283,
 	      0.774441898,
-	      0.272143364,
+	      -0.272143364,
 	      0.0471600257
 	    ],
 	    [
 	      -0.91354543,
 	      0.406736642,
 	      0.751848,
-	      0.643582284,
+	      -0.643582284,
 	      0.143270656,
 	      -0.535715163,
 	      0.790269554,
-	      0.292666078,
+	      -0.292666078,
 	      0.0531961136
 	    ],
 	    [
 	      -0.906307817,
 	      0.42261827,
 	      0.732090712,
-	      0.663413942,
+	      -0.663413942,
 	      0.154677495,
 	      -0.501627326,
 	      0.80408287,
-	      0.313464135,
+	      -0.313464135,
 	      0.0596739501
 	    ],
 	    [
 	      -0.898794055,
 	      0.438371152,
 	      0.711746097,
-	      0.68243736,
+	      -0.68243736,
 	      0.16642347,
 	      -0.466992587,
 	      0.8158499,
-	      0.334471971,
+	      -0.334471971,
 	      0.0665987208
 	    ],
 	    [
 	      -0.891006529,
 	      0.453990489,
 	      0.690838933,
-	      0.700629294,
+	      -0.700629294,
 	      0.178494215,
 	      -0.431898981,
 	      0.825544238,
-	      0.355623156,
+	      -0.355623156,
 	      0.073974207
 	    ],
 	    [
 	      -0.882947564,
 	      0.469471574,
 	      0.669394672,
-	      0.71796757,
+	      -0.71796757,
 	      0.190875068,
 	      -0.396435648,
 	      0.833145082,
-	      0.376850545,
+	      -0.376850545,
 	      0.0818027481
 	    ],
 	    [
 	      -0.874619722,
 	      0.484809607,
 	      0.64743942,
-	      0.734431207,
+	      -0.734431207,
 	      0.203550935,
 	      -0.360692352,
 	      0.838637531,
-	      0.398086399,
+	      -0.398086399,
 	      0.0900852531
 	    ],
 	    [
 	      -0.866025388,
 	      0.5,
 	      0.625,
-	      0.75,
+	      -0.75,
 	      0.216506347,
 	      -0.324759513,
 	      0.842012107,
-	      0.419262737,
+	      -0.419262737,
 	      0.0988211781
 	    ],
 	    [
 	      -0.857167304,
 	      0.515038073,
 	      0.602103651,
-	      0.764655054,
+	      -0.764655054,
 	      0.229725555,
 	      -0.28872776,
 	      0.843265295,
-	      0.440311372,
+	      -0.440311372,
 	      0.108008519
 	    ],
 	    [
 	      -0.848048091,
 	      0.529919267,
 	      0.578778386,
-	      0.778378487,
+	      -0.778378487,
 	      0.243192434,
 	      -0.252687752,
 	      0.84239924,
-	      0.461164147,
+	      -0.461164147,
 	      0.117643826
 	    ],
 	    [
 	      -0.838670552,
 	      0.544639051,
 	      0.555052459,
-	      0.79115355,
+	      -0.79115355,
 	      0.256890565,
 	      -0.216729924,
 	      0.839421868,
-	      0.481753141,
+	      -0.481753141,
 	      0.127722174
 	    ],
 	    [
 	      -0.829037547,
 	      0.559192896,
 	      0.530954957,
-	      0.802964747,
+	      -0.802964747,
 	      0.270803303,
 	      -0.180944279,
 	      0.83434689,
-	      0.502010882,
+	      -0.502010882,
 	      0.138237208
 	    ],
 	    [
 	      -0.819152057,
 	      0.57357645,
 	      0.506515086,
-	      0.813797653,
+	      -0.813797653,
 	      0.284913629,
 	      -0.145420119,
 	      0.827193558,
-	      0.521870494,
+	      -0.521870494,
 	      0.149181142
 	    ],
 	    [
 	      -0.809017,
 	      0.587785244,
 	      0.481762737,
-	      0.823639095,
+	      -0.823639095,
 	      0.299204409,
 	      -0.110245749,
 	      0.817986846,
-	      0.541265905,
+	      -0.541265905,
 	      0.160544738
 	    ],
 	    [
 	      -0.798635483,
 	      0.601815045,
 	      0.456728,
-	      0.832477033,
+	      -0.832477033,
 	      0.313658237,
 	      -0.0755083486,
 	      0.80675739,
-	      0.560131907,
+	      -0.560131907,
 	      0.172317386
 	    ],
 	    [
 	      -0.788010776,
 	      0.615661502,
 	      0.431441426,
-	      0.840300739,
+	      -0.840300739,
 	      0.328257442,
 	      -0.0412936322,
 	      0.793541074,
-	      0.578404605,
+	      -0.578404605,
 	      0.184487075
 	    ],
 	    [
 	      -0.777146,
 	      0.629320383,
 	      0.405933768,
-	      0.847100675,
+	      -0.847100675,
 	      0.342984289,
 	      -0.00768567342,
 	      0.778379381,
-	      0.596021354,
+	      -0.596021354,
 	      0.197040468
 	    ],
 	    [
 	      -0.766044438,
 	      0.642787635,
 	      0.380236119,
-	      0.852868557,
+	      -0.852868557,
 	      0.357820839,
 	      0.0252333339,
 	      0.761319,
-	      0.612921119,
+	      -0.612921119,
 	      0.209962875
 	    ],
 	    [
 	      -0.754709601,
 	      0.656059,
 	      0.354379833,
-	      0.857597291,
+	      -0.857597291,
 	      0.372748971,
 	      0.0573833026,
 	      0.742411554,
-	      0.629044473,
+	      -0.629044473,
 	      0.223238334
 	    ],
 	    [
 	      -0.74314481,
 	      0.669130623,
 	      0.32839635,
-	      0.861281216,
+	      -0.861281216,
 	      0.387750536,
 	      0.0886864737,
 	      0.721713901,
-	      0.64433378,
+	      -0.64433378,
 	      0.236849621
 	    ],
 	    [
 	      -0.7313537,
 	      0.681998372,
 	      0.302317351,
-	      0.863915801,
+	      -0.863915801,
 	      0.402807266,
 	      0.119067609,
 	      0.699287713,
-	      0.658733487,
+	      -0.658733487,
 	      0.250778317
 	    ],
 	    [
 	      -0.719339788,
 	      0.694658399,
 	      0.276174635,
-	      0.865497828,
+	      -0.865497828,
 	      0.417900771,
 	      0.148454204,
 	      0.675199151,
-	      0.672190368,
+	      -0.672190368,
 	      0.265004843
 	    ],
 	    [
 	      -0.707106769,
 	      0.707106769,
 	      0.25,
-	      0.866025388,
+	      -0.866025388,
 	      0.433012694,
 	      0.176776692,
 	      0.649519,
-	      0.684653223,
+	      -0.684653223,
 	      0.279508501
 	    ],
 	    [
 	      -0.694658399,
 	      0.719339788,
 	      0.22382538,
-	      0.865497828,
+	      -0.865497828,
 	      0.448124617,
 	      0.203968629,
 	      0.622322381,
-	      0.696073472,
+	      -0.696073472,
 	      0.294267476
 	    ],
 	    [
 	      -0.681998372,
 	      0.7313537,
 	      0.197682649,
-	      0.863915801,
+	      -0.863915801,
 	      0.463218153,
 	      0.229966834,
 	      0.593688309,
-	      0.706405222,
+	      -0.706405222,
 	      0.309259027
 	    ],
 	    [
 	      -0.669130623,
 	      0.74314481,
 	      0.17160365,
-	      0.861281216,
+	      -0.861281216,
 	      0.478274852,
 	      0.254711658,
 	      0.563699722,
-	      0.71560514,
+	      -0.71560514,
 	      0.324459404
 	    ],
 	    [
 	      -0.656059,
 	      0.754709601,
 	      0.145620167,
-	      0.857597291,
+	      -0.857597291,
 	      0.493276417,
 	      0.278146982,
 	      0.532443225,
-	      0.723632872,
+	      -0.723632872,
 	      0.339844
 	    ],
 	    [
 	      -0.642787635,
 	      0.766044438,
 	      0.119763866,
-	      0.852868557,
+	      -0.852868557,
 	      0.508204579,
 	      0.300220519,
 	      0.500008881,
-	      0.730451,
+	      -0.730451,
 	      0.3553873
 	    ],
 	    [
 	      -0.629320383,
 	      0.777146,
 	      0.0940662324,
-	      0.847100675,
+	      -0.847100675,
 	      0.523041129,
 	      0.32088393,
 	      0.466489762,
-	      0.736025095,
+	      -0.736025095,
 	      0.371063113
 	    ],
 	    [
 	      -0.615661502,
 	      0.788010776,
 	      0.0685585812,
-	      0.840300739,
+	      -0.840300739,
 	      0.537767947,
 	      0.340092868,
 	      0.431981891,
-	      0.74032414,
+	      -0.74032414,
 	      0.386844516
 	    ],
 	    [
 	      -0.601815045,
 	      0.798635483,
 	      0.0432719849,
-	      0.832477033,
+	      -0.832477033,
 	      0.552367151,
 	      0.35780713,
 	      0.396583915,
-	      0.743320107,
+	      -0.743320107,
 	      0.402703911
 	    ],
 	    [
 	      -0.587785244,
 	      0.809017,
 	      0.0182372537,
-	      0.823639095,
+	      -0.823639095,
 	      0.566821,
 	      0.373990864,
 	      0.360396802,
-	      0.744988561,
+	      -0.744988561,
 	      0.418613225
 	    ],
 	    [
 	      -0.57357645,
 	      0.819152057,
 	      -0.00651510758,
-	      0.813797653,
+	      -0.813797653,
 	      0.581111789,
 	      0.388612479,
 	      0.323523581,
-	      0.74530834,
+	      -0.74530834,
 	      0.434543818
 	    ],
 	    [
 	      -0.559192896,
 	      0.829037547,
 	      -0.0309549458,
-	      0.802964747,
+	      -0.802964747,
 	      0.595222116,
 	      0.401644915,
 	      0.286069185,
-	      0.744261742,
+	      -0.744261742,
 	      0.450466663
 	    ],
 	    [
 	      -0.544639051,
 	      0.838670552,
 	      -0.0550524816,
-	      0.79115355,
+	      -0.79115355,
 	      0.609134853,
 	      0.413065583,
 	      0.248139873,
-	      0.741834819,
+	      -0.741834819,
 	      0.466352403
 	    ],
 	    [
 	      -0.529919267,
 	      0.848048091,
 	      -0.0787783638,
-	      0.778378487,
+	      -0.778378487,
 	      0.622832954,
 	      0.42285645,
 	      0.209843263,
-	      0.738016903,
+	      -0.738016903,
 	      0.482171416
 	    ],
 	    [
 	      -0.515038073,
 	      0.857167304,
 	      -0.102103673,
-	      0.764655054,
+	      -0.764655054,
 	      0.636299849,
 	      0.431004167,
 	      0.171287775,
-	      0.732801199,
+	      -0.732801199,
 	      0.4978939
 	    ],
 	    [
 	      -0.5,
 	      0.866025388,
 	      -0.125,
-	      0.75,
+	      -0.75,
 	      0.649519,
 	      0.4375,
 	      0.132582515,
-	      0.726184368,
+	      -0.726184368,
 	      0.513489902
 	    ],
 	    [
 	      -0.484809607,
 	      0.874619722,
 	      -0.14743945,
-	      0.734431207,
+	      -0.734431207,
 	      0.662474453,
 	      0.442339838,
 	      0.0938368812,
-	      0.718166888,
+	      -0.718166888,
 	      0.528929472
 	    ],
 	    [
 	      -0.469471574,
 	      0.882947564,
 	      -0.169394672,
-	      0.71796757,
+	      -0.71796757,
 	      0.675150335,
 	      0.445524335,
 	      0.0551602542,
-	      0.708752811,
+	      -0.708752811,
 	      0.544182777
 	    ],
 	    [
 	      -0.453990489,
 	      0.891006529,
 	      -0.190838933,
-	      0.700629294,
+	      -0.700629294,
 	      0.687531173,
 	      0.447058767,
 	      0.0166617651,
-	      0.697949767,
+	      -0.697949767,
 	      0.559219956
 	    ],
 	    [
 	      -0.438371152,
 	      0.898794055,
 	      -0.211746112,
-	      0.68243736,
+	      -0.68243736,
 	      0.699601948,
 	      0.446953058,
 	      -0.0215500612,
-	      0.6857692,
+	      -0.6857692,
 	      0.574011445
 	    ],
 	    [
 	      -0.42261827,
 	      0.906307817,
 	      -0.232090712,
-	      0.663413942,
+	      -0.663413942,
 	      0.711347878,
 	      0.445221782,
 	      -0.0593675859,
-	      0.672226,
+	      -0.672226,
 	      0.588528037
 	    ],
 	    [
 	      -0.406736642,
 	      0.91354543,
 	      -0.251847953,
-	      0.643582284,
+	      -0.643582284,
 	      0.722754776,
 	      0.441884071,
 	      -0.0966843441,
-	      0.657338798,
+	      -0.657338798,
 	      0.602740645
 	    ],
 	    [
 	      -0.390731126,
 	      0.920504868,
 	      -0.270993769,
-	      0.622966528,
+	      -0.622966528,
 	      0.733808577,
 	      0.436963588,
 	      -0.133395374,
-	      0.641129553,
+	      -0.641129553,
 	      0.616620898
 	    ],
 	    [
 	      -0.37460658,
 	      0.927183867,
 	      -0.289504856,
-	      0.601591825,
+	      -0.601591825,
 	      0.744496,
 	      0.430488437,
 	      -0.169397429,
-	      0.623623908,
+	      -0.623623908,
 	      0.630140781
 	    ],
 	    [
 	      -0.35836795,
 	      0.933580399,
 	      -0.307358623,
-	      0.579484105,
+	      -0.579484105,
 	      0.754803836,
 	      0.422491103,
 	      -0.204589352,
-	      0.604850829,
+	      -0.604850829,
 	      0.643272877
 	    ],
 	    [
 	      -0.342020154,
 	      0.939692616,
 	      -0.324533343,
-	      0.556670427,
+	      -0.556670427,
 	      0.764719665,
 	      0.413008332,
 	      -0.238872305,
-	      0.584842563,
+	      -0.584842563,
 	      0.655990362
 	    ],
 	    [
 	      -0.325568169,
 	      0.945518553,
 	      -0.341008067,
-	      0.533178449,
+	      -0.533178449,
 	      0.774231374,
 	      0.402081043,
 	      -0.27215004,
-	      0.563634634,
+	      -0.563634634,
 	      0.66826731
 	    ],
 	    [
 	      -0.309017,
 	      0.95105654,
 	      -0.356762737,
-	      0.509036958,
+	      -0.509036958,
 	      0.783327341,
 	      0.389754236,
 	      -0.304329157,
-	      0.541265905,
+	      -0.541265905,
 	      0.680078387
 	    ],
 	    [
 	      -0.29237169,
 	      0.956304729,
 	      -0.37177819,
-	      0.484275252,
+	      -0.484275252,
 	      0.791996479,
 	      0.376076847,
 	      -0.3353194,
-	      0.517778039,
+	      -0.517778039,
 	      0.691399336
 	    ],
 	    [
 	      -0.275637358,
 	      0.96126169,
 	      -0.386036068,
-	      0.458923548,
+	      -0.458923548,
 	      0.800228298,
 	      0.361101508,
 	      -0.365033895,
-	      0.493215799,
+	      -0.493215799,
 	      0.702206612
 	    ],
 	    [
 	      -0.258819044,
 	      0.965925813,
 	      -0.399519056,
-	      0.433012694,
+	      -0.433012694,
 	      0.808012724,
 	      0.344884604,
 	      -0.393389285,
-	      0.46762684,
+	      -0.46762684,
 	      0.712477803
 	    ],
 	    [
 	      -0.241921902,
 	      0.970295727,
 	      -0.412210703,
-	      0.406574309,
+	      -0.406574309,
 	      0.815340221,
 	      0.327485919,
 	      -0.420306176,
-	      0.441061407,
+	      -0.441061407,
 	      0.722191513
 	    ],
 	    [
 	      -0.224951059,
 	      0.974370062,
 	      -0.424095541,
-	      0.379640549,
+	      -0.379640549,
 	      0.822201967,
 	      0.308968604,
 	      -0.445709109,
-	      0.413572371,
+	      -0.413572371,
 	      0.731327355
 	    ],
 	    [
 	      -0.207911685,
 	      0.978147626,
 	      -0.435159087,
-	      0.352244258,
+	      -0.352244258,
 	      0.828589499,
 	      0.289398909,
 	      -0.469526976,
-	      0.385215133,
+	      -0.385215133,
 	      0.739866197
 	    ],
 	    [
 	      -0.190809,
 	      0.981627166,
 	      -0.4453879,
-	      0.324418813,
+	      -0.324418813,
 	      0.834495068,
 	      0.268846035,
 	      -0.491693079,
-	      0.356047243,
+	      -0.356047243,
 	      0.747790158
 	    ],
 	    [
 	      -0.173648179,
 	      0.98480773,
 	      -0.454769462,
-	      0.29619813,
+	      -0.29619813,
 	      0.83991152,
 	      0.24738194,
 	      -0.51214534,
-	      0.326128513,
+	      -0.326128513,
 	      0.755082488
 	    ],
 	    [
 	      -0.156434461,
 	      0.987688363,
 	      -0.46329239,
-	      0.26761657,
+	      -0.26761657,
 	      0.844832242,
 	      0.225081131,
 	      -0.530826509,
-	      0.295520723,
+	      -0.295520723,
 	      0.76172775
 	    ],
 	    [
 	      -0.139173105,
 	      0.990268052,
 	      -0.470946282,
-	      0.238708958,
+	      -0.238708958,
 	      0.849251211,
 	      0.202020496,
 	      -0.547684371,
-	      0.264287412,
+	      -0.264287412,
 	      0.767712
 	    ],
 	    [
 	      -0.121869341,
 	      0.992546141,
 	      -0.477721781,
-	      0.209510505,
+	      -0.209510505,
 	      0.853163064,
 	      0.178278968,
 	      -0.562671661,
-	      0.232493877,
+	      -0.232493877,
 	      0.773022532
 	    ],
 	    [
 	      -0.104528464,
 	      0.994521916,
 	      -0.48361069,
-	      0.18005681,
+	      -0.18005681,
 	      0.856563032,
 	      0.153937444,
 	      -0.575746536,
-	      0.200206831,
+	      -0.200206831,
 	      0.777648
 	    ],
 	    [
 	      -0.0871557444,
 	      0.99619472,
 	      -0.488605827,
-	      0.150383726,
+	      -0.150383726,
 	      0.859446943,
 	      0.129078493,
 	      -0.586872399,
-	      0.167494327,
+	      -0.167494327,
 	      0.78157866
 	    ],
 	    [
 	      -0.0697564706,
 	      0.997564077,
 	      -0.492701054,
-	      0.120527439,
+	      -0.120527439,
 	      0.86181134,
 	      0.103786126,
 	      -0.596018076,
-	      0.134425521,
+	      -0.134425521,
 	      0.784806132
 	    ],
 	    [
 	      -0.0523359552,
 	      0.99862951,
 	      -0.495891422,
-	      0.0905243,
+	      -0.0905243,
 	      0.863653302,
 	      0.0781455562,
 	      -0.603158116,
-	      0.101070546,
+	      -0.101070546,
 	      0.787323534
 	    ],
 	    [
 	      -0.0348994955,
 	      0.999390841,
 	      -0.498173028,
-	      0.0604108796,
+	      -0.0604108796,
 	      0.864970624,
 	      0.0522429794,
 	      -0.608272374,
-	      0.0675002709,
+	      -0.0675002709,
 	      0.789125502
 	    ],
 	    [
 	      -0.0174524058,
 	      0.99984771,
 	      -0.49954313,
-	      0.0302238502,
+	      -0.0302238502,
 	      0.865761638,
 	      0.0261653196,
 	      -0.611346722,
-	      0.0337861441,
+	      -0.0337861441,
 	      0.79020822
 	    ],
 	    [
@@ -7810,979 +7942,979 @@ return /******/ (function(modules) { // webpackBootstrap
 	      0.0174524058,
 	      0.99984771,
 	      -0.49954313,
-	      -0.0302238502,
+	      0.0302238502,
 	      0.865761638,
 	      -0.0261653196,
 	      -0.611346722,
-	      -0.0337861441,
+	      0.0337861441,
 	      0.79020822
 	    ],
 	    [
 	      0.0348994955,
 	      0.999390841,
 	      -0.498173028,
-	      -0.0604108796,
+	      0.0604108796,
 	      0.864970624,
 	      -0.0522429794,
 	      -0.608272374,
-	      -0.0675002709,
+	      0.0675002709,
 	      0.789125502
 	    ],
 	    [
 	      0.0523359552,
 	      0.99862951,
 	      -0.495891422,
-	      -0.0905243,
+	      0.0905243,
 	      0.863653302,
 	      -0.0781455562,
 	      -0.603158116,
-	      -0.101070546,
+	      0.101070546,
 	      0.787323534
 	    ],
 	    [
 	      0.0697564706,
 	      0.997564077,
 	      -0.492701054,
-	      -0.120527439,
+	      0.120527439,
 	      0.86181134,
 	      -0.103786126,
 	      -0.596018076,
-	      -0.134425521,
+	      0.134425521,
 	      0.784806132
 	    ],
 	    [
 	      0.0871557444,
 	      0.99619472,
 	      -0.488605827,
-	      -0.150383726,
+	      0.150383726,
 	      0.859446943,
 	      -0.129078493,
 	      -0.586872399,
-	      -0.167494327,
+	      0.167494327,
 	      0.78157866
 	    ],
 	    [
 	      0.104528464,
 	      0.994521916,
 	      -0.48361069,
-	      -0.18005681,
+	      0.18005681,
 	      0.856563032,
 	      -0.153937444,
 	      -0.575746536,
-	      -0.200206831,
+	      0.200206831,
 	      0.777648
 	    ],
 	    [
 	      0.121869341,
 	      0.992546141,
 	      -0.477721781,
-	      -0.209510505,
+	      0.209510505,
 	      0.853163064,
 	      -0.178278968,
 	      -0.562671661,
-	      -0.232493877,
+	      0.232493877,
 	      0.773022532
 	    ],
 	    [
 	      0.139173105,
 	      0.990268052,
 	      -0.470946282,
-	      -0.238708958,
+	      0.238708958,
 	      0.849251211,
 	      -0.202020496,
 	      -0.547684371,
-	      -0.264287412,
+	      0.264287412,
 	      0.767712
 	    ],
 	    [
 	      0.156434461,
 	      0.987688363,
 	      -0.46329239,
-	      -0.26761657,
+	      0.26761657,
 	      0.844832242,
 	      -0.225081131,
 	      -0.530826509,
-	      -0.295520723,
+	      0.295520723,
 	      0.76172775
 	    ],
 	    [
 	      0.173648179,
 	      0.98480773,
 	      -0.454769462,
-	      -0.29619813,
+	      0.29619813,
 	      0.83991152,
 	      -0.24738194,
 	      -0.51214534,
-	      -0.326128513,
+	      0.326128513,
 	      0.755082488
 	    ],
 	    [
 	      0.190809,
 	      0.981627166,
 	      -0.4453879,
-	      -0.324418813,
+	      0.324418813,
 	      0.834495068,
 	      -0.268846035,
 	      -0.491693079,
-	      -0.356047243,
+	      0.356047243,
 	      0.747790158
 	    ],
 	    [
 	      0.207911685,
 	      0.978147626,
 	      -0.435159087,
-	      -0.352244258,
+	      0.352244258,
 	      0.828589499,
 	      -0.289398909,
 	      -0.469526976,
-	      -0.385215133,
+	      0.385215133,
 	      0.739866197
 	    ],
 	    [
 	      0.224951059,
 	      0.974370062,
 	      -0.424095541,
-	      -0.379640549,
+	      0.379640549,
 	      0.822201967,
 	      -0.308968604,
 	      -0.445709109,
-	      -0.413572371,
+	      0.413572371,
 	      0.731327355
 	    ],
 	    [
 	      0.241921902,
 	      0.970295727,
 	      -0.412210703,
-	      -0.406574309,
+	      0.406574309,
 	      0.815340221,
 	      -0.327485919,
 	      -0.420306176,
-	      -0.441061407,
+	      0.441061407,
 	      0.722191513
 	    ],
 	    [
 	      0.258819044,
 	      0.965925813,
 	      -0.399519056,
-	      -0.433012694,
+	      0.433012694,
 	      0.808012724,
 	      -0.344884604,
 	      -0.393389285,
-	      -0.46762684,
+	      0.46762684,
 	      0.712477803
 	    ],
 	    [
 	      0.275637358,
 	      0.96126169,
 	      -0.386036068,
-	      -0.458923548,
+	      0.458923548,
 	      0.800228298,
 	      -0.361101508,
 	      -0.365033895,
-	      -0.493215799,
+	      0.493215799,
 	      0.702206612
 	    ],
 	    [
 	      0.29237169,
 	      0.956304729,
 	      -0.37177819,
-	      -0.484275252,
+	      0.484275252,
 	      0.791996479,
 	      -0.376076847,
 	      -0.3353194,
-	      -0.517778039,
+	      0.517778039,
 	      0.691399336
 	    ],
 	    [
 	      0.309017,
 	      0.95105654,
 	      -0.356762737,
-	      -0.509036958,
+	      0.509036958,
 	      0.783327341,
 	      -0.389754236,
 	      -0.304329157,
-	      -0.541265905,
+	      0.541265905,
 	      0.680078387
 	    ],
 	    [
 	      0.325568169,
 	      0.945518553,
 	      -0.341008067,
-	      -0.533178449,
+	      0.533178449,
 	      0.774231374,
 	      -0.402081043,
 	      -0.27215004,
-	      -0.563634634,
+	      0.563634634,
 	      0.66826731
 	    ],
 	    [
 	      0.342020154,
 	      0.939692616,
 	      -0.324533343,
-	      -0.556670427,
+	      0.556670427,
 	      0.764719665,
 	      -0.413008332,
 	      -0.238872305,
-	      -0.584842563,
+	      0.584842563,
 	      0.655990362
 	    ],
 	    [
 	      0.35836795,
 	      0.933580399,
 	      -0.307358623,
-	      -0.579484105,
+	      0.579484105,
 	      0.754803836,
 	      -0.422491103,
 	      -0.204589352,
-	      -0.604850829,
+	      0.604850829,
 	      0.643272877
 	    ],
 	    [
 	      0.37460658,
 	      0.927183867,
 	      -0.289504856,
-	      -0.601591825,
+	      0.601591825,
 	      0.744496,
 	      -0.430488437,
 	      -0.169397429,
-	      -0.623623908,
+	      0.623623908,
 	      0.630140781
 	    ],
 	    [
 	      0.390731126,
 	      0.920504868,
 	      -0.270993769,
-	      -0.622966528,
+	      0.622966528,
 	      0.733808577,
 	      -0.436963588,
 	      -0.133395374,
-	      -0.641129553,
+	      0.641129553,
 	      0.616620898
 	    ],
 	    [
 	      0.406736642,
 	      0.91354543,
 	      -0.251847953,
-	      -0.643582284,
+	      0.643582284,
 	      0.722754776,
 	      -0.441884071,
 	      -0.0966843441,
-	      -0.657338798,
+	      0.657338798,
 	      0.602740645
 	    ],
 	    [
 	      0.42261827,
 	      0.906307817,
 	      -0.232090712,
-	      -0.663413942,
+	      0.663413942,
 	      0.711347878,
 	      -0.445221782,
 	      -0.0593675859,
-	      -0.672226,
+	      0.672226,
 	      0.588528037
 	    ],
 	    [
 	      0.438371152,
 	      0.898794055,
 	      -0.211746112,
-	      -0.68243736,
+	      0.68243736,
 	      0.699601948,
 	      -0.446953058,
 	      -0.0215500612,
-	      -0.6857692,
+	      0.6857692,
 	      0.574011445
 	    ],
 	    [
 	      0.453990489,
 	      0.891006529,
 	      -0.190838933,
-	      -0.700629294,
+	      0.700629294,
 	      0.687531173,
 	      -0.447058767,
 	      0.0166617651,
-	      -0.697949767,
+	      0.697949767,
 	      0.559219956
 	    ],
 	    [
 	      0.469471574,
 	      0.882947564,
 	      -0.169394672,
-	      -0.71796757,
+	      0.71796757,
 	      0.675150335,
 	      -0.445524335,
 	      0.0551602542,
-	      -0.708752811,
+	      0.708752811,
 	      0.544182777
 	    ],
 	    [
 	      0.484809607,
 	      0.874619722,
 	      -0.14743945,
-	      -0.734431207,
+	      0.734431207,
 	      0.662474453,
 	      -0.442339838,
 	      0.0938368812,
-	      -0.718166888,
+	      0.718166888,
 	      0.528929472
 	    ],
 	    [
 	      0.5,
 	      0.866025388,
 	      -0.125,
-	      -0.75,
+	      0.75,
 	      0.649519,
 	      -0.4375,
 	      0.132582515,
-	      -0.726184368,
+	      0.726184368,
 	      0.513489902
 	    ],
 	    [
 	      0.515038073,
 	      0.857167304,
 	      -0.102103673,
-	      -0.764655054,
+	      0.764655054,
 	      0.636299849,
 	      -0.431004167,
 	      0.171287775,
-	      -0.732801199,
+	      0.732801199,
 	      0.4978939
 	    ],
 	    [
 	      0.529919267,
 	      0.848048091,
 	      -0.0787783638,
-	      -0.778378487,
+	      0.778378487,
 	      0.622832954,
 	      -0.42285645,
 	      0.209843263,
-	      -0.738016903,
+	      0.738016903,
 	      0.482171416
 	    ],
 	    [
 	      0.544639051,
 	      0.838670552,
 	      -0.0550524816,
-	      -0.79115355,
+	      0.79115355,
 	      0.609134853,
 	      -0.413065583,
 	      0.248139873,
-	      -0.741834819,
+	      0.741834819,
 	      0.466352403
 	    ],
 	    [
 	      0.559192896,
 	      0.829037547,
 	      -0.0309549458,
-	      -0.802964747,
+	      0.802964747,
 	      0.595222116,
 	      -0.401644915,
 	      0.286069185,
-	      -0.744261742,
+	      0.744261742,
 	      0.450466663
 	    ],
 	    [
 	      0.57357645,
 	      0.819152057,
 	      -0.00651510758,
-	      -0.813797653,
+	      0.813797653,
 	      0.581111789,
 	      -0.388612479,
 	      0.323523581,
-	      -0.74530834,
+	      0.74530834,
 	      0.434543818
 	    ],
 	    [
 	      0.587785244,
 	      0.809017,
 	      0.0182372537,
-	      -0.823639095,
+	      0.823639095,
 	      0.566821,
 	      -0.373990864,
 	      0.360396802,
-	      -0.744988561,
+	      0.744988561,
 	      0.418613225
 	    ],
 	    [
 	      0.601815045,
 	      0.798635483,
 	      0.0432719849,
-	      -0.832477033,
+	      0.832477033,
 	      0.552367151,
 	      -0.35780713,
 	      0.396583915,
-	      -0.743320107,
+	      0.743320107,
 	      0.402703911
 	    ],
 	    [
 	      0.615661502,
 	      0.788010776,
 	      0.0685585812,
-	      -0.840300739,
+	      0.840300739,
 	      0.537767947,
 	      -0.340092868,
 	      0.431981891,
-	      -0.74032414,
+	      0.74032414,
 	      0.386844516
 	    ],
 	    [
 	      0.629320383,
 	      0.777146,
 	      0.0940662324,
-	      -0.847100675,
+	      0.847100675,
 	      0.523041129,
 	      -0.32088393,
 	      0.466489762,
-	      -0.736025095,
+	      0.736025095,
 	      0.371063113
 	    ],
 	    [
 	      0.642787635,
 	      0.766044438,
 	      0.119763866,
-	      -0.852868557,
+	      0.852868557,
 	      0.508204579,
 	      -0.300220519,
 	      0.500008881,
-	      -0.730451,
+	      0.730451,
 	      0.3553873
 	    ],
 	    [
 	      0.656059,
 	      0.754709601,
 	      0.145620167,
-	      -0.857597291,
+	      0.857597291,
 	      0.493276417,
 	      -0.278146982,
 	      0.532443225,
-	      -0.723632872,
+	      0.723632872,
 	      0.339844
 	    ],
 	    [
 	      0.669130623,
 	      0.74314481,
 	      0.17160365,
-	      -0.861281216,
+	      0.861281216,
 	      0.478274852,
 	      -0.254711658,
 	      0.563699722,
-	      -0.71560514,
+	      0.71560514,
 	      0.324459404
 	    ],
 	    [
 	      0.681998372,
 	      0.7313537,
 	      0.197682649,
-	      -0.863915801,
+	      0.863915801,
 	      0.463218153,
 	      -0.229966834,
 	      0.593688309,
-	      -0.706405222,
+	      0.706405222,
 	      0.309259027
 	    ],
 	    [
 	      0.694658399,
 	      0.719339788,
 	      0.22382538,
-	      -0.865497828,
+	      0.865497828,
 	      0.448124617,
 	      -0.203968629,
 	      0.622322381,
-	      -0.696073472,
+	      0.696073472,
 	      0.294267476
 	    ],
 	    [
 	      0.707106769,
 	      0.707106769,
 	      0.25,
-	      -0.866025388,
+	      0.866025388,
 	      0.433012694,
 	      -0.176776692,
 	      0.649519,
-	      -0.684653223,
+	      0.684653223,
 	      0.279508501
 	    ],
 	    [
 	      0.719339788,
 	      0.694658399,
 	      0.276174635,
-	      -0.865497828,
+	      0.865497828,
 	      0.417900771,
 	      -0.148454204,
 	      0.675199151,
-	      -0.672190368,
+	      0.672190368,
 	      0.265004843
 	    ],
 	    [
 	      0.7313537,
 	      0.681998372,
 	      0.302317351,
-	      -0.863915801,
+	      0.863915801,
 	      0.402807266,
 	      -0.119067609,
 	      0.699287713,
-	      -0.658733487,
+	      0.658733487,
 	      0.250778317
 	    ],
 	    [
 	      0.74314481,
 	      0.669130623,
 	      0.32839635,
-	      -0.861281216,
+	      0.861281216,
 	      0.387750536,
 	      -0.0886864737,
 	      0.721713901,
-	      -0.64433378,
+	      0.64433378,
 	      0.236849621
 	    ],
 	    [
 	      0.754709601,
 	      0.656059,
 	      0.354379833,
-	      -0.857597291,
+	      0.857597291,
 	      0.372748971,
 	      -0.0573833026,
 	      0.742411554,
-	      -0.629044473,
+	      0.629044473,
 	      0.223238334
 	    ],
 	    [
 	      0.766044438,
 	      0.642787635,
 	      0.380236119,
-	      -0.852868557,
+	      0.852868557,
 	      0.357820839,
 	      -0.0252333339,
 	      0.761319,
-	      -0.612921119,
+	      0.612921119,
 	      0.209962875
 	    ],
 	    [
 	      0.777146,
 	      0.629320383,
 	      0.405933768,
-	      -0.847100675,
+	      0.847100675,
 	      0.342984289,
 	      0.00768567342,
 	      0.778379381,
-	      -0.596021354,
+	      0.596021354,
 	      0.197040468
 	    ],
 	    [
 	      0.788010776,
 	      0.615661502,
 	      0.431441426,
-	      -0.840300739,
+	      0.840300739,
 	      0.328257442,
 	      0.0412936322,
 	      0.793541074,
-	      -0.578404605,
+	      0.578404605,
 	      0.184487075
 	    ],
 	    [
 	      0.798635483,
 	      0.601815045,
 	      0.456728,
-	      -0.832477033,
+	      0.832477033,
 	      0.313658237,
 	      0.0755083486,
 	      0.80675739,
-	      -0.560131907,
+	      0.560131907,
 	      0.172317386
 	    ],
 	    [
 	      0.809017,
 	      0.587785244,
 	      0.481762737,
-	      -0.823639095,
+	      0.823639095,
 	      0.299204409,
 	      0.110245749,
 	      0.817986846,
-	      -0.541265905,
+	      0.541265905,
 	      0.160544738
 	    ],
 	    [
 	      0.819152057,
 	      0.57357645,
 	      0.506515086,
-	      -0.813797653,
+	      0.813797653,
 	      0.284913629,
 	      0.145420119,
 	      0.827193558,
-	      -0.521870494,
+	      0.521870494,
 	      0.149181142
 	    ],
 	    [
 	      0.829037547,
 	      0.559192896,
 	      0.530954957,
-	      -0.802964747,
+	      0.802964747,
 	      0.270803303,
 	      0.180944279,
 	      0.83434689,
-	      -0.502010882,
+	      0.502010882,
 	      0.138237208
 	    ],
 	    [
 	      0.838670552,
 	      0.544639051,
 	      0.555052459,
-	      -0.79115355,
+	      0.79115355,
 	      0.256890565,
 	      0.216729924,
 	      0.839421868,
-	      -0.481753141,
+	      0.481753141,
 	      0.127722174
 	    ],
 	    [
 	      0.848048091,
 	      0.529919267,
 	      0.578778386,
-	      -0.778378487,
+	      0.778378487,
 	      0.243192434,
 	      0.252687752,
 	      0.84239924,
-	      -0.461164147,
+	      0.461164147,
 	      0.117643826
 	    ],
 	    [
 	      0.857167304,
 	      0.515038073,
 	      0.602103651,
-	      -0.764655054,
+	      0.764655054,
 	      0.229725555,
 	      0.28872776,
 	      0.843265295,
-	      -0.440311372,
+	      0.440311372,
 	      0.108008519
 	    ],
 	    [
 	      0.866025388,
 	      0.5,
 	      0.625,
-	      -0.75,
+	      0.75,
 	      0.216506347,
 	      0.324759513,
 	      0.842012107,
-	      -0.419262737,
+	      0.419262737,
 	      0.0988211781
 	    ],
 	    [
 	      0.874619722,
 	      0.484809607,
 	      0.64743942,
-	      -0.734431207,
+	      0.734431207,
 	      0.203550935,
 	      0.360692352,
 	      0.838637531,
-	      -0.398086399,
+	      0.398086399,
 	      0.0900852531
 	    ],
 	    [
 	      0.882947564,
 	      0.469471574,
 	      0.669394672,
-	      -0.71796757,
+	      0.71796757,
 	      0.190875068,
 	      0.396435648,
 	      0.833145082,
-	      -0.376850545,
+	      0.376850545,
 	      0.0818027481
 	    ],
 	    [
 	      0.891006529,
 	      0.453990489,
 	      0.690838933,
-	      -0.700629294,
+	      0.700629294,
 	      0.178494215,
 	      0.431898981,
 	      0.825544238,
-	      -0.355623156,
+	      0.355623156,
 	      0.073974207
 	    ],
 	    [
 	      0.898794055,
 	      0.438371152,
 	      0.711746097,
-	      -0.68243736,
+	      0.68243736,
 	      0.16642347,
 	      0.466992587,
 	      0.8158499,
-	      -0.334471971,
+	      0.334471971,
 	      0.0665987208
 	    ],
 	    [
 	      0.906307817,
 	      0.42261827,
 	      0.732090712,
-	      -0.663413942,
+	      0.663413942,
 	      0.154677495,
 	      0.501627326,
 	      0.80408287,
-	      -0.313464135,
+	      0.313464135,
 	      0.0596739501
 	    ],
 	    [
 	      0.91354543,
 	      0.406736642,
 	      0.751848,
-	      -0.643582284,
+	      0.643582284,
 	      0.143270656,
 	      0.535715163,
 	      0.790269554,
-	      -0.292666078,
+	      0.292666078,
 	      0.0531961136
 	    ],
 	    [
 	      0.920504868,
 	      0.390731126,
 	      0.770993769,
-	      -0.622966528,
+	      0.622966528,
 	      0.132216811,
 	      0.569169283,
 	      0.774441898,
-	      -0.272143364,
+	      0.272143364,
 	      0.0471600257
 	    ],
 	    [
 	      0.927183867,
 	      0.37460658,
 	      0.789504826,
-	      -0.601591825,
+	      0.601591825,
 	      0.12152943,
 	      0.601904333,
 	      0.756637275,
-	      -0.251960427,
+	      0.251960427,
 	      0.0415591113
 	    ],
 	    [
 	      0.933580399,
 	      0.35836795,
 	      0.807358623,
-	      -0.579484105,
+	      0.579484105,
 	      0.111221552,
 	      0.633836746,
 	      0.736898482,
-	      -0.232180476,
+	      0.232180476,
 	      0.0363854282
 	    ],
 	    [
 	      0.939692616,
 	      0.342020154,
 	      0.824533343,
-	      -0.556670427,
+	      0.556670427,
 	      0.101305731,
 	      0.664884746,
 	      0.715273559,
-	      -0.212865278,
+	      0.212865278,
 	      0.0316297
 	    ],
 	    [
 	      0.945518553,
 	      0.325568169,
 	      0.841008067,
-	      -0.533178449,
+	      0.533178449,
 	      0.0917940363,
 	      0.694968879,
 	      0.691815674,
-	      -0.194074973,
+	      0.194074973,
 	      0.0272813439
 	    ],
 	    [
 	      0.95105654,
 	      0.309017,
 	      0.856762767,
-	      -0.509036958,
+	      0.509036958,
 	      0.0826980695,
 	      0.724011958,
 	      0.666583,
-	      -0.175867945,
+	      0.175867945,
 	      0.0233285148
 	    ],
 	    [
 	      0.956304729,
 	      0.29237169,
 	      0.87177819,
-	      -0.484275252,
+	      0.484275252,
 	      0.0740289,
 	      0.751939535,
 	      0.639638543,
-	      -0.158300623,
+	      0.158300623,
 	      0.0197581388
 	    ],
 	    [
 	      0.96126169,
 	      0.275637358,
 	      0.886036098,
-	      -0.458923548,
+	      0.458923548,
 	      0.0657971054,
 	      0.778679788,
 	      0.61104995,
-	      -0.141427353,
+	      0.141427353,
 	      0.0165559556
 	    ],
 	    [
 	      0.965925813,
 	      0.258819044,
 	      0.899519,
-	      -0.433012694,
+	      0.433012694,
 	      0.0580127,
 	      0.804163933,
 	      0.580889285,
-	      -0.125300229,
+	      0.125300229,
 	      0.0137065668
 	    ],
 	    [
 	      0.970295727,
 	      0.241921902,
 	      0.912210703,
-	      -0.406574309,
+	      0.406574309,
 	      0.0506851785,
 	      0.828326404,
 	      0.549233,
-	      -0.10996896,
+	      0.10996896,
 	      0.0111934906
 	    ],
 	    [
 	      0.974370062,
 	      0.224951059,
 	      0.924095511,
-	      -0.379640549,
+	      0.379640549,
 	      0.043823462,
 	      0.851105,
 	      0.516161561,
-	      -0.0954807103,
+	      0.0954807103,
 	      0.00899920426
 	    ],
 	    [
 	      0.978147626,
 	      0.207911685,
 	      0.935159087,
-	      -0.352244258,
+	      0.352244258,
 	      0.0374359153,
 	      0.872441,
 	      0.481759191,
-	      -0.08188,
+	      0.08188,
 	      0.00710520707
 	    ],
 	    [
 	      0.981627166,
 	      0.190809,
 	      0.9453879,
-	      -0.324418813,
+	      0.324418813,
 	      0.0315303169,
 	      0.892279327,
 	      0.446113944,
-	      -0.0692085773,
+	      0.0692085773,
 	      0.00549207628
 	    ],
 	    [
 	      0.98480773,
 	      0.173648179,
 	      0.954769492,
-	      -0.29619813,
+	      0.29619813,
 	      0.0261138603,
 	      0.910568774,
 	      0.409317106,
-	      -0.0575052574,
+	      0.0575052574,
 	      0.00413952675
 	    ],
 	    [
 	      0.987688363,
 	      0.156434461,
 	      0.96329236,
-	      -0.26761657,
+	      0.26761657,
 	      0.0211931504,
 	      0.927262187,
 	      0.37146312,
-	      -0.0468058847,
+	      0.0468058847,
 	      0.0030264766
 	    ],
 	    [
 	      0.990268052,
 	      0.139173105,
 	      0.970946252,
-	      -0.238708958,
+	      0.238708958,
 	      0.0167741776,
 	      0.942316413,
 	      0.33264932,
-	      -0.0371431746,
+	      0.0371431746,
 	      0.00213111029
 	    ],
 	    [
 	      0.992546141,
 	      0.121869341,
 	      0.97772181,
-	      -0.209510505,
+	      0.209510505,
 	      0.0128623275,
 	      0.955692589,
 	      0.292975664,
-	      -0.0285466593,
+	      0.0285466593,
 	      0.00143094664
 	    ],
 	    [
 	      0.994521916,
 	      0.104528464,
 	      0.98361069,
-	      -0.18005681,
+	      0.18005681,
 	      0.00946236681,
 	      0.967356,
 	      0.252544463,
-	      -0.0210425854,
+	      0.0210425854,
 	      0.000902908447
 	    ],
 	    [
 	      0.99619472,
 	      0.0871557444,
 	      0.988605797,
-	      -0.150383726,
+	      0.150383726,
 	      0.00657843612,
 	      0.977276683,
 	      0.211460009,
-	      -0.014653855,
+	      0.014653855,
 	      0.000523393159
 	    ],
 	    [
 	      0.997564077,
 	      0.0697564706,
 	      0.992701054,
-	      -0.120527439,
+	      0.120527439,
 	      0.00421405,
 	      0.985428751,
 	      0.169828475,
-	      -0.00939994864,
+	      0.00939994864,
 	      0.000268345029
 	    ],
 	    [
 	      0.99862951,
 	      0.0523359552,
 	      0.995891392,
-	      -0.0905243,
+	      0.0905243,
 	      0.00237208884,
 	      0.991791308,
 	      0.12775746,
-	      -0.00529688271,
+	      0.00529688271,
 	      0.000113328853
 	    ],
 	    [
 	      0.999390841,
 	      0.0348994955,
 	      0.998173058,
-	      -0.0604108796,
+	      0.0604108796,
 	      0.00105479721,
 	      0.996347725,
 	      0.0853558108,
-	      -0.00235716137,
+	      0.00235716137,
 	      0.000033604505
 	    ],
 	    [
 	      0.99984771,
 	      0.0174524058,
 	      0.99954313,
-	      -0.0302238502,
+	      0.0302238502,
 	      0.000263779628,
 	      0.99908632,
 	      0.0427332148,
-	      -0.000589739357,
+	      0.000589739357,
 	      0.00000420248307
 	    ],
 	    [
@@ -8797,7 +8929,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	      0
 	    ]
 	  ]
-	]
+	];
 
 	/**
 	 * Pre-computed per-band weighting coefficients for producing energy-preserving
@@ -11110,9 +11242,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	Room.prototype.setProperties = function (dimensions, materials) {
 	  // Compute late response, skip if disabled.
 	  if (this._useLateReflections) {
-	    absorptionCoefficients = _getCoefficientsFromMaterials(materials);
-	    durations = _getDurationsFromProperties(dimensions, absorptionCoefficients,
-	      this.speedOfSound);
+	    var absorptionCoefficients = _getCoefficientsFromMaterials(materials);
+	    var durations = _getDurationsFromProperties(dimensions,
+	      absorptionCoefficients, this.speedOfSound);
 	    this.late.setDurations(durations);
 	  }
 
@@ -11402,9 +11534,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	}
 
 	function _computeReflectionCoefficients (absorptionCoefficients) {
-	  var reflectionCoefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+	  var reflectionCoefficients = [];
 	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
 	    // Compute average absorption coefficient (per wall).
+	    reflectionCoefficients[property] = 0;
 	    for (var j = 0; j < Room.NUMBER_AVERAGING_BANDS; j++) {
 	      var bandIndex = j + Room.STARTING_AVERAGING_BAND;
 	      reflectionCoefficients[property] +=

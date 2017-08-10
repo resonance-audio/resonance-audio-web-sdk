@@ -25,7 +25,6 @@
 var Listener = require('./listener.js');
 var Source = require('./source.js');
 var Room = require('./room.js');
-var LateReflections = require('./late-reflections.js');
 var EarlyReflections = require('./early-reflections.js');
 var Encoder = require('./encoder.js');
 var Utils = require('./utils.js');
@@ -140,10 +139,10 @@ function Songbird (context, options) {
  * to {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
  * @param {Number} options.minDistance
  * Min. distance (in meters). Defaults to
- * {@linkcode Attenuation.MIN_DISTANCE MIN_DISTANCE}.
+ * {@linkcode Attenuation.DEFAULT_MIN_DISTANCE DEFAULT_MIN_DISTANCE}.
  * @param {Number} options.maxDistance
  * Max. distance (in meters). Defaults to
- * {@linkcode Attenuation.MAX_DISTANCE MAX_DISTANCE}.
+ * {@linkcode Attenuation.DEFAULT_MAX_DISTANCE DEFAULT_MAX_DISTANCE}.
  * @param {string} options.rolloff
  * Rolloff model to use, chosen from options in
  * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
@@ -182,8 +181,8 @@ Songbird.prototype.setRoomProperties = function (dimensions, materials) {
  */
 Songbird.prototype.setListenerPosition = function (x, y, z) {
   this._listener.position[0] = x;
-  this._listener.position[1] = x;
-  this._listener.position[2] = x;
+  this._listener.position[1] = y;
+  this._listener.position[2] = z;
   this._room.setListenerPosition(x, y, z);
   for (var i = 0; i < this._sources.length; i++) {
     this._sources[i].setPosition(this._sources[i]._position[0],
@@ -202,12 +201,17 @@ Songbird.prototype.setListenerOrientation = function (roll, pitch, yaw) {
 }
 
 /**
- * Set the listener's orientation using a Three.js camera object.
+ * Set the listener's position and orientation using a Three.js camera object.
  * @param {Object} cameraMatrix
  * The Matrix4 object of the Three.js camera.
  */
-Songbird.prototype.setListenerOrientationFromCamera = function (cameraMatrix) {
-  this._listener.setOrientationFromCamera(cameraMatrix);
+Songbird.prototype.setListenerFromCamera = function (cameraMatrix) {
+  // Compute listener orientation from camera matrix, extract position.
+  this._listener.setFromCamera(cameraMatrix);
+
+  // Update the rest of the scene using new listener position.
+  this.setListenerPosition(this._listener.position[0],
+    this._listener.position[1], this._listener.position[2]);
 }
 
 module.exports = Songbird;

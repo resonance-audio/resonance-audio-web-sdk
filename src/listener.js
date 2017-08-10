@@ -87,6 +87,7 @@ function Listener (context, options) {
 
   // Member variables.
   this.position = new Float32Array(3);
+  this._tempMatrix4 = new Float32Array(16);
 
   // Select the appropriate HRIR filters using 8-channel chunks since
   // >8 channels is not yet supported by a majority of browsers.
@@ -94,19 +95,19 @@ function Listener (context, options) {
   var urls = [''];
   if (options.ambisonicOrder == 1) {
     urls = [
-      'resources/sh_hrir_o_1.wav'
+      '../build/resources/sh_hrir_o_1.wav'
     ];
   }
   else if (options.ambisonicOrder == 2) {
     urls = [
-      'resources/sh_hrir_o_2_ch0-ch7.wav',
-      'resources/sh_hrir_o_2_ch8.wav'
+      '../build/resources/sh_hrir_o_2_ch0-ch7.wav',
+      '../build/resources/sh_hrir_o_2_ch8.wav'
     ];
   }
   else if (options.ambisonicOrder == 3) {
     urls = [
-      'resources/sh_hrir_o_3_ch0-ch7.wav',
-      'resources/sh_hrir_o_3_ch8-ch15.wav'
+      '../build/resources/sh_hrir_o_3_ch0-ch7.wav',
+      '../build/resources/sh_hrir_o_3_ch8-ch15.wav'
     ];
   }
   else {
@@ -169,8 +170,14 @@ Listener.prototype.setOrientation = function (roll, pitch, yaw) {
  * @param {Object} cameraMatrix
  * The Matrix4 object of the Three.js camera.
  */
-Listener.prototype.setOrientationFromCamera = function (cameraMatrix) {
-  this._renderer.setRotationMatrixFromCamera(cameraMatrix);
+Listener.prototype.setFromCamera = function (cameraMatrix) {
+  // Extract the inner array elements and inverse. (The actual view rotation is
+  // the opposite of the camera movement.)
+  Utils.invertMatrix4(this._tempMatrix4, cameraMatrix.elements);
+  this._renderer.setRotationMatrix4(this._tempMatrix4);
+  this.position[0] = this._tempMatrix4[12];
+  this.position[1] = this._tempMatrix4[13];
+  this.position[2] = this._tempMatrix4[14];
 }
 
 module.exports = Listener;

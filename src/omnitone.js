@@ -126,9 +126,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *                                    { name, url, coef }
 	 * @return {Promise}
 	 */
-	Omnitone.loadAudioBuffers = function (context, speakerData) {
-	  return new Promise(function (resolve, reject) {
-	    new AudioBufferManager(context, speakerData, function (buffers) {
+	Omnitone.loadAudioBuffers = function(context, speakerData) {
+	  return new Promise(function(resolve, reject) {
+	    new AudioBufferManager(context, speakerData, function(buffers) {
 	      resolve(buffers);
 	    }, reject);
 	  });
@@ -139,7 +139,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Router class.
 	 * @return {FOAConvolver}
 	 */
-	Omnitone.createFOAConvolver = function (context, options) {
+	Omnitone.createFOAConvolver = function(context, options) {
 	  return new FOAConvolver(context, options);
 	};
 
@@ -148,7 +148,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Router class.
 	 * @return {FOARouter}
 	 */
-	Omnitone.createFOARouter = function (context, channelMap) {
+	Omnitone.createFOARouter = function(context, channelMap) {
 	  return new FOARouter(context, channelMap);
 	};
 
@@ -157,7 +157,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Rotator class.
 	 * @return {FOARotator}
 	 */
-	Omnitone.createFOARotator = function (context) {
+	Omnitone.createFOARotator = function(context) {
 	  return new FOARotator(context);
 	};
 
@@ -166,7 +166,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * definition of PhaseMatchedFilter class.
 	 * @return {FOAPhaseMatchedFilter}
 	 */
-	Omnitone.createFOAPhaseMatchedFilter = function (context) {
+	Omnitone.createFOAPhaseMatchedFilter = function(context) {
 	  return new FOAPhaseMatchedFilter(context);
 	};
 
@@ -175,7 +175,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * definition of VirtualSpeaker class.
 	 * @return {FOAVirtualSpeaker}
 	 */
-	Omnitone.createFOAVirtualSpeaker = function (context, options) {
+	Omnitone.createFOAVirtualSpeaker = function(context, options) {
 	  return new FOAVirtualSpeaker(context, options);
 	};
 
@@ -191,7 +191,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Array} options.routingDestination  Custom channel layout.
 	 * @return {FOADecoder}
 	 */
-	Omnitone.createFOADecoder = function (context, videoElement, options) {
+	Omnitone.createFOADecoder = function(context, videoElement, options) {
 	  return new FOADecoder(context, videoElement, options);
 	};
 
@@ -204,7 +204,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Array} options.channelMap  Optional custom channel map.
 	 * @return {FOARenderer}
 	 */
-	Omnitone.createFOARenderer = function (context, options) {
+	Omnitone.createFOARenderer = function(context, options) {
 	  return new FOARenderer(context, options);
 	};
 
@@ -213,7 +213,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {AudioContext} context    Associated AudioContext.
 	 * @param {Number} ambisonicOrder   Ambisonic order.
 	 */
-	Omnitone.createHOARotator = function (context, ambisonicOrder) {
+	Omnitone.createHOARotator = function(context, ambisonicOrder) {
 	  return new HOARotator(context, ambisonicOrder);
 	};
 
@@ -227,7 +227,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *                                        number of channels must be (N+1)^2
 	 *                                        where N is the ambisonic order.
 	 */
-	Omnitone.createHOAConvolver = function (context, options) {
+	Omnitone.createHOAConvolver = function(context, options) {
 	  return new HOAConvolver(context, options);
 	};
 
@@ -240,7 +240,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {String} options.renderingMode    Rendering mode.
 	 * @param {Number} options.ambisonicOrder   Ambisonic order (default is 3).
 	 */
-	Omnitone.createHOARenderer = function (context, options) {
+	Omnitone.createHOARenderer = function(context, options) {
 	  return new HOARenderer(context, options);
 	};
 
@@ -328,7 +328,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	          that._done(fileInfo.name, null);
 	        });
 	    } else {
-	      Utils.log('XHR Error: ' + fileInfo.url + ' (' + xhr.statusText
+	      Utils.log('XHR Error: ' + fileInfo.url + ' (' + xhr.statusText 
 	        + ')');
 	      that._done(fileInfo.name, null);
 	    }
@@ -414,49 +414,65 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @type {Function}
 	 * @param {any} Message to be printed out.
 	 */
-	exports.log = function () {
+	exports.log = function() {
 	  window.console.log.apply(window.console, [
-	    '%c[Omnitone]%c '
-	      + Array.prototype.slice.call(arguments).join(' ') + ' %c(@'
-	      + performance.now().toFixed(2) + 'ms)',
-	    'background: #BBDEFB; color: #FF5722; font-weight: 700',
-	    'font-weight: 400',
+	    '%c[Omnitone]%c ' + Array.prototype.slice.call(arguments).join(' ') +
+	        ' %c(@' + performance.now().toFixed(2) + 'ms)',
+	    'background: #BBDEFB; color: #FF5722; font-weight: 700', 'font-weight: 400',
 	    'color: #AAA'
 	  ]);
 	};
 
+
+	// Static temp storage for matrix inversion.
+	var a00, a01, a02, a03, a10, a11, a12, a13;
+	var a20, a21, a22, a23, a30, a31, a32, a33;
+	var b00, b01, b02, b03, b04, b05, b06, b07, b08, b09, b10, b11;
+	var det;
+
+
 	/**
-	 * A 4x4 matrix inversion utility.
-	 * @param {Array} out   the receiving matrix.
-	 * @param {Array} a     the source matrix.
-	 * @returns {Array} out
+	 * A 4x4 matrix inversion utility. This does not handle the case when the
+	 * arguments are not proper 4x4 matrices.
+	 * @param {Float32Array} out   The inverted result.
+	 * @param {Float32Array} a     The source matrix.
+	 * @returns {Float32Array} out
 	 */
-	exports.invertMatrix4 = function (out, a) {
-	  var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3],
-	      a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7],
-	      a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11],
-	      a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15],
-
-	      b00 = a00 * a11 - a01 * a10,
-	      b01 = a00 * a12 - a02 * a10,
-	      b02 = a00 * a13 - a03 * a10,
-	      b03 = a01 * a12 - a02 * a11,
-	      b04 = a01 * a13 - a03 * a11,
-	      b05 = a02 * a13 - a03 * a12,
-	      b06 = a20 * a31 - a21 * a30,
-	      b07 = a20 * a32 - a22 * a30,
-	      b08 = a20 * a33 - a23 * a30,
-	      b09 = a21 * a32 - a22 * a31,
-	      b10 = a21 * a33 - a23 * a31,
-	      b11 = a22 * a33 - a23 * a32,
-
-	      det = b00 * b11 - b01 * b10 + b02 * b09 +
-	            b03 * b08 - b04 * b07 + b05 * b06;
+	exports.invertMatrix4 = function(out, a) {
+	  a00 = a[0];
+	  a01 = a[1];
+	  a02 = a[2];
+	  a03 = a[3];
+	  a10 = a[4];
+	  a11 = a[5];
+	  a12 = a[6];
+	  a13 = a[7];
+	  a20 = a[8];
+	  a21 = a[9];
+	  a22 = a[10];
+	  a23 = a[11];
+	  a30 = a[12];
+	  a31 = a[13];
+	  a32 = a[14];
+	  a33 = a[15];
+	  b00 = a00 * a11 - a01 * a10;
+	  b01 = a00 * a12 - a02 * a10;
+	  b02 = a00 * a13 - a03 * a10;
+	  b03 = a01 * a12 - a02 * a11;
+	  b04 = a01 * a13 - a03 * a11;
+	  b05 = a02 * a13 - a03 * a12;
+	  b06 = a20 * a31 - a21 * a30;
+	  b07 = a20 * a32 - a22 * a30;
+	  b08 = a20 * a33 - a23 * a30;
+	  b09 = a21 * a32 - a22 * a31;
+	  b10 = a21 * a33 - a23 * a31;
+	  b11 = a22 * a33 - a23 * a32;
+	  det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
 
 	  if (!det)
 	    return null;
-	  det = 1.0 / det;
 
+	  det = 1.0 / det;
 	  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
 	  out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
 	  out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
@@ -475,11 +491,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	  out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
 
 	  return out;
-	}
+	};
 
-	exports.getNumberOfChannelsFromAmbisonicOrder = function (order) {
+
+	/**
+	 * Get a total number of channels for a given ambisonic order.
+	 * @param {Number} order Ambisonic order
+	 * @return {Number}
+	 */
+	exports.getNumberOfChannelsFromAmbisonicOrder = function(order) {
 	  return (order + 1) * (order + 1);
-	}
+	};
 
 
 /***/ }),
@@ -1010,7 +1032,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    throw 'IR does not have 2 channels. cannot proceed.';
 
 	  this._active = false;
-
+	  
 	  this._context = context;
 
 	  this._input = this._context.createChannelSplitter(4);
@@ -1498,7 +1520,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        resolve();
 	      }.bind(this),
 	      function (buffers) {
-	        var errorMessage = 'Initialization failed: ' + key + ' is '
+	        var errorMessage = 'Initialization failed: ' + key + ' is ' 
 	            + buffers.get(0) + '.';
 	        Utils.log(errorMessage);
 	        reject(errorMessage);
@@ -1651,7 +1673,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} gainValue
 	 */
 	function setCenteredElement(matrix, l, i, j, gainValue) {
-	  var index = (j + l) * (2 * l + 1) + (i + l); // Row-wise indexing.
+	  var index = (j + l) * (2 * l + 1) + (i + l);  // Row-wise indexing.
 	  matrix[l - 1][index].gain.value = gainValue;
 	};
 
@@ -1667,7 +1689,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @return {Number} Gain node's gain parameter value.
 	 */
 	function getCenteredElement(matrix, l, i, j) {
-	  var index = (j + l) * (2 * l + 1) + (i + l); // Row-wise indexing.
+	  var index = (j + l) * (2 * l + 1) + (i + l);  // Row-wise indexing.
 	  return matrix[l - 1][index].gain.value;
 	};
 
@@ -1687,17 +1709,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	function P(matrix, i, a, b, l) {
 	  if (b === l) {
 	    return getCenteredElement(matrix, 1, i, 1) *
-	      getCenteredElement(matrix, l - 1, a, l - 1) -
-	      getCenteredElement(matrix, 1, i, -1) *
-	      getCenteredElement(matrix, l - 1, a, -l + 1);
+	        getCenteredElement(matrix, l - 1, a, l - 1) -
+	        getCenteredElement(matrix, 1, i, -1) *
+	        getCenteredElement(matrix, l - 1, a, -l + 1);
 	  } else if (b === -l) {
 	    return getCenteredElement(matrix, 1, i, 1) *
-	      getCenteredElement(matrix, l - 1, a, -l + 1) +
-	      getCenteredElement(matrix, 1, i, -1) *
-	      getCenteredElement(matrix, l - 1, a, l - 1);
+	        getCenteredElement(matrix, l - 1, a, -l + 1) +
+	        getCenteredElement(matrix, 1, i, -1) *
+	        getCenteredElement(matrix, l - 1, a, l - 1);
 	  } else {
 	    return getCenteredElement(matrix, 1, i, 0) *
-	      getCenteredElement(matrix, l - 1, a, b);
+	        getCenteredElement(matrix, l - 1, a, b);
 	  }
 	};
 
@@ -1716,10 +1738,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @return {Number}
 	 */
 	function U(matrix, m, n, l) {
-	  /**
-	   * Although [1, 2] split U into three cases for m == 0, m < 0, m > 0
-	   * the actual values are the same for all three cases.
-	   */
+	  // Although [1, 2] split U into three cases for m == 0, m < 0, m > 0
+	  // the actual values are the same for all three cases.
 	  return P(matrix, 0, m, n, l);
 	};
 
@@ -1769,14 +1789,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} n
 	 * @param {Number} l
 	 */
-	function W (matrix, m, n, l) {
+	function W(matrix, m, n, l) {
 	  // Whenever this happens, w is also 0 so W can be anything.
 	  if (m === 0)
 	    return 0;
 
-	  return m > 0
-	    ? P(matrix, 1, m + 1, n, l) + P(matrix, -1, -m - 1, n, l)
-	    : P(matrix, 1, m - 1, n, l) - P(matrix, -1, -m + 1, n, l);
+	  return m > 0 ? P(matrix, 1, m + 1, n, l) + P(matrix, -1, -m - 1, n, l) :
+	                 P(matrix, 1, m - 1, n, l) - P(matrix, -1, -m + 1, n, l);
 	};
 
 	/**
@@ -1789,13 +1808,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 	function computeUVWCoeff(m, n, l) {
 	  var d = getKroneckerDelta(m, 0);
-	  var reciprocalDenominator = Math.abs(n) === l
-	      ? 1 / (2 * l * (2 * l - 1)) : 1 / ((l + n) * (l - n));
+	  var reciprocalDenominator =
+	      Math.abs(n) === l ? 1 / (2 * l * (2 * l - 1)) : 1 / ((l + n) * (l - n));
 
 	  return [
 	    Math.sqrt((l + m) * (l - m) * reciprocalDenominator),
-	    0.5 * (1 - 2 * d) * Math.sqrt((1 + d) * (l + Math.abs(m) - 1) *
-	        (l + Math.abs(m)) * reciprocalDenominator),
+	    0.5 * (1 - 2 * d) *
+	        Math.sqrt(
+	            (1 + d) * (l + Math.abs(m) - 1) * (l + Math.abs(m)) *
+	            reciprocalDenominator),
 	    -0.5 * (1 - d) * Math.sqrt((l - Math.abs(m) - 1) * (l - Math.abs(m))) *
 	        reciprocalDenominator
 	  ];
@@ -1814,7 +1835,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *                                     where n=1,2,...,N.
 	 * @param {Number} l
 	 */
-	function computeBandRotation (matrix, l) {
+	function computeBandRotation(matrix, l) {
 	  // The lth band rotation matrix has rows and columns equal to the number of
 	  // coefficients within that band (-l <= m <= l implies 2l + 1 coefficients).
 	  for (var m = -l; m <= l; m++) {
@@ -1830,7 +1851,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	      if (Math.abs(uvwCoefficients[2]) > 0)
 	        uvwCoefficients[2] *= W(matrix, m, n, l);
 
-	      setCenteredElement(matrix, l, m, n,
+	      setCenteredElement(
+	          matrix, l, m, n,
 	          uvwCoefficients[0] + uvwCoefficients[1] + uvwCoefficients[2]);
 	    }
 	  }
@@ -1842,7 +1864,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *                                     (2n+1)x(2n+1) elements, where n=1,2,...,
 	 *                                     N.
 	 */
-	function computeHOAMatrices (matrix) {
+	function computeHOAMatrices(matrix) {
 	  // We start by computing the 2nd-order matrix from the 1st-order matrix.
 	  for (var i = 2; i <= matrix.length; i++)
 	    computeBandRotation(matrix, i);
@@ -1888,7 +1910,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    // matrix. We compute the offset value as the first channel index of the
 	    // current order where
 	    //   k_last = l^2 + l + m,
-	    // and let m = -l
+	    // and var m = -l
 	    //   k_last = l^2
 	    orderOffset = i * i;
 
@@ -1926,18 +1948,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Array} rotationMatrix    A 3x3 matrix of soundfield rotation. The
 	 *                                  matrix is in the col-major representation.
 	 */
-	HOARotator.prototype.setRotationMatrix = function (rotationMatrix) {
+	HOARotator.prototype.setRotationMatrix = function(rotationMatrix) {
 	  // Ambisonic spherical coordinates flip the signs for left/right and
 	  // front/back compared to OpenGL.
-	  this._gainNodeMatrix[0][0].gain.value = -rotationMatrix[0];
-	  this._gainNodeMatrix[0][1].gain.value = -rotationMatrix[1];
-	  this._gainNodeMatrix[0][2].gain.value = -rotationMatrix[2];
-	  this._gainNodeMatrix[0][3].gain.value = rotationMatrix[3];
-	  this._gainNodeMatrix[0][4].gain.value = rotationMatrix[4];
-	  this._gainNodeMatrix[0][5].gain.value = rotationMatrix[5];
-	  this._gainNodeMatrix[0][6].gain.value = -rotationMatrix[6];
-	  this._gainNodeMatrix[0][7].gain.value = -rotationMatrix[7];
-	  this._gainNodeMatrix[0][8].gain.value = -rotationMatrix[8];
+	  for (var i = 0; i < 9; ++i)
+	    this._gainNodeMatrix[0][i].gain.value = rotationMatrix[i];
+
 	  computeHOAMatrices(this._gainNodeMatrix);
 	};
 
@@ -1946,16 +1962,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * (Three.js style)
 	 * @param {Array} rotationMatrix4   A 4x4 matrix of soundfield rotation.
 	 */
-	HOARotator.prototype.setRotationMatrix4 = function (rotationMatrix4) {
-	  this._gainNodeMatrix[0][0].gain.value = -rotationMatrix4[0];
-	  this._gainNodeMatrix[0][1].gain.value = -rotationMatrix4[1];
-	  this._gainNodeMatrix[0][2].gain.value = -rotationMatrix4[2];
+	HOARotator.prototype.setRotationMatrix4 = function(rotationMatrix4) {
+	  this._gainNodeMatrix[0][0].gain.value = rotationMatrix4[0];
+	  this._gainNodeMatrix[0][1].gain.value = rotationMatrix4[1];
+	  this._gainNodeMatrix[0][2].gain.value = rotationMatrix4[2];
 	  this._gainNodeMatrix[0][3].gain.value = rotationMatrix4[4];
 	  this._gainNodeMatrix[0][4].gain.value = rotationMatrix4[5];
 	  this._gainNodeMatrix[0][5].gain.value = rotationMatrix4[6];
-	  this._gainNodeMatrix[0][6].gain.value = -rotationMatrix4[8];
-	  this._gainNodeMatrix[0][7].gain.value = -rotationMatrix4[9];
-	  this._gainNodeMatrix[0][8].gain.value = -rotationMatrix4[10];
+	  this._gainNodeMatrix[0][6].gain.value = rotationMatrix4[8];
+	  this._gainNodeMatrix[0][7].gain.value = rotationMatrix4[9];
+	  this._gainNodeMatrix[0][8].gain.value = rotationMatrix4[10];
 	  computeHOAMatrices(this._gainNodeMatrix);
 	};
 
@@ -1964,17 +1980,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @return {Array}                  A 3x3 matrix of soundfield rotation. The
 	 *                                  matrix is in the col-major representation.
 	 */
-	HOARotator.prototype.getRotationMatrix = function () {
+	HOARotator.prototype.getRotationMatrix = function() {
 	  var rotationMatrix = Float32Array(9);
-	  rotationMatrix[0] = -this._gainNodeMatrix[0][0].gain.value;
-	  rotationMatrix[1] = -this._gainNodeMatrix[0][1].gain.value;
-	  rotationMatrix[2] = -this._gainNodeMatrix[0][2].gain.value;
-	  rotationMatrix[3] = this._gainNodeMatrix[0][3].gain.value;
-	  rotationMatrix[4] = this._gainNodeMatrix[0][4].gain.value;
-	  rotationMatrix[5] = this._gainNodeMatrix[0][5].gain.value;
-	  rotationMatrix[6] = -this._gainNodeMatrix[0][6].gain.value;
-	  rotationMatrix[7] = -this._gainNodeMatrix[0][7].gain.value;
-	  rotationMatrix[8] = -this._gainNodeMatrix[0][8].gain.value;
+	  for (var i = 0; i < 9; ++i)
+	    rotationMatrix[i] = this._gainNodeMatrix[0][i].gain.value;
 	  return rotationMatrix;
 	};
 
@@ -2009,10 +2018,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * limitations under the License.
 	 */
 
+
 	/**
 	 * @fileOverview A collection of convolvers. Can be used for the optimized HOA
 	 *               binaural rendering. (e.g. SH-MaxRe HRTFs)
 	 */
+
 
 	/**
 	 * @class HOAConvolver
@@ -2025,7 +2036,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *                                        where N is the ambisonic order.
 	 */
 	function HOAConvolver(context, options) {
-
 	  this._active = false;
 	  this._context = context;
 
@@ -2051,13 +2061,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.enable();
 	}
 
+
 	// Build the audio graph for HOA processing.
 	//
 	// For TOA convolution:
 	// input -> splitter(16) -[0,1]-> merger(2) -> convolver(2) -> splitter(2)
 	//                       -[2,3]-> merger(2) -> convolver(2) -> splitter(2)
 	//                       -[4,5]-> ... (6 more, 8 branches total)
-	HOAConvolver.prototype._buildAudioGraph = function (options) {
+	HOAConvolver.prototype._buildAudioGraph = function(options) {
 	  // Compute the number of stereo convolvers needed.
 	  var numberOfStereoChannels = Math.ceil(this._numberOfChannels / 2);
 
@@ -2100,11 +2111,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	      // to reduce the number of convolutions required when rendering to a
 	      // symmetrical binaural renderer.
 	      if (m >= 0) {
-	        this._stereoSplitters[stereoIndex]
-	            .connect(this._positiveIndexSphericalHarmonics, acnIndex % 2);
+	        this._stereoSplitters[stereoIndex].connect(
+	            this._positiveIndexSphericalHarmonics, acnIndex % 2);
 	      } else {
-	        this._stereoSplitters[stereoIndex]
-	            .connect(this._negativeIndexSphericalHarmonics, acnIndex % 2);
+	        this._stereoSplitters[stereoIndex].connect(
+	            this._negativeIndexSphericalHarmonics, acnIndex % 2);
 	      }
 	    }
 	  }
@@ -2122,43 +2133,42 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.output = this._outputGain;
 	};
 
-	HOAConvolver.prototype._setHRIRBuffer = function (buffer) {
+
+	HOAConvolver.prototype._setHRIRBuffer = function(buffer) {
 	  // For the optimum performance/resource usage, we use stereo convolvers
 	  // instead of mono convolvers. In Web Audio API, the convolution on
 	  // >3 channels activates the "true stereo" mode in theconvolver, which is not
 	  // compatible to HOA convolution.
-	  //
-	  // TODO(hoch): This duplciates IR buffers. Consider optimizing the memory
-	  // usage.
 
 	  // Compute the number of stereo buffers to create from a given buffer.
 	  var numberOfStereoBuffers = Math.ceil(buffer.numberOfChannels / 2);
 
 	  // Generate Math.ceil(K/2) stereo buffers from a K-channel IR buffer.
 	  for (var i = 0; i < numberOfStereoBuffers; ++i) {
+	    var leftIndex = i * 2;
+	    var rightIndex = i * 2 + 1;
 	    var stereoHRIRBuffer =
 	        this._context.createBuffer(2, buffer.length, buffer.sampleRate);
-	    stereoHRIRBuffer.copyToChannel(buffer.getChannelData(i * 2), 0);
-
-	    // Skip right-channel if it exceeds buffer channel count.
-	    var rightChannelIndex = i * 2 + 1;
-	    if (rightChannelIndex < buffer.numberOfChannels) {
-	      stereoHRIRBuffer.copyToChannel(
-	        buffer.getChannelData(rightChannelIndex), 1);
+	    stereoHRIRBuffer.copyToChannel(buffer.getChannelData(leftIndex), 0);
+	    if (rightIndex < buffer.numberOfChannels) {
+	      stereoHRIRBuffer.copyToChannel(buffer.getChannelData(rightIndex), 1);
 	    }
 	    this._convolvers[i].buffer = stereoHRIRBuffer;
 	  }
-	  this.enable();
 	};
 
-	HOAConvolver.prototype.enable = function () {
-	  if (this._active) return;
+
+	HOAConvolver.prototype.enable = function() {
+	  if (this._active)
+	    return;
 	  this._binauralMerger.connect(this._outputGain);
 	  this._active = true;
 	};
 
-	HOAConvolver.prototype.disable = function () {
-	  if (!this._active) return;
+
+	HOAConvolver.prototype.disable = function() {
+	  if (!this._active)
+	    return;
 	  this._binauralMerger.disconnect();
 	  this._active = false;
 	};
@@ -2201,10 +2211,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	// HRIRs for optimized HOA rendering.
 	// TODO(hongchan): change this with the absolute URL.
-	var SH_MAXRE_HRIR_URLS = [
-	  'resources/sh_hrir_o_3_ch0-ch7.wav',
-	  'resources/sh_hrir_o_3_ch8-ch15.wav'
-	];
+	var SH_MAXRE_HRIR_URLS =
+	    ['resources/sh_hrir_o_3_ch0-ch7.wav', 'resources/sh_hrir_o_3_ch8-ch15.wav'];
 
 
 	/**
@@ -2222,12 +2230,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._renderingMode = 'ambisonic';
 	  this._ambisonicOrder = 3;
 
-	  if (options) {
-	    if (options.HRIRUrl)
+	  if (options !== undefined) {
+	    if (options.HRIRUrl !== undefined)
 	      this._HRIRUrls = options.HRIRUrl;
-	    if (options.renderingMode)
+	    if (options.renderingMode !== undefined)
 	      this._renderingMode = options.renderingMode;
-	    if (options.ambisonicOrder)
+	    if (options.ambisonicOrder !== undefined)
 	      this._ambisonicOrder = options.ambisonicOrder;
 	  }
 
@@ -2243,9 +2251,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Initialize and load the resources for the decode.
 	 * @return {Promise}
 	 */
-	HOARenderer.prototype.initialize = function () {
+	HOARenderer.prototype.initialize = function() {
 	  Utils.log('Version: ' + SystemVersion);
-	  Utils.log('Initializing... (mode: ' + this._renderingMode +
+	  Utils.log(
+	      'Initializing... (mode: ' + this._renderingMode +
 	      ', order: ' + this._ambisonicOrder + ')');
 
 	  return new Promise(this._initializeCallback.bind(this));
@@ -2257,52 +2266,44 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Function} resolve Promise resolution.
 	 * @param {Function} reject Promise rejection.
 	 */
-	HOARenderer.prototype._initializeCallback = function (resolve, reject) {
+	HOARenderer.prototype._initializeCallback = function(resolve, reject) {
 	  var hoaHRIRBuffer;
 
 	  // Constrcut a consolidated HOA HRIR (e.g. 16 channels for TOA).
 	  // Handle multiple chunks of HRIR buffer data splitted by 8 channels each.
 	  // This is because Chrome cannot decode the audio file >8  channels.
 	  var audioBufferData = [];
-	  this._HRIRUrls.forEach(function (key, index, urls) {
-	    audioBufferData.push({ name: key, url: urls[index] });
+	  this._HRIRUrls.forEach(function(key, index, urls) {
+	    audioBufferData.push({name: index, url: urls[index]});
 	  });
 
 	  new AudioBufferManager(
-	      this._context,
-	      audioBufferData,
-	      function (buffers) {
-	        var accumulatedChannelCount = 0;
-	        buffers.forEach(function (buffer) {
+	      this._context, audioBufferData,
+	      function(buffers) {
+	        buffers.forEach(function(buffer, key, buffers) {
 	          // Create a K channel buffer to integrate individual IR buffers.
 	          if (!hoaHRIRBuffer) {
 	            hoaHRIRBuffer = this._context.createBuffer(
-	                  this._numberOfChannels, buffer.length, buffer.sampleRate);
+	                this._numberOfChannels, buffer.length, buffer.sampleRate);
 	          }
 
+	          // Determine channel offset for each buffer.
+	          var channelOffset = 0;
+	          for (var i = 0; i < key; i++) {
+	            channelOffset += buffers.get(key).numberOfChannels;
+	          }
 	          for (var channel = 0; channel < buffer.numberOfChannels; ++channel) {
 	            hoaHRIRBuffer.copyToChannel(
-	                buffer.getChannelData(channel),
-	                accumulatedChannelCount + channel);
+	                buffer.getChannelData(channel), channelOffset + channel);
 	          }
-
-	          accumulatedChannelCount += buffer.numberOfChannels;
 	        }.bind(this));
 
-	        if (accumulatedChannelCount === this._numberOfChannels) {
-	          this._buildAudioGraph(hoaHRIRBuffer);
-	          this._isRendererReady = true;
-	          Utils.log('Rendering via SH-MaxRE convolution.');
-	          resolve();
-	        } else {
-	          var errorMessage = 'Only ' + accumulatedChannelCount +
-	              ' HRIR channels were loaded (expected ' + this._numberOfChannels +
-	              '). The renderer will not function correctly.';
-	          Utils.log(errorMessage);
-	          reject(errorMessage);
-	        }
+	        this._buildAudioGraph(hoaHRIRBuffer);
+	        this._isRendererReady = true;
+	        Utils.log('Rendering via SH-MaxRE convolution.');
+	        resolve();
 	      }.bind(this),
-	      function (buffers) {
+	      function(buffers) {
 	        // TODO: why is it failing?
 	        var errorMessage = 'Initialization failed.';
 	        Utils.log(errorMessage);
@@ -2314,16 +2315,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	/**
 	 * Internal method that builds the audio graph.
 	 */
-	HOARenderer.prototype._buildAudioGraph = function (hoaHRIRBuffer) {
+	HOARenderer.prototype._buildAudioGraph = function(hoaHRIRBuffer) {
 	  this.input = this._context.createGain();
 	  this.output = this._context.createGain();
 	  this._bypass = this._context.createGain();
 
 	  this._hoaRotator = new HOARotator(this._context, this._ambisonicOrder);
-	  this._hoaConvolver = new HOAConvolver(this._context, {
-	      IRBuffer: hoaHRIRBuffer,
-	      ambisonicOrder: this._ambisonicOrder
-	    });
+	  this._hoaConvolver = new HOAConvolver(
+	      this._context,
+	      {IRBuffer: hoaHRIRBuffer, ambisonicOrder: this._ambisonicOrder});
 
 	  this.input.connect(this._hoaRotator.input);
 	  this.input.connect(this._bypass);
@@ -2339,8 +2339,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Array} rotationMatrix      3x3 rotation matrix (row-major
 	 *                                    representation)
 	 */
-	HOARenderer.prototype.setRotationMatrix = function (rotationMatrix) {
-	  if (!this._isRendererReady) return;
+	HOARenderer.prototype.setRotationMatrix = function(rotationMatrix) {
+	  if (!this._isRendererReady)
+	    return;
 	  this._hoaRotator.setRotationMatrix(rotationMatrix);
 	};
 
@@ -2349,8 +2350,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Update the rotation matrix from a Three.js camera object.
 	 * @param  {Object} cameraMatrix      The Matrix4 obejct of Three.js the camera.
 	 */
-	HOARenderer.prototype.setRotationMatrixFromCamera = function (cameraMatrix) {
-	  if (!this._isRendererReady) return;
+	HOARenderer.prototype.setRotationMatrixFromCamera = function(cameraMatrix) {
+	  if (!this._isRendererReady)
+	    return;
 
 	  // Extract the inner array elements and inverse. (The actual view rotation is
 	  // the opposite of the camera movement.)
@@ -2369,8 +2371,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	 *                                    processing is completely turned off saving
 	 *                                    the CPU power.
 	 */
-	HOARenderer.prototype.setRenderingMode = function (mode) {
-	  if (mode === this._renderingMode) return;
+	HOARenderer.prototype.setRenderingMode = function(mode) {
+	  if (mode === this._renderingMode)
+	    return;
 	  switch (mode) {
 	    // Bypass mode: The convolution path is disabled, disconnected (thus consume
 	    // no CPU). Use bypass gain node to pass-through the input stream.

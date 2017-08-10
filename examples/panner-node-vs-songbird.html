@@ -1,0 +1,265 @@
+<!--
+  Copyright 2017 Google Inc. All Rights Reserved.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PannerNode vs Songbird</title>
+  <script src="../build/songbird.js"></script>
+</head>
+<body>
+  <h1>PannerNode vs Songbird (w/ 1st and 3rd-order ambisonics)</h1>
+  <input onchange="toggle();" type="radio" name="mode" value="none"
+    id="eNoneRadio" checked>
+  <label for="eNoneRadio" id="eNoneLabel">None</label>
+  <br>
+  <input onchange="toggle();" type="radio" name="mode" value="panner-node"
+    id="ePannerNodeRadio" checked>
+  <label for="ePannerNodeRadio" id="ePannerNodeLabel">PannerNode</label>
+  <br>
+  <input onchange="toggle();" type="radio" name="mode" value="songbird-foa"
+    id="eFoaSongbirdRadio">
+  <label for="eFoaSongbirdRadio" id="eFoaSongbirdLabel">Songbird (FOA)</label>
+  <br>
+  <input onchange="toggle();" type="radio" name="mode" value="songbird-toa"
+    id="eToaSongbirdRadio">
+  <label for="eToaSongbirdRadio" id="eToaSongbirdLabel">Songbird (TOA)</label>
+  <br>
+  <label for="eSourcePlayback" id="eSourceLabel">Source: </label>
+  <button id="eSourcePlayback">Play</button>
+  <br>
+  <canvas id="canvas" width="320" height="320"></canvas>
+  <script>
+    var audioContext;
+    var audioSources = ['resources/CubeSound.wav'];
+    var audioElements = new Array(audioSources.length);
+    var foaSongbirdSource = [], toaSongbirdSource = [], pannerNode = [];
+    var foaSongbird, toaSongbird;
+    var noneGain, pannerGain, foaSongbirdGain, toaSongbirdGain;
+    var canvas = document.getElementById('canvas');
+    var dimensions = {width: 5, depth: 5};
+
+    function toggle() {
+      if (document.getElementById('eNoneRadio').checked) {
+        noneGain.gain.value = 1;
+        pannerGain.gain.value = 0;
+        foaSongbirdGain.gain.value = 0;
+        toaSongbirdGain.gain.value = 0;
+      } else if (document.getElementById('ePannerNodeRadio').checked) {
+        noneGain.gain.value = 0;
+        pannerGain.gain.value = 1;
+        foaSongbirdGain.gain.value = 0;
+        toaSongbirdGain.gain.value = 0;
+      } else if (document.getElementById('eFoaSongbirdRadio').checked) {
+        noneGain.gain.value = 0;
+        pannerGain.gain.value = 0;
+        foaSongbirdGain.gain.value = 1;
+        toaSongbirdGain.gain.value = 0;
+      } else {
+        noneGain.gain.value = 0;
+        pannerGain.gain.value = 0;
+        foaSongbirdGain.gain.value = 0;
+        toaSongbirdGain.gain.value = 1;
+      }
+    }
+
+    function updatePositions () {
+      for (var i = 0; i < ballPositions.length; i++) {
+        var x = ballPositions[i][0] / pixelsPerMeter - dimensions.width / 2;
+        var y = 0;
+        var z = ballPositions[i][1] / pixelsPerMeter - dimensions.depth / 2;
+        if (i < ballPositions.length - 1) {
+          pannerNode[i].setPosition(x, y, z);
+          foaSongbirdSource[i].setPosition(x, y, z);
+          toaSongbirdSource[i].setPosition(x, y, z);
+        } else {
+          audioContext.listener.setPosition(x, y, z);
+          foaSongbird.setListenerPosition(x, y, z);
+          toaSongbird.setListenerPosition(x, y, z);
+        }
+      }
+    }
+
+    var pixelsPerMeter = 64;
+    var ballRadius = 12;
+    var ballLabels = ['S', 'L'];
+    var ballColors = ['red', 'green'];
+    var ballPositions = [[0, 0], [0, 0]];
+    function drawRoom() {
+      var canvasContext = canvas.getContext('2d');
+      canvasContext.clearRect(0, 0, canvas.width, canvas.height);
+
+      canvasContext.beginPath();
+      canvasContext.rect(0, 0, canvas.width, canvas.height);
+      canvasContext.lineWidth = 4;
+      canvasContext.stroke();
+
+      for (var i = 0; i < ballLabels.length; i++) {
+        canvasContext.beginPath();
+        if (i == 1) {
+          canvasContext.rect(ballPositions[i][0] - ballRadius,
+            ballPositions[i][1] - ballRadius, 2 * ballRadius,
+            2 * ballRadius);
+        } else {
+          canvasContext.arc(ballPositions[i][0], ballPositions[i][1], ballRadius,
+            0, 2 * Math.PI);
+        }
+        canvasContext.fillStyle = ballColors[i];
+        canvasContext.fill();
+
+        canvasContext.beginPath();
+        canvasContext.textAlign = 'center';
+        canvasContext.textBaseline = 'middle';
+        canvasContext.font = 'bold 16px monospace';
+        canvasContext.fillStyle = 'white';
+        canvasContext.fillText(ballLabels[i], ballPositions[i][0],
+          ballPositions[i][1]);
+      }
+    }
+
+    function getMousePos(canvas, evt) {
+      var rect = canvas.getBoundingClientRect();
+      return {
+        x: evt.clientX - rect.left,
+        y: evt.clientY - rect.top
+      };
+    }
+
+    function getNearestBall(mousePos) {
+      var minDistance = 1e8;
+      var minIndex = -1;
+      for (var i = 0; i < ballPositions.length; i++) {
+        var dx = Math.abs(mousePos.x - ballPositions[i][0]);
+        var dy = Math.abs(mousePos.y - ballPositions[i][1]);
+        var distance = dx + dy; // Manhattan distance.
+        if (distance < minDistance && distance < 2 * ballRadius) {
+          minDistance = distance;
+          minIndex = i;
+        }
+      }
+      return minIndex;
+    }
+
+    // Global mouseDown tracking.
+    var mouseDown = false;
+    document.addEventListener('mousedown', function (event) {
+      mouseDown = true;
+    });
+    document.addEventListener('mouseup', function (event) {
+      mouseDown = false;
+      ballCurrentIndex = -1;
+    });
+
+    canvas.addEventListener('mousemove', function (event) {
+      if (mouseDown) {
+        var mousePos = getMousePos(canvas, event);
+        if (ballCurrentIndex > -1) {
+          ballPositions[ballCurrentIndex][0] = mousePos.x;
+          ballPositions[ballCurrentIndex][1] = mousePos.y;
+        }
+        drawRoom(canvas);
+        updatePositions();
+      }
+    });
+    canvas.addEventListener('mousedown', function (event) {
+      var mousePos = getMousePos(canvas, event);
+      ballCurrentIndex = getNearestBall(mousePos);
+      if (ballCurrentIndex > -1) {
+        ballPositions[ballCurrentIndex][0] = mousePos.x;
+        ballPositions[ballCurrentIndex][1] = mousePos.y;
+      }
+      drawRoom(canvas);
+      updatePositions();
+    });
+
+    var onLoad = function () {
+      audioContext = new AudioContext();
+      var audioElementSources = Array(audioSources.length);
+
+      // Create <audio> streaming audio sources.
+      for (var i = 0; i < audioSources.length; i++) {
+        audioElements[i] = document.createElement('audio');
+        audioElements[i].src = audioSources[i];
+        audioElements[i].load();
+        audioElements[i].loop = true;
+        audioElementSources[i] =
+          audioContext.createMediaElementSource(audioElements[i]);
+      }
+
+      // Gain nodes.
+      noneGain = audioContext.createGain();
+      pannerGain = audioContext.createGain();
+      foaSongbirdGain = audioContext.createGain();
+      toaSongbirdGain = audioContext.createGain();
+
+      noneGain.connect(audioContext.destination);
+      pannerGain.connect(audioContext.destination);
+      foaSongbirdGain.connect(audioContext.destination);
+      toaSongbirdGain.connect(audioContext.destination);
+
+      // Initialize Songbird and create Source(s).
+      // Initialize PannerNode/Listener
+      foaSongbird = new Songbird(audioContext, {ambisonicOrder: 1});
+      toaSongbird = new Songbird(audioContext, {ambisonicOrder: 3});
+      for (var i = 0; i < audioSources.length; i++) {
+        pannerNode[i] = audioContext.createPanner();
+        pannerNode[i].panningModel = 'HRTF';
+        pannerNode[i].distanceModel = 'inverse';
+        pannerNode[i].refDistance = Songbird.Attenuation.DEFAULT_MIN_DISTANCE;
+        pannerNode[i].maxDistance = Songbird.Attenuation.DEFAULT_MAX_DISTANCE;
+        foaSongbirdSource[i] = foaSongbird.createSource();
+        toaSongbirdSource[i] = toaSongbird.createSource();
+
+        audioElementSources[i].connect(noneGain);
+        audioElementSources[i].connect(pannerNode[i]);
+        audioElementSources[i].connect(foaSongbirdSource[i].input);
+        audioElementSources[i].connect(toaSongbirdSource[i].input);
+        pannerNode[i].connect(pannerGain);
+      }
+      foaSongbird.output.connect(foaSongbirdGain);
+      toaSongbird.output.connect(toaSongbirdGain);
+      toggle();
+
+      // Initialize play button functionality.
+      var sourcesPlayback = Array(audioSources.length);
+      sourcesPlayback[0] = document.getElementById('eSourcePlayback');
+      for (var i = 0; i < audioSources.length; i++) {
+        sourcesPlayback[i].index = i;
+        sourcesPlayback[i].onclick = function (event) {
+          if (event.target.textContent === 'Play') {
+            event.target.textContent = 'Pause';
+            audioElements[event.target.index].play();
+          } else {
+            event.target.textContent = 'Play';
+            audioElements[event.target.index].pause();
+          }
+        };
+      }
+
+      // Initialize positions.
+      var sourceAngle = 0;
+      ballPositions[1][0] = canvas.width / 2;
+      ballPositions[1][1] = canvas.height / 2;
+      ballPositions[0][0] = pixelsPerMeter *
+        -Math.sin(sourceAngle / 180 * Math.PI) + ballPositions[1][0];
+      ballPositions[0][1] = pixelsPerMeter *
+        -Math.cos(sourceAngle / 180 * Math.PI) + ballPositions[1][1];
+      drawRoom();
+      updatePositions();
+    };
+    window.addEventListener('load', onLoad);
+  </script>
+</body>
+</html>

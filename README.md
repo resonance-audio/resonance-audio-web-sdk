@@ -65,18 +65,22 @@ npm install songbird
 
 The first step is to include the library file in an HTML document.
 
+<!-- TODO(bitllama): replace with node_modules/CDN ASAP! -->
 ```html
+<script src="songbird.min.js"></script>
+```
+
+<!-- ```html
 <!-- Use Songbird from installed node_modules/ -->
-<script src="node_modules/Songbird/build/songbird.min.js"></script>
+<!-- <script src="node_modules/Songbird/build/songbird.min.js"></script> -->
 
 <!-- TODO(bitllama): rawgit/CDN -->
 <!-- if you prefer to use CDN -->
-<script src="THISISNOTAREALLINKBUTITWILLBESOON.js"></script>
-```
+<!-- <script src="THISISNOTAREALLINKBUTITWILLBESOON.js"></script> -->
 
-Spatial encoding is done by creating a `Songbird` instance using an associted
+Spatial encoding is done by creating a `Songbird` scene using an associted
 `AudioContext` and then creating any number of associated `Source` objects
-using `Songbird.createSource()`. The `Songbird` instance models a physical
+using `Songbird.createSource()`. The `Songbird` scene models a physical
 listener while adding room reflections and reverberation. The `Source`
 instances model acoustic sound sources. The library is designed to be easily
 integrated into an existing WebAudio audio graph.
@@ -95,17 +99,17 @@ audioElement.src = 'resources/SpeechSample.wav';
 // Create AudioNode to connect the audio element to WebAudio.
 var audioElementSource = context.createMediaElementSource(audioElement);
 
-// Create a 1st-order Ambisonics Songbird Listener.
+// Create a (1st-order Ambisonic) Songbird scene.
 var songbird = new Songbird(context);
 
-// Send songbird to audio output.
+// Send songbird's binaural output to stereo-out.
 songbird.output.connect(context.destination);
 
-// Create a Songbird Source, connect desired audio input to it.
+// Create a Source, connect desired audio input to it.
 var source = songbird.createSource();
 audioElementSource.connect(source.input);
 
-// Pan an audio source 45 degrees to the left (counter-clockwise).
+// Pan the source 45 degrees to the left (counter-clockwise).
 source.setAngleFromListener(45);
 
 // Wait 1 second and then playback the audio.
@@ -115,14 +119,14 @@ setTimeout(audioElement.play(), 1000);
 
 ### Source/Listener Placement
 
-Usage begins by creating a `Songbird` instance, which manages all your sources,
+Usage begins by creating a `Songbird` scene, which manages all your sources,
 the listener and the reverberation model.
 
 ```js
 var songbird = new Songbird(audioContext);
 ```
 
-Once the main `Songbird` instance is created, it can be used to be create
+Once the main `Songbird` scene is created, it can be used to be create
 as many sources as you desired.
 
 ```js
@@ -135,7 +139,7 @@ var sourceC = songbird.createSource();
 ```
 
 These `Source` instances are automatically managed and modelled by the
-`Songbird` instance. Simply provide the desired monophonic input to each source
+`Songbird` scene. Simply provide the desired monophonic input to each source
 to complete the audio graph.
 
 ```js
@@ -178,11 +182,11 @@ songbird.setListenerOrientationFromCamera(cameraMatrix);
 ### Room Properties
 
 Room properties can be set to control the characteristics of spatial
-reflections and reverberation. A list of materials can be found in the
-documentation.
+reflections and reverberation. A comprehensive list of materials can be found
+in the documentation.
 
 ```js
-// Set room properties.
+// Set room acoustics properties.
 var dimensions = {
   width : 3.1,
   height : 2.5,
@@ -198,128 +202,6 @@ var materials = {
 };
 songbird.setRoomProperties(dimensions, materials);
 ```
-
-
-<!-- ## Advanced Usage
-
-Omnitone also provides various building blocks for the first-order-ambisonic decoding and the binaural rendering. The `FOADecoder` is just a ready-made object built with those components. You can create them and connect together build your own decoding mechanism.
-
-### FOARenderer
-
-`FOARenderer` is an optimized FOA stream binaural renderer based on SH-MaxRe HRIR. It uses a specially crafted HRIR for the optimized audio processing, and the URL for HRIR is shown below. `FOARenderer` must be initialized before its usage.
-
-```js
-var foaRenderer = Omnitone.createFOARenderer(audioContext, {
-  HRIRUrl: 'https://cdn.rawgit.com/GoogleChrome/omnitone/962089ca/build/resources/sh_hrir_o_1.wav',
-  channelMap: [0, 1, 2, 3]
-});
-
-foaRenderer.initialize().then(/* do stuff when FOARenderer is ready. */);
-```
-
-* context (AudioContext): an AudioContext object.
-* options (Object): options for decoder.
-    - HRIRUrl (String): URL for the SH-MaxRe HRIR.
-    - channelMap (Array): A custom channel map.
-
-```js
-foaRenderer.input   // A GainNode as an input of FOARenderer.
-foaRenderer.output  // A GainNode as an output of FOARenderer.
-```
-
-Note that a `FOARenderer` instance has `input` and `output` GainNode. These nodes can be connected to the other AudioNodes for pre/post-processing.
-
-### FOADecoder
-
-`FOADecoder` is a ready-made package of ambisonic gain decoder and binaural renderer.
-
-```js
-var foaDecoder = Omnitone.createFOADecoder(context, element, {
-  HRTFSetUrl: 'YOUR_HRTF_SET_URL',
-  postGainDB: 0,
-  channelMap: [0, 1, 2, 3]
-});
-```
-
-* context (AudioContext): an AudioContext object.
-* element (MediaElement): A target video or audio element for streaming.
-* options (Object): options for decoder.
-    - HRTFSetUrl (String): Base URL for the cube HRTF sets.
-    - postGainDB (Number): Post-decoding gain compensation in dB.
-    - channelMap (Array): A custom channel map.
-
-### FOARouter
-
-`FOARouter` is useful when you need to change the channel layout of the incoming multichannel audio stream. This is necessary because the channel layout changes depending on the audio codec in the browser.
-
-```js
-var router = Omnitone.createFOARouter(context, channelMap);
-```
-
-* context (AudioContext): an AudioContext object.
-* channelMap (Array): an array represents the target channel layout.
-
-#### Methods
-
-```js
-router.setChannelMap([0, 1, 2, 3]); // 4-ch AAC in Chrome (default).
-router.setChannelMap([1, 2, 0, 3]); // 4-ch AAC in Safari.
-```
-
-### FOARotator
-
-`FOARotator` is a sound field rotator for the first-order-ambisonic decoding. It also performs the coordinate transformation between the world space and the audio space.
-
-```js
-var rotator = Omnitone.createFOARotator(context);
-```
-
-* context (AudioContext): an AudioContext object.
-
-#### Methods
-
-```js
-rotator.setRotationMatrix([1, 0, 0, 0, 1, 0, 0, 0, 1]); // 3x3 row-major matrix.
-rotator.setRotationMatrix4([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]); // 4x4 row-major matrix.
-```
-
-* rotationMatrix (Array): 3x3 row-major matrix.
-* rotationMatrix4 (Array): 4x4 row-major matrix.
-
-### FOAPhaseMatchedFilter
-
-`FOAPhaseMatchedFilter` is a pair of pass filters (LP/HP) with a crossover frequency to compensate the gain of high frequency contents without a phase difference.
-
-```js
-var filter = Omnitone.createFOAPhaseMatchedFilter(context);
-```
-
-* context (AudioContext): an AudioContext object.
-
-### FOAVirtualSpeaker
-
-`FOAVirtualSpeaker` is a virtual speaker abstraction with the decoding gain coefficients and HRTF convolution for the first-order-ambisonic audio stream. Note that the speaker instance directly connects to the destination node of `AudioContext`. So you cannot apply additional audio processing after this component.
-
-```js
-var speaker = Omnitone.createFOAVirtualSpeaker(context, options);
-```
-
-* context (AudioContext): an AudioContext object.
-* options (Object): options for speaker.
-    - coefficients: decoding coefficients for (W,X,Y,Z).
-    - IR: stereo IR buffer for HRTF convolution.
-    - gain: post-gain for the speaker.
-
-#### Methods
-
-```js
-speaker.enable();   // activate the speaker.
-speaker.disable();  // deactivate the speaker.
-```
-
-Deactivating a virtual speaker can save CPU powers. Running multiple HRTF convolution can be computationally expensive, so disabling a speaker might be helpful when the binaural rendering is not necessary.
-
--->
 
 
 ## Building
@@ -338,18 +220,27 @@ npm run doc         # generate documentation.
 ## Test
 
 <!-- TODO(bitllama): Actually setup Travis -->
-Songbird uses [Travis](https://travis-ci.org/) and [Karma](https://karma-runner.github.io/1.0/index.html) test runner for continuous integration. (The index HTML page for the local testing is deprecated in v0.2.1.) To run the test suite locally, you have to clone the repository, install dependencies and launch the test runner:
+<!-- Songbird uses [Travis](https://travis-ci.org/) and [Karma]
+(https://karma-runner.github.io/1.0/index.html) test runner for continuous
+integration (The index HTML page for the local testing is deprecated in
+v0.2.1). -->
+To run the test suite locally, you have to clone the repository,
+install dependencies and launch the test runner:
 
 ```bash
 npm test
 ```
 
-Note that unit tests require the promisified version of `OfflineAudioContext`, so they might not run on non-spec-compliant browsers. Songbird's Travis CI is using the latest stable version of Chrome.
+Note that unit tests require the promisified version of `OfflineAudioContext`,
+so they might not run on non-spec-compliant browsers. Songbird's Travis CI is
+using the latest stable version of Chrome.
 
 
 ### Testing Songbird Locally
 
-For the local testing with Karma test runner, Chrome/Chromium-based browser is required. For Linux distros without Chrome browser, the following set up might be necessary for Karma to run properly:
+For the local testing with Karma test runner, Chrome/Chromium-based browser is
+required. For Linux distros without Chrome browser, the following set up might
+be necessary for Karma to run properly:
 
 ```bash
 # Tested with Ubuntu 16.04
@@ -362,7 +253,11 @@ Windows platform has not been tested for local testing.
 
 ## Audio Codec Compatibility
 
-Songbird is designed to run any browser that supports Web Audio API, however, it does not address the incompatibility issue around various media codecs in the browsers. At the time of writing, the decoding of compressed multichannel audio via `<video>` or `<audio>` elements is not fully supported by the majority of mobile browsers.
+Songbird is designed to run any browser that supports Web Audio API, however,
+it does not address the incompatibility issue around various media codecs in
+the browsers. At the time of writing, the decoding of compressed multichannel
+audio via `<video>` or `<audio>` elements is not fully supported by the majority
+of mobile browsers.
 
 
 ## Related Resources
@@ -375,7 +270,7 @@ Songbird is designed to run any browser that supports Web Audio API, however, it
 
 ## Acknowledgments
 
-Special thanks to Alper Gungormusler, Hongchan Choi, Julius Kammerl and Marcin Gorzel for their help on this project.
+Special thanks to Alper Gungormusler, Hongchan Choi, Marcin Gorzel, and Julius Kammerl for their help on this project.
 
 
 ## Support

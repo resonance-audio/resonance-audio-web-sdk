@@ -259,6 +259,32 @@ Source.prototype.setOrientation = function (roll, pitch, yaw) {
 }
 
 /**
+ * Set source's position and orientation using a
+ * Three.js modelViewMatrix Matrix4.
+ * @param {Float32Array} matrix4
+ * The Matrix4 representing the object position and rotation in world space.
+ */
+Source.prototype.setFromMatrix = function (matrix4) {
+  this._right[0] = matrix4[0];
+  this._right[1] = matrix4[1];
+  this._right[2] = matrix4[2];
+  this._up[0] = matrix4[4];
+  this._up[1] = matrix4[5];
+  this._up[2] = matrix4[6];
+  this._forward[0] = matrix4[8];
+  this._forward[1] = matrix4[9];
+  this._forward[2] = matrix4[10];
+
+  // Normalize to remove scaling.
+  this._right = Utils.normalizeVector(this._right);
+  this._up = Utils.normalizeVector(this._up);
+  this._forward = Utils.normalizeVector(this._forward);
+
+  // Update position.
+  this.setPosition(matrix4[12], matrix4[13], matrix4[14]);
+}
+
+/**
  * Set the source width (in degrees). Where 0 degrees is a point source and 360
  * degrees is an omnidirectional source.
  * @param {Number} sourceWidth (in degrees).

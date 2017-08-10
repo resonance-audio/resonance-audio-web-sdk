@@ -37,14 +37,13 @@ describe('Attenuation', function () {
   beforeEach(function () {
     context =
       new OfflineAudioContext(1, 1, sampleRate);
-    attenuation = Songbird.createAttenuation(context, options);
+    attenuation = new Songbird.Attenuation(context, options);
   });
 
-  it('#setDistance: verify the attenuation of rolloff models with ' +
-    numTestsPerModel + ' tests .',
+  it('#setDistance/#setRolloff: verify various configurations.',
     function (done) {
       for (var i = 0; i < rolloffModels.length; i++) {
-        attenuation.setRolloffModel(rolloffModels[i]);
+        attenuation.setRolloff(rolloffModels[i]);
         for (var j = 0; j < numTestsPerModel; j++) {
           var distance =
             Math.random() * (distanceMax - distanceMin) + distanceMin;
@@ -78,22 +77,6 @@ describe('Attenuation', function () {
           }
           expect(Math.abs(actualGain - expectedGain)).to.be.below(threshold);
         }
-      }
-      done();
-    }
-  );
-
-  it('#setRolloffModel: ensure case is ignored when specifying model.',
-    function (done) {
-      var rolloffModelsBad = ['LOGARITHMIC', 'LOgArItHMIC', 'LiNeAR', 'None',
-        'logARITHMIC', 'linEAR', 'logarithmIC', 'noNe'];
-      var rolloffModelsFixed = ['logarithmic', 'logarithmic', 'linear',
-        'none', 'logarithmic', 'linear', 'logarithmic', 'none'];
-      for (var i = 0; i < rolloffModelsBad.length; i++) {
-        attenuation.setRolloffModel(rolloffModelsBad[i]);
-        var expectedModel = rolloffModelsFixed[i];
-        var actualModel = attenuation._rolloffModel;
-        expect(actualModel).to.be.equal(expectedModel);
       }
       done();
     }

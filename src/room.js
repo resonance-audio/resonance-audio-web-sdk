@@ -137,9 +137,9 @@ function Room (context, options) {
 Room.prototype.setProperties = function (dimensions, materials) {
   // Compute late response, skip if disabled.
   if (this._useLateReflections) {
-    absorptionCoefficients = _getCoefficientsFromMaterials(materials);
-    durations = _getDurationsFromProperties(dimensions, absorptionCoefficients,
-      this.speedOfSound);
+    var absorptionCoefficients = _getCoefficientsFromMaterials(materials);
+    var durations = _getDurationsFromProperties(dimensions,
+      absorptionCoefficients, this.speedOfSound);
     this.late.setDurations(durations);
   }
 
@@ -429,9 +429,10 @@ function _getDurationsFromProperties (dimensions, coefficients, speedOfSound) {
 }
 
 function _computeReflectionCoefficients (absorptionCoefficients) {
-  var reflectionCoefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+  var reflectionCoefficients = [];
   for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
     // Compute average absorption coefficient (per wall).
+    reflectionCoefficients[property] = 0;
     for (var j = 0; j < Room.NUMBER_AVERAGING_BANDS; j++) {
       var bandIndex = j + Room.STARTING_AVERAGING_BAND;
       reflectionCoefficients[property] +=

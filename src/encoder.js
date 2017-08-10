@@ -180,7 +180,8 @@ Encoder.DEFAULT_AZIMUTH = 0;
 /**
  * Default elevation (in degres).
  * Suitable range is from -90 (below) to 90 (above).
- * @type {Number} */
+ * @type {Number}
+ */
 Encoder.DEFAULT_ELEVATION = 0;
 /**
  * The maximum allowed ambisonic order, specified by the
