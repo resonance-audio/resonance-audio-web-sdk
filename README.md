@@ -24,8 +24,9 @@ ambisonic (multichannel) ACN channel layout with SN3D normalization.
   - ["Hello World" Example](#hello-world-example)
   - [Source/Listener Placement](#sourcelistener-placement)
   - [Room Properties](#room-properties)
+- [Porting From PannerNode](#porting-from-pannernode)
 - [Building](#building)
-- [Test](#test)
+- [Testing](#testing)
   - [Testing Songbird Locally](#testing-songbird-locally)
 - [Audio Codec Compatibility](#audio-codec-compatibility)
 - [Related Resources](#related-resources)
@@ -90,20 +91,20 @@ integrated into an existing WebAudio audio graph.
 
 ```js
 // Create an AudioContext.
-var context = new AudioContext();
+var audioContext = new AudioContext();
 
 // Prepare audio element to feed the ambisonic source audio feed.
 var audioElement = document.createElement('audio');
 audioElement.src = 'resources/SpeechSample.wav';
 
 // Create AudioNode to connect the audio element to WebAudio.
-var audioElementSource = context.createMediaElementSource(audioElement);
+var audioElementSource = audioContext.createMediaElementSource(audioElement);
 
 // Create a (1st-order Ambisonic) Songbird scene.
-var songbird = new Songbird(context);
+var songbird = new Songbird(audioContext);
 
 // Send songbird's binaural output to stereo-out.
-songbird.output.connect(context.destination);
+songbird.output.connect(audioContext.destination);
 
 // Create a Source, connect desired audio input to it.
 var source = songbird.createSource();
@@ -119,7 +120,7 @@ setTimeout(audioElement.play(), 1000);
 
 ### Source/Listener Placement
 
-Usage begins by creating a `Songbird` scene, which manages all your sources,
+Usage begins by creating a `Songbird` scene, which manages all sources,
 the listener and the reverberation model.
 
 ```js
@@ -127,7 +128,7 @@ var songbird = new Songbird(audioContext);
 ```
 
 Once the main `Songbird` scene is created, it can be used to be create
-as many sources as you desired.
+as many sources as desired. The `Songbird` scene will manage the output for any and all sources created.
 
 ```js
 var source = songbird.createSource();
@@ -171,7 +172,7 @@ source.setSourceWidth(sourceWidth);
 songbird.setListenerOrientation(roll, pitch, yaw);
 ```
 
-Alternatively, you can set the listener's orientation using a three.js Matrix4
+Alternatively, the listener's orientation can be set using a three.js Matrix4
 Camera matrix:
 
 ```js
@@ -204,9 +205,54 @@ songbird.setRoomProperties(dimensions, materials);
 ```
 
 
+## Porting From PannerNode
+
+For projects already employing [PannerNode](https://developer.mozilla.org/en-US/docs/Web/API/PannerNode), it is fairly simple to switch to Songbird. Below is a basic `PannerNode` example:
+
+```js
+// Create a "PannerNode."
+var panner = audioContext.createPanner();
+
+// Initialize properties
+panner.panningModel = 'HRTF';
+panner.distanceModel = 'inverse';
+panner.refDistance = 0.1;
+panner.maxDistance = 1000;
+
+// Connect input to "PannerNode".
+audioElementSource.connect(panner);
+
+// Connect "PannerNode" to audio output.
+panner.connect(audioContext.destination);
+
+// Set "PannerNode" and Listener positions.
+panner.setPosition(x, y, z);
+audioContext.listener.setPosition(x, y, z);
+```
+
+And below is the same example converted to Songbird:
+
+```js
+// Create a Songbird "Source" with properties.
+var source = songbird.createSource({
+ rolloff: 'logarithmic',
+ minDistance: 0.1,
+ maxDistance: 1000
+});
+
+// Connect input to "Source."
+audioElementSource.connect(source.input);
+
+// Set "Source" and Listener positions.
+source.setPosition(x, y, z);
+songbird.setListenerPosition(x, y, z);
+```
+
+
 ## Building
 
-Songbird uses [WebPack](https://webpack.github.io/) to build the minified library and to manage dependencies.
+Songbird uses [WebPack](https://webpack.github.io/) to build the minified
+library and to manage dependencies.
 
 ```bash
 npm install         # install dependencies.
@@ -217,15 +263,14 @@ npm run doc         # generate documentation.
 ```
 
 
-## Test
+## Testing
 
 <!-- TODO(bitllama): Actually setup Travis -->
 <!-- Songbird uses [Travis](https://travis-ci.org/) and [Karma]
 (https://karma-runner.github.io/1.0/index.html) test runner for continuous
 integration (The index HTML page for the local testing is deprecated in
 v0.2.1). -->
-To run the test suite locally, you have to clone the repository,
-install dependencies and launch the test runner:
+To run the test suite locally, clone the repository, install dependencies and launch the test runner:
 
 ```bash
 npm test
@@ -282,7 +327,7 @@ Patches are encouraged, and may be submitted by forking this project and submitt
 
 ## License
 
-Copyright 2016 Google Inc. All Rights Reserved.
+Copyright &copy; 2017 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
 

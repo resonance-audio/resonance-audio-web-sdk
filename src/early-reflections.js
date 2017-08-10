@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2016 Google Inc. All Rights Reserved.
+ * Copyright 2017 Google Inc. All Rights Reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -161,12 +161,18 @@ EarlyReflections.prototype.setListenerPosition = function (x, y, z) {
 
   // Determine distances to each wall.
   var distances = {
-    left : this._halfDimensions.width + x + EarlyReflections.MIN_DISTANCE,
-    right : this._halfDimensions.width - x + EarlyReflections.MIN_DISTANCE,
-    front : this._halfDimensions.depth + z + EarlyReflections.MIN_DISTANCE,
-    back : this._halfDimensions.depth - z + EarlyReflections.MIN_DISTANCE,
-    down : this._halfDimensions.height + y + EarlyReflections.MIN_DISTANCE,
-    up : this._halfDimensions.height - y + EarlyReflections.MIN_DISTANCE,
+    left :
+      1 * (this._halfDimensions.width + x) + EarlyReflections.MIN_DISTANCE,
+    right :
+      1 * (this._halfDimensions.width - x) + EarlyReflections.MIN_DISTANCE,
+    front :
+      1 * (this._halfDimensions.depth + z) + EarlyReflections.MIN_DISTANCE,
+    back :
+      1 * (this._halfDimensions.depth - z) + EarlyReflections.MIN_DISTANCE,
+    down :
+      1 * (this._halfDimensions.height + y) + EarlyReflections.MIN_DISTANCE,
+    up :
+      1 * (this._halfDimensions.height - y) + EarlyReflections.MIN_DISTANCE,
   };
 
   // Assign delay & attenuation values using distances.

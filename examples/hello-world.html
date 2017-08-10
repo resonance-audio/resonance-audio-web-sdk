@@ -34,7 +34,7 @@
     var audioElementSource = context.createMediaElementSource(audioElement);
 
     // Create a 1st-order Ambisonics Songbird Listener.
-    var songbird = new Songbird(context, {ambisonicOrder: 3});
+    var songbird = new Songbird(context);
 
     // Send songbird to audio output.
     songbird.output.connect(context.destination);
