@@ -279,8 +279,7 @@ npm run doc         # generate documentation.
 
 ## Testing
 
-Songbird uses [Travis](https://travis-ci.org/) and [Karma]
-(https://karma-runner.github.io/1.0/index.html) test runner for continuous
+Songbird uses [Travis](https://travis-ci.org/) and [Karma](https://karma-runner.github.io/1.0/index.html) test runner for continuous
 integration (The index HTML page for the local testing is deprecated in
 v0.2.1). To run the test suite locally, clone the repository, install dependencies and launch the test runner:
 
