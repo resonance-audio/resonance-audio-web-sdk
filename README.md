@@ -1,7 +1,6 @@
 # Songbird: Spatial Audio Encoding on the Web
 
-<!-- TODO(bitllama): Add Travis support -->
-<!-- [![Travis](https://img.shields.io/travis/GoogleChrome/omnitone.svg)](https://travis-ci.org/GoogleChrome/omnitone) [![npm](https://img.shields.io/npm/v/omnitone.svg?colorB=4bc51d)](https://www.npmjs.com/package/omnitone) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/GoogleChrome/omnitone/master/LICENSE) -->
+[![Travis](https://travis-ci.org/google/songbird.svg?branch=master)](https://travis-ci.org/google/songbird) [![npm](https://img.shields.io/npm/v/songbird-audio.svg?colorB=4bc51d)](https://www.npmjs.com/package/songbird-audio) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/google/songbird/master/LICENSE) -->
 
 Songbird is a real-time spatial audio encoding JavaScript library for WebAudio
 applications. It allows web developers to dynamically spatially-encode
@@ -182,9 +181,9 @@ songbird.setListenerFromMatrix(matrix4);
 ```
 
 
-### Source width and directivity
+<!-- ### Source width and directivity
 
-...
+... -->
 
 
 ### Room Properties
@@ -280,12 +279,10 @@ npm run doc         # generate documentation.
 
 ## Testing
 
-<!-- TODO(bitllama): Actually setup Travis -->
-<!-- Songbird uses [Travis](https://travis-ci.org/) and [Karma]
+Songbird uses [Travis](https://travis-ci.org/) and [Karma]
 (https://karma-runner.github.io/1.0/index.html) test runner for continuous
 integration (The index HTML page for the local testing is deprecated in
-v0.2.1). -->
-To run the test suite locally, clone the repository, install dependencies and launch the test runner:
+v0.2.1). To run the test suite locally, clone the repository, install dependencies and launch the test runner:
 
 ```bash
 npm test
