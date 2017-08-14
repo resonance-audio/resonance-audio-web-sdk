@@ -50,35 +50,32 @@ Binaurally-rendered ambisonic output is generated using
 is exposed as well.
 
 <p align="center">
-  <img src="../diagram-songbird.png" alt="Songbird Diagram">
+  <img
+    src="https://cdn.rawgit.com/google/songbird/master/diagram-songbird.png"
+    alt="Songbird Diagram">
 </p>
 
-<!-- TODO(bitllama): Actually put Songbird on NPM -->
-<!-- ## Installation
+
+## Installation
 
 Songbird is designed to be used for web front-end projects. So [NPM](https://www.npmjs.com/) is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.
 
 ```bash
-npm install songbird
-``` -->
+npm install songbird-audio
+```
 
 
 ## Usage
 
 The first step is to include the library file in an HTML document.
 
-<!-- TODO(bitllama): replace with node_modules/CDN ASAP! -->
 ```html
-<script src="songbird.min.js"></script>
-```
-
-<!-- ```html
 <!-- Use Songbird from installed node_modules/ -->
-<!-- <script src="node_modules/Songbird/build/songbird.min.js"></script> -->
+<script src="node_modules/songbird-audio/build/songbird.min.js"></script>
 
-<!-- TODO(bitllama): rawgit/CDN -->
 <!-- if you prefer to use CDN -->
-<!-- <script src="THISISNOTAREALLINKBUTITWILLBESOON.js"></script> -->
+<script src="https://cdn.rawgit.com/google/songbird/master/build/songbird.min.js"></script>
+```
 
 Spatial encoding is done by creating a `Songbird` scene using an associted
 `AudioContext` and then creating any number of associated `Source` objects

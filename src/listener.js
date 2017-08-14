@@ -99,23 +99,22 @@ function Listener (context, options) {
 
   // Select the appropriate HRIR filters using 8-channel chunks since
   // >8 channels is not yet supported by a majority of browsers.
-  // TODO(bitllama): Place these HRIR filters online somewhere?
   var urls = [''];
   if (options.ambisonicOrder == 1) {
     urls = [
-      '../build/resources/sh_hrir_o_1.wav'
+      'https://cdn.rawgit.com/google/songbird/master/build/resources/sh_hrir_o_1.wav'
     ];
   }
   else if (options.ambisonicOrder == 2) {
     urls = [
-      '../build/resources/sh_hrir_o_2_ch0-ch7.wav',
-      '../build/resources/sh_hrir_o_2_ch8.wav'
+      'https://cdn.rawgit.com/google/songbird/master/build/resources/sh_hrir_o_2_ch0-ch7.wav',
+      'https://cdn.rawgit.com/google/songbird/master/build/resources/sh_hrir_o_2_ch8.wav'
     ];
   }
   else if (options.ambisonicOrder == 3) {
     urls = [
-      '../build/resources/sh_hrir_o_3_ch0-ch7.wav',
-      '../build/resources/sh_hrir_o_3_ch8-ch15.wav'
+      'https://cdn.rawgit.com/google/songbird/master/build/resources/sh_hrir_o_3_ch0-ch7.wav',
+      'https://cdn.rawgit.com/google/songbird/master/build/resources/sh_hrir_o_3_ch8-ch15.wav'
     ];
   }
   else {

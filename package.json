@@ -1,5 +1,5 @@
 {
-  "name": "Songbird",
+  "name": "songbird-audio",
   "version": "0.0.1",
   "description": "Spatial Audio Encoder in Web Audio API",
   "main": "build/songbird.js",
