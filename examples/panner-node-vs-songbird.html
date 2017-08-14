@@ -57,25 +57,25 @@
 
     function toggle() {
       if (document.getElementById('eNoneRadio').checked) {
-        noneGain.connect(audioContext.destination);
-        pannerGain.disconnect(audioContext.destination);
-        foaSongbirdGain.disconnect(audioContext.destination);
-        toaSongbirdGain.disconnect(audioContext.destination);
+        noneGain.gain.value = 1;
+        pannerGain.gain.value = 0;
+        foaSongbirdGain.gain.value = 0;
+        toaSongbirdGain.gain.value = 0;
       } else if (document.getElementById('ePannerNodeRadio').checked) {
-        noneGain.disconnect(audioContext.destination);
-        pannerGain.connect(audioContext.destination);
-        foaSongbirdGain.disconnect(audioContext.destination);
-        toaSongbirdGain.disconnect(audioContext.destination);
+        noneGain.gain.value = 0;
+        pannerGain.gain.value = 1;
+        foaSongbirdGain.gain.value = 0;
+        toaSongbirdGain.gain.value = 0;
       } else if (document.getElementById('eFoaSongbirdRadio').checked) {
-        noneGain.disconnect(audioContext.destination);
-        pannerGain.disconnect(audioContext.destination);
-        foaSongbirdGain.connect(audioContext.destination);
-        toaSongbirdGain.disconnect(audioContext.destination);
+        noneGain.gain.value = 0;
+        pannerGain.gain.value = 0;
+        foaSongbirdGain.gain.value = 1;
+        toaSongbirdGain.gain.value = 0;
       } else {
-        noneGain.disconnect(audioContext.destination);
-        pannerGain.disconnect(audioContext.destination);
-        foaSongbirdGain.disconnect(audioContext.destination);
-        toaSongbirdGain.connect(audioContext.destination);
+        noneGain.gain.value = 0;
+        pannerGain.gain.value = 0;
+        foaSongbirdGain.gain.value = 0;
+        toaSongbirdGain.gain.value = 1;
       }
     }
 
@@ -238,6 +238,10 @@
       toaSongbird.output.connect(toaSongbirdGain);
 
       // Initialize connections.
+      noneGain.connect(audioContext.destination);
+      pannerGain.connect(audioContext.destination);
+      foaSongbirdGain.connect(audioContext.destination);
+      toaSongbirdGain.connect(audioContext.destination);
       toggle();
 
       // Initialize play button functionality.
