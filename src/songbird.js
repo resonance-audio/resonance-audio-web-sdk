@@ -92,9 +92,11 @@ function Songbird (context, options) {
     options.listenerUp = Utils.DEFAULT_UP.slice();
   }
   if (options.dimensions == undefined) {
+    options.dimensions = {};
     Object.assign(options.dimensions, EarlyReflections.DEFAULT_DIMENSIONS);
   }
   if (options.materials == undefined) {
+    options.materials = {};
     Object.assign(options.materials, Room.DEFAULT_MATERIALS);
   }
   if (options.speedOfSound == undefined) {

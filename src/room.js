@@ -355,9 +355,11 @@ function Room (context, options) {
     options.listenerPosition = Utils.DEFAULT_POSITION.slice();
   }
   if (options.dimensions == undefined) {
+    options.dimensions = {};
     Object.assign(options.dimensions, EarlyReflections.DEFAULT_DIMENSIONS);
   }
   if (options.materials == undefined) {
+    options.materials = {};
     Object.assign(options.materials, EarlyReflections.DEFAULT_MATERIALS);
   }
   if (options.speedOfSound == undefined) {
