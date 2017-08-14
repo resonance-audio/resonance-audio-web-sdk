@@ -10,6 +10,12 @@ rendered using a binaural renderer such as
 [Omnitone](https://github.com/GoogleChrome/omnitone) for realistic and
 quality-scalable 3D audio.
 
+
+See Songbird in action:
+- [PannerNode vs. Songbird example](https://rawgit.com/google/songbird/master/examples/panner-node-vs-songbird.html)
+- [Room model example](https://rawgit.com/google/songbird/master/examples/room-model.html)
+
+
 The implementation of Songbird is based on the
 [Google spatial media](https://github.com/google/spatial-media) specification.
 It expects mono input to its `Source` instances and outputs
@@ -88,7 +94,7 @@ integrated into an existing WebAudio audio graph.
 
 Let's see how we can create a scene and generate some audio. Let's begin by
 constructing an `AudioContext` and `Songbird` scene and connecting it to the
-audio output.
+audio output. You can view a live demo of this example [here](https://rawgit.com/google/songbird/master/examples/hello-world.html).
 
 ```js
 var audioContext = new AudioContext();
