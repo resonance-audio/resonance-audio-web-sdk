@@ -20,33 +20,53 @@
   <script src="../build/songbird.js"></script>
 </head>
 <body>
-  <h1>"Hello World" example.</h1>
-  <p>Pan an audio source 45 degrees to the left (counter-clockwise).</p>
+  <h1>
+    "Hello World" example.
+  </h1>
+  <p>
+    Position a source front-left to the listener, inside a medium-size room.
+  </p>
   <script>
-    // Create an AudioContext.
-    var context = new AudioContext();
+    var audioContext = new AudioContext();
 
-    // Prepare audio element to feed the ambisonic source audio feed.
+    // Create a (1st-order Ambisonic) Songbird scene.
+    var songbird = new Songbird(audioContext);
+
+    // Send songbird's binaural output to stereo out.
+    songbird.output.connect(audioContext.destination);
+
+    // Set room acoustics properties.
+    var dimensions = {
+      width : 3.1,
+      height : 2.5,
+      depth : 3.4
+    };
+    var materials = {
+      left : 'brick-bare',
+      right : 'curtain-heavy',
+      front : 'marble',
+      back : 'glass-thin',
+      down : 'grass',
+      up : 'transparent'
+    };
+    songbird.setRoomProperties(dimensions, materials);
+
+    // Create an audio element. Feed into audio graph.
     var audioElement = document.createElement('audio');
-    audioElement.src = 'resources/SpeechSample.wav';
+    audioElement.src = 'resources/CubeSound.wav';
 
-    // Create media element source to connect to WebAudio audio graph.
-    var audioElementSource = context.createMediaElementSource(audioElement);
+    var audioElementSource =
+      audioContext.createMediaElementSource(audioElement);
 
-    // Create a 1st-order Ambisonics Songbird Listener.
-    var songbird = new Songbird(context);
-
-    // Send songbird to audio output.
-    songbird.output.connect(context.destination);
-
-    // Create a Songbird Source.
+    // Create a Source, connect desired audio input to it.
     var source = songbird.createSource();
     audioElementSource.connect(source.input);
 
-    // Pan an audio source 45 degrees to the left (counter-clockwise).
-    source.setAngleFromListener(45);
+    // The source position is relative to the origin
+    // (center of the room).
+    source.setPosition(-0.707, -0.707, 0);
 
-    // Wait 1 second and then playback the audio.
-    setTimeout(audioElement.play(), 1000);
+    // Playback the audio.
+    audioElement.play();
   </script>
 </body>

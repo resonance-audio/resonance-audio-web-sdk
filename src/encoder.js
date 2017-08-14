@@ -25,6 +25,45 @@
 var Tables = require('./tables.js');
 var Utils = require('./utils.js');
 
+
+// Static constants.
+/**
+ * Default azimuth (in degrees). Suitable range is 0 to 360.
+ * @type {Number}
+ */
+Encoder.DEFAULT_AZIMUTH = 0;
+
+
+/**
+ * Default elevation (in degres).
+ * Suitable range is from -90 (below) to 90 (above).
+ * @type {Number}
+ */
+Encoder.DEFAULT_ELEVATION = 0;
+
+
+/**
+ * The maximum allowed ambisonic order, specified by the
+ * {@linkcode Tables.SPHERICAL_HARMONICS spherical harmonics table}.
+ * @type {Number}
+ */
+Encoder.MAX_ORDER = Tables.SPHERICAL_HARMONICS[0][0].length / 2;
+
+
+/**
+ * The default ambisonic order.
+ * @type {Number}
+ */
+Encoder.DEFAULT_AMBISONIC_ORDER = 1;
+
+
+/**
+ * The default source width.
+ * @type {Number}
+ */
+Encoder.DEFAULT_SOURCE_WIDTH = 0;
+
+
 /**
  * @class Encoder
  * @description Spatially encodes input using weighted spherical harmonics.
@@ -111,6 +150,7 @@ function Encoder (context, options) {
   this.output = this._merger;
 }
 
+
 /**
  * Set the direction of the encoded source signal.
  * @param {Number} azimuth
@@ -159,6 +199,7 @@ Encoder.prototype.setDirection = function (azimuth, elevation) {
   }
 }
 
+
 /**
  * Set the source width (in degrees). Where 0 degrees is a point source and 360
  * degrees is an omnidirectional source. Defaults to
@@ -171,33 +212,5 @@ Encoder.prototype.setSourceWidth = function (sourceWidth) {
   this.setDirection(this._azimuth, this._elevation);
 }
 
-// Static constants.
-/**
- * Default azimuth (in degrees). Suitable range is 0 to 360.
- * @type {Number}
- */
-Encoder.DEFAULT_AZIMUTH = 0;
-/**
- * Default elevation (in degres).
- * Suitable range is from -90 (below) to 90 (above).
- * @type {Number}
- */
-Encoder.DEFAULT_ELEVATION = 0;
-/**
- * The maximum allowed ambisonic order, specified by the
- * {@linkcode Tables.SPHERICAL_HARMONICS spherical harmonics table}.
- * @type {Number}
- */
-Encoder.MAX_ORDER = Tables.SPHERICAL_HARMONICS[0][0].length / 2;
-/**
- * The default ambisonic order.
- * @type {Number}
- */
-Encoder.DEFAULT_AMBISONIC_ORDER = 1;
-/**
- * The default source width.
- * @type {Number}
- */
-Encoder.DEFAULT_SOURCE_WIDTH = 0;
 
 module.exports = Encoder;

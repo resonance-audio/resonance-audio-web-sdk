@@ -21,8 +21,31 @@
 
 'use strict';
 
+
 // Internal dependencies.
 var Utils = require('./utils.js');
+
+
+// Static constants.
+/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none').
+ * @type {Array}
+ */
+Attenuation.ROLLOFFS = ['logarithmic', 'linear', 'none'];
+
+
+/** Default rolloff model ('logarithmic').
+ * @type {string}
+ */
+Attenuation.DEFAULT_ROLLOFF = 'logarithmic';
+
+
+/** @type {Number} */
+Attenuation.DEFAULT_MIN_DISTANCE = 1;
+
+
+/** @type {Number} */
+Attenuation.DEFAULT_MAX_DISTANCE = 1000;
+
 
 /**
  * @class Attenuation
@@ -101,6 +124,7 @@ function Attenuation (context, options) {
   this.output = this._gainNode;
 }
 
+
 /**
  * Set distance from the listener.
  * @param {Number} distance Distance (in meters).
@@ -134,6 +158,7 @@ Attenuation.prototype.setDistance = function (distance) {
   this._gainNode.gain.value = gain;
 }
 
+
 /**
  * Set rolloff.
  * @param {string} rolloff
@@ -154,20 +179,6 @@ Attenuation.prototype.setRolloff = function (rolloff) {
   }
   this._rolloff = rolloff;
 }
-
-// Static constants.
-/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none').
- * @type {Array}
- */
-Attenuation.ROLLOFFS = ['logarithmic', 'linear', 'none'];
-/** Default rolloff model ('logarithmic').
- * @type {string}
- */
-Attenuation.DEFAULT_ROLLOFF = 'logarithmic';
-/** @type {Number} */
-Attenuation.DEFAULT_MIN_DISTANCE = 1;
-/** @type {Number} */
-Attenuation.DEFAULT_MAX_DISTANCE = 1000;
 
 
 module.exports = Attenuation;

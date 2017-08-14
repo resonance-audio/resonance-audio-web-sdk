@@ -21,9 +21,11 @@
 
 'use strict';
 
+
 // Internal dependencies.
 var Omnitone = require('./omnitone.js');
 var Utils = require('./utils.js');
+
 
 /**
  * @class Listener
@@ -38,9 +40,12 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * Initial position (in meters), where origin is the center of
  * the room. Defaults to
  * {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
- * @param {Float32Array} options.orientation
- * Orientation (roll, pitch and yaw, in radians). Defaults to
- * {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
+ * @param {Float32Array} options.forward
+ * The listener's initial forward vector. Defaults to
+ * {@linkcode DEFAULT_FORWARD DEFAULT_FORWARD}.
+ * @param {Float32Array} options.up
+ * The listener's initial up vector. Defaults to
+ * {@linkcode DEFAULT_UP DEFAULT_UP}.
  */
 function Listener (context, options) {
   // Public variables.
@@ -79,10 +84,13 @@ function Listener (context, options) {
     options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
   }
   if (options.position == undefined) {
-    options.position = Globals.DEFAULT_POSITION;
+    options.position = Utils.DEFAULT_POSITION.slice();
   }
-  if (options.orientation == undefined) {
-    options.orientation = Globals.DEFAULT_ORIENTATION;
+  if (options.forward == undefined) {
+    options.forward = Utils.DEFAULT_FORWARD.slice();
+  }
+  if (options.up == undefined) {
+    options.up = Utils.DEFAULT_UP.slice();
   }
 
   // Member variables.
@@ -134,50 +142,68 @@ function Listener (context, options) {
     that.input.connect(that._renderer.input);
 
     // Connect rotated soundfield to ambisonic output.
+    // TODO(bitllama): Make rotator directly accessible in Omnitone.
     that._renderer._hoaRotator.output.connect(that.ambisonicOutput);
 
     // Connect binaurally-rendered soundfield to binaural output.
     that._renderer.output.connect(that.output);
   });
-}
+
+  // Set orientation and update rotation matrix accordingly.
+  this.setOrientation(options.forward[0], options.forward[1],
+    options.forward[2], options.up[0], options.up[1], options.up[2]);
+};
+
 
 /**
- * Set the listener's orientation (in radians).
- * @param {Number} roll
- * @param {Number} pitch
- * @param {Number} yaw
+ * Set the source's orientation using forward and up vectors.
+ * @param {Number} forward_x
+ * @param {Number} forward_y
+ * @param {Number} forward_z
+ * @param {Number} up_x
+ * @param {Number} up_y
+ * @param {Number} up_z
  */
-Listener.prototype.setOrientation = function (roll, pitch, yaw) {
-  var q = Utils.toQuaternion(roll, pitch, yaw);
-  var right = Utils.rotateVector(Globals.DEFAULT_RIGHT, q);
-  var up = Utils.rotateVector(Globals.DEFAULT_UP, q);
-  var forward = Utils.rotateVector(Globals.DEFAULT_FORWARD, q);
-  var matrix = new Float32Array(9);
-  matrix[0] = right[0];
-  matrix[1] = right[1];
-  matrix[2] = right[2];
-  matrix[3] = up[0];
-  matrix[4] = up[1];
-  matrix[5] = up[2];
-  matrix[6] = forward[0];
-  matrix[7] = forward[1];
-  matrix[8] = forward[2];
-  this._renderer.setRotationMatrix(matrix);
+Listener.prototype.setOrientation = function (forward_x, forward_y, forward_z,
+  up_x, up_y, up_z) {
+  var right = Utils.crossProduct([forward_x, forward_y, forward_z],
+    [up_x, up_y, up_z]);
+  this._tempMatrix4[0] = right[0];
+  this._tempMatrix4[1] = right[1];
+  this._tempMatrix4[2] = right[2];
+  this._tempMatrix4[3] = up_x;
+  this._tempMatrix4[4] = up_y;
+  this._tempMatrix4[5] = up_z;
+  this._tempMatrix4[6] = forward_x;
+  this._tempMatrix4[7] = forward_y;
+  this._tempMatrix4[8] = forward_z;
+  this._renderer.setRotationMatrix(this._tempMatrix4);
 }
 
+
 /**
- * Set the listener's orientation using a Three.js camera object.
- * @param {Object} cameraMatrix
- * The Matrix4 object of the Three.js camera.
+ * Set the listener's position and orientation using a Three.js Matrix4 object.
+ * @param {Object} matrix
+ * The Three.js Matrix4 object representing the listener's world transform.
  */
-Listener.prototype.setFromCamera = function (cameraMatrix) {
-  // Extract the inner array elements and inverse. (The actual view rotation is
-  // the opposite of the camera movement.)
-  Utils.invertMatrix4(this._tempMatrix4, cameraMatrix.elements);
-  this._renderer.setRotationMatrix4(this._tempMatrix4);
-  this.position[0] = this._tempMatrix4[12];
-  this.position[1] = this._tempMatrix4[13];
-  this.position[2] = this._tempMatrix4[14];
+Listener.prototype.setFromMatrix = function (matrix) {
+  // Update ambisonic rotation matrix internally.
+  this._tempMatrix4[0] = matrix[0];
+  this._tempMatrix4[1] = matrix[1];
+  this._tempMatrix4[2] = matrix[2];
+  this._tempMatrix4[3] = matrix[4];
+  this._tempMatrix4[4] = matrix[5];
+  this._tempMatrix4[5] = matrix[6];
+  this._tempMatrix4[6] = matrix[8];
+  this._tempMatrix4[7] = matrix[9];
+  this._tempMatrix4[8] = matrix[10];
+  this._renderer.setRotationMatrix(this._tempMatrix4);
+
+  // Extract position from matrix.
+  this.position[0] = matrix[12];
+  this.position[1] = matrix[13];
+  this.position[2] = matrix[14];
 }
+
 
 module.exports = Listener;

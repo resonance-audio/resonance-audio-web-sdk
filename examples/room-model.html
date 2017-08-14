@@ -22,44 +22,42 @@
 <body>
   <h1>Room Model example.</h1>
   <p>Room model example using two sources.</p>
-  <p><b>Room dimensions (in meters)</b><br/>
-  <label for="eWidthNumber" id="eWidthLabel">width</label>
-  <input id="eWidthNumber" type="number" min="0" max="100" value="8.7"
-    onchange="updateDimensions();"/>
-  <label for="eHeightNumber" id="eHeightLabel">height</label>
-  <input id="eHeightNumber" type="number" min="0" max="100" value="4.8"
-    onchange="updateDimensions();"/>
-  <label for="eDepthNumber" id="eDepthLabel">depth</label>
-  <input id="eDepthNumber" type="number" min="0" max="100" value="9.1"
-    onchange="updateDimensions();"/>
+    <p><b>Room dimensions (in meters)</b><br/>
+    <label for="eWidthNumber" id="eWidthLabel">width</label>
+    <input id="eWidthNumber" type="number" min="0" max="100" value="8.7"
+      onchange="updateDimensions();"/>
+    <label for="eHeightNumber" id="eHeightLabel">height</label>
+    <input id="eHeightNumber" type="number" min="0" max="100" value="4.8"
+      onchange="updateDimensions();"/>
+    <label for="eDepthNumber" id="eDepthLabel">depth</label>
+    <input id="eDepthNumber" type="number" min="0" max="100" value="9.1"
+      onchange="updateDimensions();"/>
   </p>
   <p>
-  <b>Room materials</b><br/>
-  <label for="eLeftMaterial" id="eLeftLabel">left</label>
-  <select id="eLeftMaterial" onchange="updateRoomProperties();"></select>
-  <br/>
-  <label for="eRightMaterial" id="eRightLabel">right</label>
-  <select id="eRightMaterial" onchange="updateRoomProperties();"></select>
-  <br/>
-  <label for="eFrontMaterial" id="eFrontLabel">front</label>
-  <select id="eFrontMaterial" onchange="updateRoomProperties();"></select>
-  <br/>
-  <label for="eBackMaterial" id="eBackLabel">back</label>
-  <select id="eBackMaterial" onchange="updateRoomProperties();"></select>
-  <br/>
-  <label for="eDownMaterial" id="eDownLabel">floor</label>
-  <select id="eDownMaterial" onchange="updateRoomProperties();"></select>
-  <br/>
-  <label for="eUpMaterial" id="eUpLabel">ceiling</label>
-  <select id="eUpMaterial" onchange="updateRoomProperties();"></select>
+    <b>Room materials</b><br/>
+    <label for="eLeftMaterial" id="eLeftLabel">left</label>
+    <select id="eLeftMaterial" onchange="updateRoomProperties();"></select>
+    <br/>
+    <label for="eRightMaterial" id="eRightLabel">right</label>
+    <select id="eRightMaterial" onchange="updateRoomProperties();"></select>
+    <br/>
+    <label for="eFrontMaterial" id="eFrontLabel">front</label>
+    <select id="eFrontMaterial" onchange="updateRoomProperties();"></select>
+    <br/>
+    <label for="eBackMaterial" id="eBackLabel">back</label>
+    <select id="eBackMaterial" onchange="updateRoomProperties();"></select>
+    <br/>
+    <label for="eDownMaterial" id="eDownLabel">down</label>
+    <select id="eDownMaterial" onchange="updateRoomProperties();"></select>
+    <br/>
+    <label for="eUpMaterial" id="eUpLabel">up</label>
+    <select id="eUpMaterial" onchange="updateRoomProperties();"></select>
   </p>
   <p>
     Source A: <button id="eSourceAPlayback">Play</button>
-    <br/>
   </p>
   <p>
     Source B: <button id="eSourceBPlayback">Play</button>
-    <br/>
   </p>
   <canvas id="canvas" width="1024" height="768"></canvas>
   <script>
@@ -67,6 +65,7 @@
     var audioSources = [
       'resources/CubeSound.wav', 'resources/SpeechSample.wav'
     ];
+
 
     // Attach labels to associated input elements.
     var labels = document.getElementsByTagName('label');
@@ -77,6 +76,7 @@
           elem.label = labels[i];
       }
     }
+
 
     // This is used to scale the appropriate dimension.
     var dimensions = {};
@@ -99,6 +99,7 @@
       materials.back = document.getElementById('eBackMaterial').value;
     }
 
+
     function updatePositions () {
       for (var i = 0; i < ballPositions.length; i++) {
         var x = ballPositions[i][0] / pixelsPerMeter - dimensions.width / 2;
@@ -111,6 +112,7 @@
         }
       }
     }
+
 
     // Initial positions (0=sourceA, 1=sourceB, 2=listener).
     var initialBallRelativePositions = [[0.4, 0.3], [0.7, 0.8], [0.5, 0.5]];
@@ -154,6 +156,7 @@
       }
     }
 
+
     function getMousePos(canvas, evt) {
       var rect = canvas.getBoundingClientRect();
       return {
@@ -161,6 +164,7 @@
         y: evt.clientY - rect.top
       };
     }
+
 
     function getNearestBall(mousePos) {
       var minDistance = 1e8;
@@ -176,6 +180,7 @@
       }
       return minIndex;
     }
+
 
     var canvas = document.getElementById('canvas');
     var context = canvas.getContext('2d');
@@ -196,6 +201,7 @@
       updatePositions();
     }
 
+
     // Global mouseDown tracking.
     var mouseDown = false;
     document.addEventListener('mousedown', function (event) {
@@ -205,6 +211,7 @@
       mouseDown = false;
       ballCurrentIndex = -1;
     });
+
 
     canvas.addEventListener('mousemove', function (event) {
       if (mouseDown) {
@@ -228,14 +235,18 @@
       updatePositions();
     });
 
+
     function updateRoomProperties() {
       pollDimensionsAndMaterials();
       songbird.setRoomProperties(dimensions, materials);
     }
+
+
     function updateDimensions() {
       updateRoomProperties();
       initializeCanvas();
     }
+
 
     var defaultMaterials = {
       'eLeftMaterial': 'brick-bare', 'eRightMaterial': 'brick-bare',
@@ -263,6 +274,7 @@
       }
     }
 
+
     var audioElements = [];
     var songbirdSource = [];
     var onLoad = function () {
@@ -285,7 +297,7 @@
 
       // Initialize Songbird and create Source(s).
       songbird = new Songbird(context, {
-        ambisonicOrder: 3,
+        ambisonicOrder: 1,
         dimensions: dimensions,
         materials: materials
       });

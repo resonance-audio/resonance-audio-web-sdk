@@ -21,25 +21,28 @@
 </head>
 <body>
   <h1>PannerNode vs Songbird (w/ 1st and 3rd-order ambisonics)</h1>
-  <input onchange="toggle();" type="radio" name="mode" value="none"
-    id="eNoneRadio" checked>
-  <label for="eNoneRadio" id="eNoneLabel">None</label>
-  <br>
-  <input onchange="toggle();" type="radio" name="mode" value="panner-node"
-    id="ePannerNodeRadio" checked>
-  <label for="ePannerNodeRadio" id="ePannerNodeLabel">PannerNode</label>
-  <br>
-  <input onchange="toggle();" type="radio" name="mode" value="songbird-foa"
-    id="eFoaSongbirdRadio">
-  <label for="eFoaSongbirdRadio" id="eFoaSongbirdLabel">Songbird (FOA)</label>
-  <br>
-  <input onchange="toggle();" type="radio" name="mode" value="songbird-toa"
-    id="eToaSongbirdRadio">
-  <label for="eToaSongbirdRadio" id="eToaSongbirdLabel">Songbird (TOA)</label>
-  <br>
-  <label for="eSourcePlayback" id="eSourceLabel">Source: </label>
-  <button id="eSourcePlayback">Play</button>
-  <br>
+  <p>
+    Select a rendering mode (defaults to none):<br>
+    <input onchange="toggle();" type="radio" name="mode" value="none"
+      id="eNoneRadio" checked>
+    <label for="eNoneRadio" id="eNoneLabel" checked>None</label>
+    <br>
+    <input onchange="toggle();" type="radio" name="mode" value="panner-node"
+      id="ePannerNodeRadio">
+    <label for="ePannerNodeRadio" id="ePannerNodeLabel">PannerNode</label>
+    <br>
+    <input onchange="toggle();" type="radio" name="mode" value="songbird-foa"
+      id="eFoaSongbirdRadio">
+    <label for="eFoaSongbirdRadio" id="eFoaSongbirdLabel">Songbird (FOA)</label>
+    <br>
+    <input onchange="toggle();" type="radio" name="mode" value="songbird-toa"
+      id="eToaSongbirdRadio">
+    <label for="eToaSongbirdRadio" id="eToaSongbirdLabel">Songbird (TOA)</label>
+  </p>
+  <p>
+    <label for="eSourcePlayback" id="eSourceLabel">Source: </label>
+    <button id="eSourcePlayback">Play</button>
+  </p>
   <canvas id="canvas" width="320" height="320"></canvas>
   <script>
     var audioContext;
@@ -51,29 +54,31 @@
     var canvas = document.getElementById('canvas');
     var dimensions = {width: 5, depth: 5};
 
+
     function toggle() {
       if (document.getElementById('eNoneRadio').checked) {
-        noneGain.gain.value = 1;
-        pannerGain.gain.value = 0;
-        foaSongbirdGain.gain.value = 0;
-        toaSongbirdGain.gain.value = 0;
+        noneGain.connect(audioContext.destination);
+        pannerGain.disconnect(audioContext.destination);
+        foaSongbirdGain.disconnect(audioContext.destination);
+        toaSongbirdGain.disconnect(audioContext.destination);
       } else if (document.getElementById('ePannerNodeRadio').checked) {
-        noneGain.gain.value = 0;
-        pannerGain.gain.value = 1;
-        foaSongbirdGain.gain.value = 0;
-        toaSongbirdGain.gain.value = 0;
+        noneGain.disconnect(audioContext.destination);
+        pannerGain.connect(audioContext.destination);
+        foaSongbirdGain.disconnect(audioContext.destination);
+        toaSongbirdGain.disconnect(audioContext.destination);
       } else if (document.getElementById('eFoaSongbirdRadio').checked) {
-        noneGain.gain.value = 0;
-        pannerGain.gain.value = 0;
-        foaSongbirdGain.gain.value = 1;
-        toaSongbirdGain.gain.value = 0;
+        noneGain.disconnect(audioContext.destination);
+        pannerGain.disconnect(audioContext.destination);
+        foaSongbirdGain.connect(audioContext.destination);
+        toaSongbirdGain.disconnect(audioContext.destination);
       } else {
-        noneGain.gain.value = 0;
-        pannerGain.gain.value = 0;
-        foaSongbirdGain.gain.value = 0;
-        toaSongbirdGain.gain.value = 1;
+        noneGain.disconnect(audioContext.destination);
+        pannerGain.disconnect(audioContext.destination);
+        foaSongbirdGain.disconnect(audioContext.destination);
+        toaSongbirdGain.connect(audioContext.destination);
       }
     }
+
 
     function updatePositions () {
       for (var i = 0; i < ballPositions.length; i++) {
@@ -91,6 +96,7 @@
         }
       }
     }
+
 
     var pixelsPerMeter = 64;
     var ballRadius = 12;
@@ -129,6 +135,7 @@
       }
     }
 
+
     function getMousePos(canvas, evt) {
       var rect = canvas.getBoundingClientRect();
       return {
@@ -136,6 +143,7 @@
         y: evt.clientY - rect.top
       };
     }
+
 
     function getNearestBall(mousePos) {
       var minDistance = 1e8;
@@ -152,6 +160,7 @@
       return minIndex;
     }
 
+
     // Global mouseDown tracking.
     var mouseDown = false;
     document.addEventListener('mousedown', function (event) {
@@ -161,6 +170,7 @@
       mouseDown = false;
       ballCurrentIndex = -1;
     });
+
 
     canvas.addEventListener('mousemove', function (event) {
       if (mouseDown) {
@@ -184,6 +194,7 @@
       updatePositions();
     });
 
+
     var onLoad = function () {
       audioContext = new AudioContext();
       var audioElementSources = Array(audioSources.length);
@@ -203,11 +214,6 @@
       pannerGain = audioContext.createGain();
       foaSongbirdGain = audioContext.createGain();
       toaSongbirdGain = audioContext.createGain();
-
-      noneGain.connect(audioContext.destination);
-      pannerGain.connect(audioContext.destination);
-      foaSongbirdGain.connect(audioContext.destination);
-      toaSongbirdGain.connect(audioContext.destination);
 
       // Initialize Songbird and create Source(s).
       // Initialize PannerNode/Listener
@@ -230,6 +236,8 @@
       }
       foaSongbird.output.connect(foaSongbirdGain);
       toaSongbird.output.connect(toaSongbirdGain);
+
+      // Initialize connections.
       toggle();
 
       // Initialize play button functionality.

@@ -13,7 +13,7 @@ quality-scalable 3D audio.
 
 The implementation of Songbird is based on the
 [Google spatial media](https://github.com/google/spatial-media) specification.
-It expects mono (1-channel) input to its `Source` instances and outputs
+It expects mono input to its `Source` instances and outputs
 ambisonic (multichannel) ACN channel layout with SN3D normalization.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
@@ -22,7 +22,8 @@ ambisonic (multichannel) ACN channel layout with SN3D normalization.
 
 - [How it works](#how-it-works)
   - ["Hello World" Example](#hello-world-example)
-  - [Source/Listener Placement](#sourcelistener-placement)
+  - [Positioning Sources and the Listener](#positioning-sources-and-the-listener)
+  - [Source width and directivity](#source-width-and-directivity)
   - [Room Properties](#room-properties)
 - [Porting From PannerNode](#porting-from-pannernode)
 - [Building](#building)
@@ -89,102 +90,26 @@ integrated into an existing WebAudio audio graph.
 
 ### "Hello World" Example
 
+Let's see how we can create a scene and generate some audio. Let's begin by
+constructing an `AudioContext` and `Songbird` scene and connecting it to the
+audio output.
+
 ```js
-// Create an AudioContext.
 var audioContext = new AudioContext();
-
-// Prepare audio element to feed the ambisonic source audio feed.
-var audioElement = document.createElement('audio');
-audioElement.src = 'resources/SpeechSample.wav';
-
-// Create AudioNode to connect the audio element to WebAudio.
-var audioElementSource = audioContext.createMediaElementSource(audioElement);
 
 // Create a (1st-order Ambisonic) Songbird scene.
 var songbird = new Songbird(audioContext);
 
-// Send songbird's binaural output to stereo-out.
+// Send songbird's binaural output to stereo out.
 songbird.output.connect(audioContext.destination);
-
-// Create a Source, connect desired audio input to it.
-var source = songbird.createSource();
-audioElementSource.connect(source.input);
-
-// Pan the source 45 degrees to the left (counter-clockwise).
-source.setAngleFromListener(45);
-
-// Wait 1 second and then playback the audio.
-setTimeout(audioElement.play(), 1000);
 ```
 
-
-### Source/Listener Placement
-
-Usage begins by creating a `Songbird` scene, which manages all sources,
-the listener and the reverberation model.
-
-```js
-var songbird = new Songbird(audioContext);
-```
-
-Once the main `Songbird` scene is created, it can be used to be create
-as many sources as desired. The `Songbird` scene will manage the output for any and all sources created.
-
-```js
-var source = songbird.createSource();
-
-// Create other sources.
-var sourceB = songbird.createSource();
-var sourceC = songbird.createSource();
-// etc. ...
-```
-
-These `Source` instances are automatically managed and modelled by the
-`Songbird` scene. Simply provide the desired monophonic input to each source
-to complete the audio graph.
-
-```js
-audioElementSource.connect(source.input);
-```
-
-`Source` objects can be placed relative to the listener or using absolute
-coordinates. Songbird uses a counter-clockwise, right-handed coordinate system,
-similar to OpenGL and Three.js.
-
-```js
-// Set source's position relative to the listener.
-source.setAngleFromListener(azimuth, elevation, distance);
-
-// Or set Source's and listener's positions directly.
-source.setPosition(x, y, z);
-songbird.setListenerPosition(x, y, z);
-```
-
-The `Source` orientations can also be set, along with source
-directivity and spread control. The listener orientation can be set, which
-corresponds to head rotation.
-
-```js
-// Set Source and Listener orientation.
-source.setOrientation(roll, pitch, yaw);
-source.setDirectivityPattern(alpha, exponent);
-source.setSourceWidth(sourceWidth);
-songbird.setListenerOrientation(roll, pitch, yaw);
-```
-
-Alternatively, the listener's orientation can be set using a three.js Matrix4
-Camera matrix:
-
-```js
-songbird.setListenerOrientationFromCamera(cameraMatrix);
-```
-
-
-### Room Properties
-
-Room properties can be set to control the characteristics of spatial
-reflections and reverberation. A comprehensive list of materials can be found
-in the documentation.
+Next, let's add a room. By default, the room size is 0m x 0m x 0m (i.e. there
+is no room and we are in free space). To define a room, we simply need to
+provide the dimensions in meters (the room's center is the origin). We can also
+define the materials of each of the 6 surfaces (4 walls + ceiling + floor). A
+range of materials are predefined in Songbird, each with different reflection
+properties.
 
 ```js
 // Set room acoustics properties.
@@ -203,6 +128,96 @@ var materials = {
 };
 songbird.setRoomProperties(dimensions, materials);
 ```
+
+Next, we create an audio element, load some audio and feed the audio element
+into the audio graph. We then create a `Source` and connect the elements
+together. The default position for a `Source` is the origin.
+
+```js
+// Create an audio element. Feed into audio graph.
+var audioElement = document.createElement('audio');
+audioElement.src = 'resources/SpeechSample.wav';
+
+var audioElementSource = audioContext.createMediaElementSource(audioElement);
+
+// Create a Source, connect desired audio input to it.
+var source = songbird.createSource();
+audioElementSource.connect(source.input);
+```
+
+Finally, we can position the source relative to the listener and then playback
+the audio with the familiar `.play()` method. This will binaurally render the
+scene we have just created.
+
+```js
+// The source position is relative to the origin (center of the room).
+source.setPosition(-0.707, -0.707, 0);
+
+// Playback the audio.
+audioElement.play();
+```
+
+
+### Positioning Sources and the Listener
+
+`Source` objects can be placed with cartesian coordinates relative to the origin (center of the room). Songbird uses a right-handed coordinate system, similar to OpenGL and Three.js.
+
+```js
+// Or Source's and Listener's positions.
+source.setPosition(x, y, z);
+songbird.setListenerPosition(x, y, z);
+```
+
+The `Source` and Listener orientations can be set using forward and up vectors
+or using rotation angles:
+
+```js
+// Set Source and Listener orientation.
+source.setOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);
+songbird.setListenerOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);
+```
+
+Alternatively, the `Source`'s and Listener position and orientation can be set using Three.js modelViewMatrix objects:
+
+```js
+source.setFromMatrix(matrix4);
+songbird.setListenerFromMatrix(matrix4);
+```
+
+
+### Source width and directivity
+
+...
+
+
+### Room Properties
+
+Room properties can be set to control the characteristics of spatial
+reflections and reverberation. We currently support the following named
+materials:
+- transparent
+- acoustic-ceiling-tiles
+- brick-bare
+- brick-painted
+- concrete-block-coarse
+- concrete-block-painted
+- curtain-heavy
+- fiber-glass-insulation
+- glass-thin
+- glass-thick
+- grass
+- linoleum-on-concrete
+- marble
+- metal
+- parquet-on-concrete
+- plaster-smooth
+- plywood-panel
+- polished-concrete-or-tile
+- sheetrock
+- water-or-ice-surface
+- wood-ceiling
+- wood-panel
+- uniform
 
 
 ## Porting From PannerNode
@@ -235,13 +250,16 @@ And below is the same example converted to Songbird:
 ```js
 // Create a Songbird "Source" with properties.
 var source = songbird.createSource({
- rolloff: 'logarithmic',
- minDistance: 0.1,
- maxDistance: 1000
+  rolloff: 'logarithmic',
+  minDistance: 0.1,
+  maxDistance: 1000
 });
 
 // Connect input to "Source."
 audioElementSource.connect(source.input);
+
+// Connect Songbird’s output to audio output.
+songbird.output.connect(audioContext.destination);
 
 // Set "Source" and Listener positions.
 source.setPosition(x, y, z);

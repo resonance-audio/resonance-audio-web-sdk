@@ -77,14 +77,23 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	 'use strict';
 
+
 	// Main module.
 	exports.Songbird = __webpack_require__(1);
 
+
 	// Testable Submodules.
-	exports.Songbird.Room = __webpack_require__(10);
 	exports.Songbird.Attenuation = __webpack_require__(7);
+	exports.Songbird.Directivity = __webpack_require__(6);
+	exports.Songbird.EarlyReflections = __webpack_require__(12);
 	exports.Songbird.Encoder = __webpack_require__(8);
+	exports.Songbird.LateReflections = __webpack_require__(11);
+	exports.Songbird.Listener = __webpack_require__(2);
+	exports.Songbird.Room = __webpack_require__(10);
+	exports.Songbird.Source = __webpack_require__(5);
+	exports.Songbird.Tables = __webpack_require__(9);
 	exports.Songbird.Utils = __webpack_require__(4);
+	exports.Songbird.Version = __webpack_require__(13);
 
 
 /***/ }),
@@ -114,6 +123,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
+
 	// Internal dependencies.
 	var Listener = __webpack_require__(2);
 	var Source = __webpack_require__(5);
@@ -121,6 +131,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	var EarlyReflections = __webpack_require__(12);
 	var Encoder = __webpack_require__(8);
 	var Utils = __webpack_require__(4);
+
 
 	/**
 	 * @class Songbird spatial audio.
@@ -135,9 +146,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Float32Array} options.listenerPosition
 	 * The listener's initial position (in meters), where origin is the center of
 	 * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
-	 * @param {Float32Array} options.listenerOrientation
-	 * The listener's initial orientation (roll, pitch and yaw, in radians).
-	 * Defaults to {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
+	 * @param {Float32Array} options.listenerForward
+	 * The listener's initial forward vector.
+	 * Defaults to {@linkcode DEFAULT_FORWARD DEFAULT_FORWARD}.
+	 * @param {Float32Array} options.listenerUp
+	 * The listener's initial up vector.
+	 * Defaults to {@linkcode DEFAULT_UP DEFAULT_UP}.
 	 * @param {Object} options.dimensions Room dimensions (in meters). Defaults to
 	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
 	 * @param {Object} options.materials Named acoustic materials per wall.
@@ -145,10 +159,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} options.speedOfSound
 	 * (in meters/second). Defaults to
 	 * {@linkcode DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
-	 * @param {Boolean} options.useLateReflections Enables/disables
-	 * {@link LateReflections LateReflections}, which uses a convolution reverb.
-	 * Can be disabled to improve performance on low-power devices. Defaults to
-	 * {@linkcode Room.USE_LATE_REFLECTIONS USE_LATE_REFLECTIONS}.
 	 */
 	function Songbird (context, options) {
 	  // Public variables.
@@ -175,22 +185,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	    options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
 	  }
 	  if (options.listenerPosition == undefined) {
-	    options.listenerPosition = Utils.DEFAULT_POSITION;
+	    options.listenerPosition = Utils.DEFAULT_POSITION.slice();
 	  }
-	  if (options.listenerOrientation == undefined) {
-	    options.listenerOrientation = Utils.DEFAULT_ORIENTATION;
+	  if (options.listenerForward == undefined) {
+	    options.listenerForward = Utils.DEFAULT_FORWARD.slice();
+	  }
+	  if (options.listenerUp == undefined) {
+	    options.listenerUp = Utils.DEFAULT_UP.slice();
 	  }
 	  if (options.dimensions == undefined) {
-	    options.dimensions = EarlyReflections.DEFAULT_DIMENSIONS;
+	    Object.assign(options.dimensions, EarlyReflections.DEFAULT_DIMENSIONS);
 	  }
 	  if (options.materials == undefined) {
-	    options.materials = Room.DEFAULT_MATERIALS;
+	    Object.assign(options.materials, Room.DEFAULT_MATERIALS);
 	  }
 	  if (options.speedOfSound == undefined) {
 	    options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
-	  }
-	  if (options.useLateReflections == undefined) {
-	    options.useLateReflections = Room.USE_LATE_REFLECTIONS;
 	  }
 
 	  // Member variables.
@@ -207,7 +217,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._listener = new Listener(context, {
 	    ambisonicOrder: options.ambisonicOrder,
 	    position: options.listenerPosition,
-	    orientation: options.listenerOrientation
+	    forward: options.listenerForward,
+	    up: options.listenerUp
 	  });
 
 	  // Create auxillary audio nodes.
@@ -220,6 +231,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._listener.output.connect(this.output);
 	  this._listener.ambisonicOutput.connect(this.ambisonicOutput);
 	}
+
 
 	/**
 	 * Create a new source for the scene.
@@ -250,9 +262,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	Songbird.prototype.createSource = function (options) {
 	  // Create a source and push it to the internal sources array, returning
 	  // the object's reference to the user.
-	  this._sources.push(new Source(this, options));
-	  return this._sources[this._sources.length - 1];
+	  var source = new Source(this, options);
+	  //this._sources[this._sources.length] = source;
+	  return source;
 	}
+
 
 	/**
 	 * Set the room's dimensions and wall materials.
@@ -265,6 +279,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._room.setProperties(dimensions, materials);
 	}
 
+
 	/**
 	 * Set the listener's position (in meters), where origin is the center of
 	 * the room.
@@ -273,39 +288,48 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} z
 	 */
 	Songbird.prototype.setListenerPosition = function (x, y, z) {
+	  // Update listener position.
 	  this._listener.position[0] = x;
 	  this._listener.position[1] = y;
 	  this._listener.position[2] = z;
 	  this._room.setListenerPosition(x, y, z);
-	  for (var i = 0; i < this._sources.length; i++) {
-	    this._sources[i].setPosition(this._sources[i]._position[0],
-	      this._sources[i]._position[1], this._sources[i]._position[2]);
-	  }
+
+	  // Update sources with new listener position.
+	  this._sources.forEach(function (element) {
+	     element._update();
+	  });
 	}
 
-	/**
-	 * Set the listener's orientation (in radians).
-	 * @param {Number} roll
-	 * @param {Number} pitch
-	 * @param {Number} yaw
-	 */
-	Songbird.prototype.setListenerOrientation = function (roll, pitch, yaw) {
-	  this._listener.setOrientation(roll, pitch, yaw);
-	}
 
 	/**
-	 * Set the listener's position and orientation using a Three.js camera object.
-	 * @param {Object} cameraMatrix
-	 * The Matrix4 object of the Three.js camera.
+	 * Set the source's orientation using forward and up vectors.
+	 * @param {Number} forward_x
+	 * @param {Number} forward_y
+	 * @param {Number} forward_z
+	 * @param {Number} up_x
+	 * @param {Number} up_y
+	 * @param {Number} up_z
 	 */
-	Songbird.prototype.setListenerFromCamera = function (cameraMatrix) {
-	  // Compute listener orientation from camera matrix, extract position.
-	  this._listener.setFromCamera(cameraMatrix);
+	Songbird.prototype.setListenerOrientation = function (forward_x, forward_y,
+	  forward_z, up_x, up_y, up_z) {
+	  this._listener.setOrientation(
+	    forward_x, forward_y, forward_z, up_x, up_y, up_z);
+	}
+
+
+	/**
+	 * Set the listener's position and orientation using a Three.js Matrix4 object.
+	 * @param {Object} matrix
+	 * The Three.js Matrix4 object representing the listener's world transform.
+	 */
+	Songbird.prototype.setListenerFromMatrix = function (matrix) {
+	  this._listener.setFromMatrix(matrix);
 
 	  // Update the rest of the scene using new listener position.
 	  this.setListenerPosition(this._listener.position[0],
 	    this._listener.position[1], this._listener.position[2]);
 	}
+
 
 	module.exports = Songbird;
 
@@ -337,9 +361,11 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
+
 	// Internal dependencies.
 	var Omnitone = __webpack_require__(3);
 	var Utils = __webpack_require__(4);
+
 
 	/**
 	 * @class Listener
@@ -354,9 +380,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Initial position (in meters), where origin is the center of
 	 * the room. Defaults to
 	 * {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
-	 * @param {Float32Array} options.orientation
-	 * Orientation (roll, pitch and yaw, in radians). Defaults to
-	 * {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
+	 * @param {Float32Array} options.forward
+	 * The listener's initial forward vector. Defaults to
+	 * {@linkcode DEFAULT_FORWARD DEFAULT_FORWARD}.
+	 * @param {Float32Array} options.up
+	 * The listener's initial up vector. Defaults to
+	 * {@linkcode DEFAULT_UP DEFAULT_UP}.
 	 */
 	function Listener (context, options) {
 	  // Public variables.
@@ -395,10 +424,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
 	  }
 	  if (options.position == undefined) {
-	    options.position = Globals.DEFAULT_POSITION;
+	    options.position = Utils.DEFAULT_POSITION.slice();
 	  }
-	  if (options.orientation == undefined) {
-	    options.orientation = Globals.DEFAULT_ORIENTATION;
+	  if (options.forward == undefined) {
+	    options.forward = Utils.DEFAULT_FORWARD.slice();
+	  }
+	  if (options.up == undefined) {
+	    options.up = Utils.DEFAULT_UP.slice();
 	  }
 
 	  // Member variables.
@@ -450,51 +482,69 @@ return /******/ (function(modules) { // webpackBootstrap
 	    that.input.connect(that._renderer.input);
 
 	    // Connect rotated soundfield to ambisonic output.
+	    // TODO(bitllama): Make rotator directly accessible in Omnitone.
 	    that._renderer._hoaRotator.output.connect(that.ambisonicOutput);
 
 	    // Connect binaurally-rendered soundfield to binaural output.
 	    that._renderer.output.connect(that.output);
 	  });
-	}
+
+	  // Set orientation and update rotation matrix accordingly.
+	  this.setOrientation(options.forward[0], options.forward[1],
+	    options.forward[2], options.up[0], options.up[1], options.up[2]);
+	};
+
 
 	/**
-	 * Set the listener's orientation (in radians).
-	 * @param {Number} roll
-	 * @param {Number} pitch
-	 * @param {Number} yaw
+	 * Set the source's orientation using forward and up vectors.
+	 * @param {Number} forward_x
+	 * @param {Number} forward_y
+	 * @param {Number} forward_z
+	 * @param {Number} up_x
+	 * @param {Number} up_y
+	 * @param {Number} up_z
 	 */
-	Listener.prototype.setOrientation = function (roll, pitch, yaw) {
-	  var q = Utils.toQuaternion(roll, pitch, yaw);
-	  var right = Utils.rotateVector(Globals.DEFAULT_RIGHT, q);
-	  var up = Utils.rotateVector(Globals.DEFAULT_UP, q);
-	  var forward = Utils.rotateVector(Globals.DEFAULT_FORWARD, q);
-	  var matrix = new Float32Array(9);
-	  matrix[0] = right[0];
-	  matrix[1] = right[1];
-	  matrix[2] = right[2];
-	  matrix[3] = up[0];
-	  matrix[4] = up[1];
-	  matrix[5] = up[2];
-	  matrix[6] = forward[0];
-	  matrix[7] = forward[1];
-	  matrix[8] = forward[2];
-	  this._renderer.setRotationMatrix(matrix);
+	Listener.prototype.setOrientation = function (forward_x, forward_y, forward_z,
+	  up_x, up_y, up_z) {
+	  var right = Utils.crossProduct([forward_x, forward_y, forward_z],
+	    [up_x, up_y, up_z]);
+	  this._tempMatrix4[0] = right[0];
+	  this._tempMatrix4[1] = right[1];
+	  this._tempMatrix4[2] = right[2];
+	  this._tempMatrix4[3] = up_x;
+	  this._tempMatrix4[4] = up_y;
+	  this._tempMatrix4[5] = up_z;
+	  this._tempMatrix4[6] = forward_x;
+	  this._tempMatrix4[7] = forward_y;
+	  this._tempMatrix4[8] = forward_z;
+	  this._renderer.setRotationMatrix(this._tempMatrix4);
 	}
 
+
 	/**
-	 * Set the listener's orientation using a Three.js camera object.
-	 * @param {Object} cameraMatrix
-	 * The Matrix4 object of the Three.js camera.
+	 * Set the listener's position and orientation using a Three.js Matrix4 object.
+	 * @param {Object} matrix
+	 * The Three.js Matrix4 object representing the listener's world transform.
 	 */
-	Listener.prototype.setFromCamera = function (cameraMatrix) {
-	  // Extract the inner array elements and inverse. (The actual view rotation is
-	  // the opposite of the camera movement.)
-	  Utils.invertMatrix4(this._tempMatrix4, cameraMatrix.elements);
-	  this._renderer.setRotationMatrix4(this._tempMatrix4);
-	  this.position[0] = this._tempMatrix4[12];
-	  this.position[1] = this._tempMatrix4[13];
-	  this.position[2] = this._tempMatrix4[14];
+	Listener.prototype.setFromMatrix = function (matrix) {
+	  // Update ambisonic rotation matrix internally.
+	  this._tempMatrix4[0] = matrix[0];
+	  this._tempMatrix4[1] = matrix[1];
+	  this._tempMatrix4[2] = matrix[2];
+	  this._tempMatrix4[3] = matrix[4];
+	  this._tempMatrix4[4] = matrix[5];
+	  this._tempMatrix4[5] = matrix[6];
+	  this._tempMatrix4[6] = matrix[8];
+	  this._tempMatrix4[7] = matrix[9];
+	  this._tempMatrix4[8] = matrix[10];
+	  this._renderer.setRotationMatrix(this._tempMatrix4);
+
+	  // Extract position from matrix.
+	  this.position[0] = matrix[12];
+	  this.position[1] = matrix[13];
+	  this.position[2] = matrix[14];
 	}
+
 
 	module.exports = Listener;
 
@@ -2748,6 +2798,13 @@ return /******/ (function(modules) { // webpackBootstrap
 		  this._tempMatrix4 = new Float32Array(16);
 
 		  this._isRendererReady = false;
+
+		  this.input = this._context.createGain();
+		  this.output = this._context.createGain();
+		  this._bypass = this._context.createGain();
+
+		  this._hoaRotator = new HOARotator(this._context, this._ambisonicOrder);
+		  this.input.connect(this._bypass);
 		}
 
 
@@ -2802,7 +2859,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		          }
 		        }.bind(this));
 
-		        this._buildAudioGraph(hoaHRIRBuffer);
+		        this._buildConvolver(hoaHRIRBuffer);
 		        this._isRendererReady = true;
 		        Utils.log('Rendering via SH-MaxRE convolution.');
 		        resolve();
@@ -2817,20 +2874,14 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 		/**
-		 * Internal method that builds the audio graph.
+		 * Internal method that builds and connects the convolver to the audio graph.
 		 */
-		HOARenderer.prototype._buildAudioGraph = function(hoaHRIRBuffer) {
-		  this.input = this._context.createGain();
-		  this.output = this._context.createGain();
-		  this._bypass = this._context.createGain();
-
-		  this._hoaRotator = new HOARotator(this._context, this._ambisonicOrder);
+		HOARenderer.prototype._buildConvolver = function(hoaHRIRBuffer) {
 		  this._hoaConvolver = new HOAConvolver(
 		      this._context,
 		      {IRBuffer: hoaHRIRBuffer, ambisonicOrder: this._ambisonicOrder});
 
 		  this.input.connect(this._hoaRotator.input);
-		  this.input.connect(this._bypass);
 		  this._hoaRotator.output.connect(this._hoaConvolver.input);
 		  this._hoaConvolver.output.connect(this.output);
 
@@ -2844,8 +2895,6 @@ return /******/ (function(modules) { // webpackBootstrap
 		 *                                    representation)
 		 */
 		HOARenderer.prototype.setRotationMatrix = function(rotationMatrix) {
-		  if (!this._isRendererReady)
-		    return;
 		  this._hoaRotator.setRotationMatrix(rotationMatrix);
 		};
 
@@ -2855,9 +2904,6 @@ return /******/ (function(modules) { // webpackBootstrap
 		 * @param  {Object} cameraMatrix      The Matrix4 obejct of Three.js the camera.
 		 */
 		HOARenderer.prototype.setRotationMatrixFromCamera = function(cameraMatrix) {
-		  if (!this._isRendererReady)
-		    return;
-
 		  // Extract the inner array elements and inverse. (The actual view rotation is
 		  // the opposite of the camera movement.)
 		  Utils.invertMatrix4(this._tempMatrix4, cameraMatrix.elements);
@@ -2876,6 +2922,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		 *                                    the CPU power.
 		 */
 		HOARenderer.prototype.setRenderingMode = function(mode) {
+		  // TODO(bitllama): _isRendererReady should be used here for _hoaConvovler.
 		  if (mode === this._renderingMode)
 		    return;
 		  switch (mode) {
@@ -2947,33 +2994,55 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
+
 	// Math constants.
 	/** @type {Number} */
 	exports.TWO_PI = 6.28318530717959;
+
+
 	/** @type {Number} */
 	exports.TWENTY_FOUR_LOG10 = 55.2620422318571;
+
+
 	/** @type {Number} */
 	exports.LOG1000 = 6.90775527898214;
+
+
 	/** @type {Number} */
 	exports.LOG2_DIV2 = 0.346573590279973;
+
+
 	/** @type {Number} */
 	exports.DEGREES_TO_RADIANS = 0.017453292519943;
+
+
 	/** @type {Number} */
 	exports.RADIANS_TO_DEGREES = 57.295779513082323;
+
+
 	/** @type {Number} */
 	exports.EPSILON_FLOAT = 1e-8;
+
+
 	/** @type {Float32Array} */
 	exports.DEFAULT_POSITION = [0, 0, 0];
+
+
 	/** @type {Float32Array} */
-	exports.DEFAULT_ORIENTATION = [0, 0, 0];
-	/** @type {Float32Array} */
-	exports.DEFAULT_FORWARD = [0, 0, 1];
+	exports.DEFAULT_FORWARD = [0, 0, -1];
+
+
 	/** @type {Float32Array} */
 	exports.DEFAULT_UP = [0, 1, 0];
+
+
 	/** @type {Float32Array} */
 	exports.DEFAULT_RIGHT = [1, 0, 0];
+
+
 	/** @type {Number} */
 	exports.DEFAULT_SPEED_OF_SOUND = 343;
+
 
 	// Helper functions
 	/**
@@ -2992,73 +3061,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  ]);
 	};
 
-	// Static temp storage for matrix inversion.
-	var a00, a01, a02, a03, a10, a11, a12, a13;
-	var a20, a21, a22, a23, a30, a31, a32, a33;
-	var b00, b01, b02, b03, b04, b05, b06, b07, b08, b09, b10, b11;
-	var det;
-
-	/**
-	 * A 4x4 matrix inversion utility. This does not handle the case when the
-	 * arguments are not proper 4x4 matrices.
-	 * @param {Float32Array} out   The inverted result.
-	 * @param {Float32Array} a     The source matrix.
-	 * @returns {Float32Array} out
-	 */
-	exports.invertMatrix4 = function(out, a) {
-	  a00 = a[0];
-	  a01 = a[1];
-	  a02 = a[2];
-	  a03 = a[3];
-	  a10 = a[4];
-	  a11 = a[5];
-	  a12 = a[6];
-	  a13 = a[7];
-	  a20 = a[8];
-	  a21 = a[9];
-	  a22 = a[10];
-	  a23 = a[11];
-	  a30 = a[12];
-	  a31 = a[13];
-	  a32 = a[14];
-	  a33 = a[15];
-	  b00 = a00 * a11 - a01 * a10;
-	  b01 = a00 * a12 - a02 * a10;
-	  b02 = a00 * a13 - a03 * a10;
-	  b03 = a01 * a12 - a02 * a11;
-	  b04 = a01 * a13 - a03 * a11;
-	  b05 = a02 * a13 - a03 * a12;
-	  b06 = a20 * a31 - a21 * a30;
-	  b07 = a20 * a32 - a22 * a30;
-	  b08 = a20 * a33 - a23 * a30;
-	  b09 = a21 * a32 - a22 * a31;
-	  b10 = a21 * a33 - a23 * a31;
-	  b11 = a22 * a33 - a23 * a32;
-	  det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
-
-	  if (!det)
-	    return null;
-
-	  det = 1.0 / det;
-	  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
-	  out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
-	  out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
-	  out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
-	  out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
-	  out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
-	  out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
-	  out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
-	  out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
-	  out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
-	  out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
-	  out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
-	  out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
-	  out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
-	  out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
-	  out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
-
-	  return out;
-	};
 
 	/**
 	 * Quaternion constructor.
@@ -3083,6 +3085,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  ];
 	}
 
+
 	/**
 	 * Hamilton product of two quaternions.
 	 * @param {Float32Array} q1 4-element vector.
@@ -3098,6 +3101,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  ];
 	}
 
+
 	/**
 	 * Rotate a 3-d vector using a quaternion.
 	 * @param {Float32Array} p 3-element vector.
@@ -3111,6 +3115,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  );
 	  return [p_n[1], p_n[2], p_n[3]];
 	}
+
 
 	/**
 	 * Normalize a 3-d vector.
@@ -3127,6 +3132,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	  return v;
 	}
+
+
+	/**
+	 * Cross-product between two 3-d vectors.
+	 * @param {Float32Array} a 3-element vector.
+	 * @param {Float32Array} b 3-element vector.
+	 */
+	exports.crossProduct = function (a, b) {
+	  return [
+	    a[1] * b[2] - a[2] * b[1],
+	    a[2] * b[0] - a[0] * b[2],
+	    a[0] * b[1] - a[1] * b[0]
+	  ];
+	}
+
 
 /***/ }),
 /* 5 */
@@ -3155,12 +3175,35 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
+
 	// Internal dependencies.
 	var Directivity = __webpack_require__(6);
 	var Attenuation = __webpack_require__(7);
 	var Encoder = __webpack_require__(8);
 	var Utils = __webpack_require__(4);
-	//var Room = require('./room.js');
+
+
+	// Static constants.
+	/**
+	 * Default input gain (linear).
+	 * @type {Number}
+	 */
+	Source.DEFAULT_GAIN = 1;
+
+
+	/**
+	 * Default distance from listener when setting angle.
+	 * @type {Number}
+	 */
+	Source.DEFAULT_DISTANCE = 1;
+
+
+	/**
+	 * Maximum outside-the-room distance to attenuate far-field sources by.
+	 * @type {Number}
+	 */
+	Source.MAX_OUTSIDE_ROOM_DISTANCE = 1;
+
 
 	/**
 	 * @class Source
@@ -3170,9 +3213,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Float32Array} options.position
 	 * The source's initial position (in meters), where origin is the center of
 	 * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
-	 * @param {Float32Array} options.orientation
-	 * The source's initial orientation (roll, pitch and yaw, in radians). Defaults
-	 * to {@linkcode DEFAULT_ORIENTATION DEFAULT_ORIENTATION}.
+	 * @param {Float32Array} options.forward
+	 * The source's initial forward vector. Defaults to
+	 * {@linkcode DEFAULT_FORWARD DEFAULT_FORWARD}.
+	 * @param {Float32Array} options.up
+	 * The source's initial up vector. Defaults to
+	 * {@linkcode DEFAULT_UP DEFAULT_UP}.
 	 * @param {Number} options.minDistance
 	 * Min. distance (in meters). Defaults to
 	 * {@linkcode Attenuation.MIN_DISTANCE MIN_DISTANCE}.
@@ -3187,8 +3233,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * {@linkcode Source.DEFAULT_GAIN DEFAULT_GAIN}.
 	 * @param {Number} options.alpha Directivity alpha. Defaults to
 	 * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
-	 * @param {Number} options.exponent Directivity exponent. Defaults to
-	 * {@linkcode Directivity.DEFAULT_EXPONENT DEFAULT_EXPONENT}.
+	 * @param {Number} options.sharpness Directivity sharpness. Defaults to
+	 * {@linkcode Directivity.DEFAULT_SHARPNESS DEFAULT_SHARPNESS}.
 	 * @param {Number} options.sourceWidth
 	 * Source width (in degrees). Where 0 degrees is a point source and 360 degrees
 	 * is an omnidirectional source. Defaults to
@@ -3209,10 +3255,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    options = new Object();
 	  }
 	  if (options.position == undefined) {
-	    options.position = Utils.DEFAULT_POSITION;
+	    options.position = Utils.DEFAULT_POSITION.slice();
 	  }
-	  if (options.orientation == undefined) {
-	    options.orientation = Utils.DEFAULT_ORIENTATION;
+	  if (options.forward == undefined) {
+	    options.forward = Utils.DEFAULT_FORWARD.slice();
+	  }
+	  if (options.up == undefined) {
+	    options.up = Utils.DEFAULT_UP.slice();
 	  }
 	  if (options.minDistance == undefined) {
 	    options.minDistance = Attenuation.DEFAULT_MIN_DISTANCE;
@@ -3229,8 +3278,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (options.alpha == undefined) {
 	    options.alpha = Directivity.DEFAULT_ALPHA;
 	  }
-	  if (options.exponent == undefined) {
-	    options.exponent = Directivity.DEFAULT_EXPONENT;
+	  if (options.sharpness == undefined) {
+	    options.sharpness = Directivity.DEFAULT_SHARPNESS;
 	  }
 	  if (options.sourceWidth == undefined) {
 	    options.sourceWidth = Encoder.DEFAULT_SOURCE_WIDTH;
@@ -3238,17 +3287,18 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  // Member variables.
 	  this._scene = songbird;
-	  this._position = new Float32Array(3);
-	  this._forward = new Float32Array(3);
-	  this._up = new Float32Array(3);
-	  this._right = new Float32Array(3);
+	  this._position = options.position;
+	  this._forward = options.forward;
+	  this._up = options.up;
+	  this._dx = new Float32Array(3);
+	  this._right = Utils.crossProduct(this._forward, this._up);
 
 	  // Create audio nodes.
 	  var context = songbird._context;
 	  this.input = context.createGain();
 	  this._directivity = new Directivity(context, {
 	    alpha: options.alpha,
-	    exponent: options.exponent
+	    sharpness: options.sharpness
 	  });
 	  this._toEarly = context.createGain();
 	  this._toLate = context.createGain();
@@ -3264,11 +3314,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  // Connect nodes.
 	  this.input.connect(this._toLate);
-
-	  // Only connect if late reflections isn't disabled.
-	  if (songbird._room._useLateReflections) {
-	    this._toLate.connect(songbird._room.late.input);
-	  }
+	  this._toLate.connect(songbird._room.late.input);
 
 	  this.input.connect(this._attenuation.input);
 	  this._attenuation.output.connect(this._toEarly);
@@ -3279,12 +3325,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._encoder.output.connect(songbird._listener.input);
 
 	  // Assign initial conditions.
-	  this.setPosition(options.position[0], options.position[1],
-	    options.position[2]);
-	  this.setOrientation(options.orientation[0], options.orientation[1],
-	    options.orientation[2]);
+	  this.setPosition(
+	    options.position[0], options.position[1], options.position[2]);
 	  this.input.gain.value = options.gain;
 	}
+
 
 	/**
 	 * Set source's position (in meters), where origin is the center of
@@ -3294,8 +3339,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * @param {Number} z
 	 */
 	Source.prototype.setPosition = function (x, y, z) {
-	  var dx = new Float32Array(3);
-
 	  // Assign new position.
 	  this._position[0] = x;
 	  this._position[1] = y;
@@ -3308,93 +3351,62 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._toLate.gain.value = gain;
 	  this._toEarly.gain.value = gain;
 
+	  this._update();
+	}
+
+
+	// Update the source when changing the listener's position.
+	Source.prototype._update = function () {
 	  // Compute distance to listener.
 	  for (var i = 0; i < 3; i++) {
-	    dx[i] = this._position[i] - this._scene._listener.position[i];
+	    this._dx[i] = this._position[i] - this._scene._listener.position[i];
 	  }
-	  var distance = Math.sqrt(dx[0] * dx[0] + dx[1] * dx[1] + dx[2] * dx[2]);
+	  var distance = Math.sqrt(this._dx[0] * this._dx[0] +
+	    this._dx[1] * this._dx[1] + this._dx[2] * this._dx[2]);
 
 	  // Normalize direction vector.
-	  dx[0] /= distance;
-	  dx[1] /= distance;
-	  dx[2] /= distance;
+	  this._dx[0] /= distance;
+	  this._dx[1] /= distance;
+	  this._dx[2] /= distance;
 
 	  // Compuete angle of direction vector.
-	  var azimuth = Math.atan2(-dx[0], dx[2]) * Utils.RADIANS_TO_DEGREES;
-	  var elevation = Math.atan2(dx[1],
-	    Math.sqrt(dx[0] * dx[0] + dx[2] * dx[2])) * Utils.RADIANS_TO_DEGREES;
+	  var azimuth =
+	    Math.atan2(-this._dx[0], this._dx[2]) * Utils.RADIANS_TO_DEGREES;
+	  var elevation = Math.atan2(this._dx[1], Math.sqrt(this._dx[0] * this._dx[0] +
+	    this._dx[2] * this._dx[2])) * Utils.RADIANS_TO_DEGREES;
 
 	  // Set distance/directivity/direction values.
 	  this._attenuation.setDistance(distance);
-	  this._directivity.computeAngle(this._forward, dx);
+	  this._directivity.computeAngle(this._forward, this._dx);
 	  this._encoder.setDirection(azimuth, elevation);
 	}
 
-	/**
-	 * Set source's angle relative to the listener's position.
-	 * Azimuth is counterclockwise (0-360). Elevation range is 90 to -90.
-	 * @param {Number} azimuth (in degrees). Defaults to
-	 * {@linkcode Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
-	 * @param {Number} elevation (in degrees). Defaults to
-	 * {@linkcode Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
-	 * @param {Number} distance (in meters). Defaults to
-	 * {@linkcode Source.DEFAULT_DISTANCE DEFAULT_DISTANCE}.
-	 */
-	Source.prototype.setAngleFromListener = function (azimuth, elevation,
-	                                                  distance) {
-	  // Use defaults for undefined arguments.
-	  if (azimuth == undefined) {
-	    azimuth = Attenuation.DEFAULT_AZIMUTH;
-	  }
-	  if (elevation == undefined) {
-	    elevation = Attenuation.DEFAULT_ELEVATION;
-	  }
-	  if (distance == undefined) {
-	    distance = Source.DEFAULT_DISTANCE;
-	  }
-	  var theta = azimuth * Utils.DEGREES_TO_RADIANS;
-	  var phi = elevation * Utils.DEGREES_TO_RADIANS;
-
-	  // Polar -> Cartesian (direction from listener).
-	  var x = Math.sin(theta) * Math.cos(phi);
-	  var y = Math.sin(phi);
-	  var z = -Math.cos(theta) * Math.cos(phi);
-
-	  // Assign new position based on relationship to listener.
-	  this._position[0] = this._scene._listener.position[0] + x;
-	  this._position[1] = this._scene._listener.position[1] + y;
-	  this._position[2] = this._scene._listener.position[2] + z;
-
-	  // Handle far-field effect.
-	  var distance = this._scene._room.getDistanceOutsideRoom(
-	    this._position[0], this._position[1], this._position[2]);
-	  var gain = _computeDistanceOutsideRoom(distance);
-	  this._toLate.gain.value = gain;
-	  this._toEarly.gain.value = gain;
-
-	  // Set distance/directivity/direction values.
-	  this._attenuation.setDistance(distance);
-	  this._directivity.computeAngle(this._forward, [x, y, z]);
-	  this._encoder.setDirection(azimuth, elevation);
-	}
 
 	/**
-	 * Set source's orientation (in radians).
-	 * @param {Number} roll
-	 * @param {Number} pitch
-	 * @param {Number} yaw
+	 * Set the source's orientation using forward and up vectors.
+	 * @param {Number} forward_x
+	 * @param {Number} forward_y
+	 * @param {Number} forward_z
+	 * @param {Number} up_x
+	 * @param {Number} up_y
+	 * @param {Number} up_z
 	 */
-	Source.prototype.setOrientation = function (roll, pitch, yaw) {
-	  var q = Utils.toQuaternion(roll, pitch, yaw);
-	  this._forward = Utils.rotateVector(Utils.DEFAULT_FORWARD, q);
-	  this._up = Utils.rotateVector(Utils.DEFAULT_UP, q);
-	  this._right = Utils.rotateVector(Utils.DEFAULT_RIGHT, q);
-	  this.setPosition(this._position[0], this._position[1], this._position[2]);
+	Source.prototype.setOrientation = function (
+	  forward_x, forward_y, forward_z, up_x, up_y, up_z) {
+	  this._forward[0] = forward_x;
+	  this._forward[1] = forward_y;
+	  this._forward[2] = forward_z;
+	  this._up[0] = up_x;
+	  this._up[1] = up_y;
+	  this._up[2] = up_z;
+	  this._right = Utils.crossProduct(this._forward, this._up);
 	}
 
+
+	// TODO(bitllama): Make sure this works with Three.js as intended.
 	/**
 	 * Set source's position and orientation using a
-	 * Three.js modelViewMatrix Matrix4.
+	 * Three.js modelViewMatrix object.
 	 * @param {Float32Array} matrix4
 	 * The Matrix4 representing the object position and rotation in world space.
 	 */
@@ -3418,6 +3430,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.setPosition(matrix4[12], matrix4[13], matrix4[14]);
 	}
 
+
 	/**
 	 * Set the source width (in degrees). Where 0 degrees is a point source and 360
 	 * degrees is an omnidirectional source.
@@ -3428,19 +3441,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.setPosition(this._position[0], this._position[1], this._position[2]);
 	}
 
+
 	/**
 	 * Set source's directivity pattern (defined by alpha), where 0 is an
 	 * omnidirectional pattern, 1 is a bidirectional pattern, 0.5 is a cardiod
-	 * pattern. The sharpness of the pattern is increased with the exponent.
+	 * pattern. The sharpness of the pattern is increased exponentially.
 	 * @param {Number} alpha
 	 * Determines directivity pattern (0 to 1).
-	 * @param {Number} exponent
-	 * Determines the steepness of the directivity pattern (1 to Inf).
+	 * @param {Number} sharpness
+	 * Determines the sharpness of the directivity pattern (1 to Inf).
 	 */
-	Source.prototype.setDirectivityPattern = function (alpha, exponent) {
-	  this._directivity.setPattern(alpha, exponent);
+	Source.prototype.setDirectivityPattern = function (alpha, sharpness) {
+	  this._directivity.setPattern(alpha, sharpness);
 	  this.setPosition(this._position[0], this._position[1], this._position[2]);
 	}
+
 
 	// Helper functions.
 	// Determine the distance a source is outside of a room. Attenuate gain going
@@ -3458,24 +3473,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return gain;
 	}
 
-	// Static constants.
-	/**
-	 * Default input gain (linear).
-	 * @type {Number}
-	 */
-	Source.DEFAULT_GAIN = 1;
-	/**
-	 * Default distance from listener when setting angle.
-	 * @type {Number}
-	 */
-	Source.DEFAULT_DISTANCE = 1;
-	/**
-	 * Maximum outside-the-room distance to attenuate far-field sources by.
-	 * @type {Number}
-	 */
-	Source.MAX_OUTSIDE_ROOM_DISTANCE = 1;
 
 	module.exports = Source;
+
 
 /***/ }),
 /* 6 */
@@ -3507,6 +3507,22 @@ return /******/ (function(modules) { // webpackBootstrap
 	// Internal dependencies.
 	var Utils = __webpack_require__(4);
 
+
+	// Static variables
+	/**
+	 * The default alpha (i.e. microphone pattern).
+	 * @type {Number}
+	 */
+	Directivity.DEFAULT_ALPHA = 0;
+
+
+	/**
+	 * The default pattern sharpness (i.e. pattern exponent).
+	 * @type {Number}
+	 */
+	Directivity.DEFAULT_SHARPNESS = 1;
+
+
 	/**
 	 * @class Directivity
 	 * @description Directivity/occlusion filter.
@@ -3518,10 +3534,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Determines directivity pattern (0 to 1). See
 	 * {@link Directivity#setPattern setPattern} for more details. Defaults to
 	 * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
-	 * @param {Number} options.exponent
-	 * Determines the steepness of the directivity pattern (1 to Inf). See
+	 * @param {Number} options.sharpness
+	 * Determines the sharpness of the directivity pattern (1 to Inf). See
 	 * {@link Directivity#setPattern setPattern} for more details. Defaults to
-	 * {@linkcode Directivity.DEFAULT_EXPONENT DEFAULT_EXPONENT}.
+	 * {@linkcode Directivity.DEFAULT_SHARPNESS DEFAULT_SHARPNESS}.
 	 */
 	function Directivity (context, options) {
 	  // Public variables.
@@ -3547,8 +3563,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  if (options.alpha == undefined) {
 	    options.alpha = Directivity.DEFAULT_ALPHA;
 	  }
-	  if (options.exponent == undefined) {
-	    options.exponent = Directivity.DEFAULT_EXPONENT;
+	  if (options.sharpness == undefined) {
+	    options.sharpness = Directivity.DEFAULT_SHARPNESS;
 	  }
 
 	  // Create audio node.
@@ -3561,12 +3577,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._lowpass.frequency.value = context.sampleRate * 0.5;
 
 	  this._cosTheta = 0;
-	  this.setPattern(options.alpha, options.exponent);
+	  this.setPattern(options.alpha, options.sharpness);
 
 	  // Input/Output proxy.
 	  this.input = this._lowpass;
 	  this.output = this._lowpass;
 	}
+
 
 	/**
 	 * Compute the filter using the source's forward orientation and the listener's
@@ -3586,44 +3603,34 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._lowpass.frequency.value = this._context.sampleRate * 0.5 * coeff;
 	}
 
+
 	/**
 	 * Set source's directivity pattern (defined by alpha), where 0 is an
 	 * omnidirectional pattern, 1 is a bidirectional pattern, 0.5 is a cardiod
-	 * pattern. The sharpness of the pattern is increased with the exponent.
+	 * pattern. The sharpness of the pattern is increased exponenentially.
 	 * @param {Number} alpha
 	 * Determines directivity pattern (0 to 1). Defaults to
 	 * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
-	 * @param {Number} exponent
-	 * Determines the steepness of the directivity pattern (1 to Inf). Defaults to
-	 * {@linkcode Directivity.DEFAULT_EXPONENT DEFAULT_EXPONENT}.
+	 * @param {Number} sharpness
+	 * Determines the sharpness of the directivity pattern (1 to Inf). Defaults to
+	 * {@linkcode Directivity.DEFAULT_SHARPNESS DEFAULT_SHARPNESS}.
 	 */
-	Directivity.prototype.setPattern = function (alpha, exponent) {
+	Directivity.prototype.setPattern = function (alpha, sharpness) {
 	  if (alpha == undefined) {
 	    alpha = Directivity.DEFAULT_ALPHA;
 	  }
-	  if (exponent == undefined) {
-	    exponent = Directivity.DEFAULT_EXPONENT;
+	  if (sharpness == undefined) {
+	    sharpness = Directivity.DEFAULT_SHARPNESS;
 	  }
 
 	  // Clamp and set values.
 	  this._alpha = Math.min(1, Math.max(0, alpha));
-	  this._exponent = Math.max(1, exponent);
+	  this._sharpness = Math.max(1, sharpness);
 
 	  // Update angle calculation using new values.
 	  this.computeAngle([this._cosTheta * this._cosTheta, 0, 0], [1, 0, 0]);
 	}
 
-	// Static variables
-	/**
-	 * The default alpha (i.e. microphone pattern).
-	 * @type {Number}
-	 */
-	Directivity.DEFAULT_ALPHA = 0;
-	/**
-	 * The default exponent (i.e. pattern sharpness).
-	 * @type {Number}
-	 */
-	Directivity.DEFAULT_EXPONENT = 1;
 
 	module.exports = Directivity;
 
@@ -3655,8 +3662,31 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
+
 	// Internal dependencies.
 	var Utils = __webpack_require__(4);
+
+
+	// Static constants.
+	/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none').
+	 * @type {Array}
+	 */
+	Attenuation.ROLLOFFS = ['logarithmic', 'linear', 'none'];
+
+
+	/** Default rolloff model ('logarithmic').
+	 * @type {string}
+	 */
+	Attenuation.DEFAULT_ROLLOFF = 'logarithmic';
+
+
+	/** @type {Number} */
+	Attenuation.DEFAULT_MIN_DISTANCE = 1;
+
+
+	/** @type {Number} */
+	Attenuation.DEFAULT_MAX_DISTANCE = 1000;
+
 
 	/**
 	 * @class Attenuation
@@ -3735,6 +3765,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.output = this._gainNode;
 	}
 
+
 	/**
 	 * Set distance from the listener.
 	 * @param {Number} distance Distance (in meters).
@@ -3768,6 +3799,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._gainNode.gain.value = gain;
 	}
 
+
 	/**
 	 * Set rolloff.
 	 * @param {string} rolloff
@@ -3788,20 +3820,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	  this._rolloff = rolloff;
 	}
-
-	// Static constants.
-	/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none').
-	 * @type {Array}
-	 */
-	Attenuation.ROLLOFFS = ['logarithmic', 'linear', 'none'];
-	/** Default rolloff model ('logarithmic').
-	 * @type {string}
-	 */
-	Attenuation.DEFAULT_ROLLOFF = 'logarithmic';
-	/** @type {Number} */
-	Attenuation.DEFAULT_MIN_DISTANCE = 1;
-	/** @type {Number} */
-	Attenuation.DEFAULT_MAX_DISTANCE = 1000;
 
 
 	module.exports = Attenuation;
@@ -3836,6 +3854,45 @@ return /******/ (function(modules) { // webpackBootstrap
 	// Internal dependencies.
 	var Tables = __webpack_require__(9);
 	var Utils = __webpack_require__(4);
+
+
+	// Static constants.
+	/**
+	 * Default azimuth (in degrees). Suitable range is 0 to 360.
+	 * @type {Number}
+	 */
+	Encoder.DEFAULT_AZIMUTH = 0;
+
+
+	/**
+	 * Default elevation (in degres).
+	 * Suitable range is from -90 (below) to 90 (above).
+	 * @type {Number}
+	 */
+	Encoder.DEFAULT_ELEVATION = 0;
+
+
+	/**
+	 * The maximum allowed ambisonic order, specified by the
+	 * {@linkcode Tables.SPHERICAL_HARMONICS spherical harmonics table}.
+	 * @type {Number}
+	 */
+	Encoder.MAX_ORDER = Tables.SPHERICAL_HARMONICS[0][0].length / 2;
+
+
+	/**
+	 * The default ambisonic order.
+	 * @type {Number}
+	 */
+	Encoder.DEFAULT_AMBISONIC_ORDER = 1;
+
+
+	/**
+	 * The default source width.
+	 * @type {Number}
+	 */
+	Encoder.DEFAULT_SOURCE_WIDTH = 0;
+
 
 	/**
 	 * @class Encoder
@@ -3923,6 +3980,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.output = this._merger;
 	}
 
+
 	/**
 	 * Set the direction of the encoded source signal.
 	 * @param {Number} azimuth
@@ -3971,6 +4029,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	}
 
+
 	/**
 	 * Set the source width (in degrees). Where 0 degrees is a point source and 360
 	 * degrees is an omnidirectional source. Defaults to
@@ -3983,36 +4042,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.setDirection(this._azimuth, this._elevation);
 	}
 
-	// Static constants.
-	/**
-	 * Default azimuth (in degrees). Suitable range is 0 to 360.
-	 * @type {Number}
-	 */
-	Encoder.DEFAULT_AZIMUTH = 0;
-	/**
-	 * Default elevation (in degres).
-	 * Suitable range is from -90 (below) to 90 (above).
-	 * @type {Number}
-	 */
-	Encoder.DEFAULT_ELEVATION = 0;
-	/**
-	 * The maximum allowed ambisonic order, specified by the
-	 * {@linkcode Tables.SPHERICAL_HARMONICS spherical harmonics table}.
-	 * @type {Number}
-	 */
-	Encoder.MAX_ORDER = Tables.SPHERICAL_HARMONICS[0][0].length / 2;
-	/**
-	 * The default ambisonic order.
-	 * @type {Number}
-	 */
-	Encoder.DEFAULT_AMBISONIC_ORDER = 1;
-	/**
-	 * The default source width.
-	 * @type {Number}
-	 */
-	Encoder.DEFAULT_SOURCE_WIDTH = 0;
 
 	module.exports = Encoder;
+
 
 /***/ }),
 /* 9 */
@@ -4039,6 +4071,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 */
 
 	'use strict';
+
 
 	/**
 	 * Pre-computed Spherical Harmonics Coefficients.
@@ -8931,6 +8964,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  ]
 	];
 
+
 	/**
 	 * Pre-computed per-band weighting coefficients for producing energy-preserving
 	 * Max-Re sources.
@@ -11126,175 +11160,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	'use strict';
 
+
 	// Internal dependencies.
 	var LateReflections = __webpack_require__(11);
 	var EarlyReflections = __webpack_require__(12);
 	var Utils = __webpack_require__(4);
 
-	/**
-	 * @class Room
-	 * @description Model that manages early and late reflections using acoustic
-	 * properties and listener position relative to a rectangular room.
-	 * @param {AudioContext} context
-	 * Associated {@link
-	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
-	 * @param {Object} options
-	 * @param {Float32Array} options.listenerPosition
-	 * The listener's initial position (in meters), where origin is the center of
-	 * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
-	 * @param {Object} options.dimensions Room dimensions (in meters). Defaults to
-	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
-	 * @param {Object} options.materials Named acoustic materials per wall.
-	 * Defaults to {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
-	 * @param {Number} options.speedOfSound
-	 * (in meters/second). Defaults to
-	 * {@linkcode DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
-	 * @param {Boolean} options.useLateReflections Enables/disables
-	 * {@link LateReflections LateReflections}, which uses a convolution reverb.
-	 * Can be disabled to improve performance on low-power devices. Defaults to
-	 * {@linkcode Room.USE_LATE_REFLECTIONS USE_LATE_REFLECTIONS}.
-	 */
-	function Room (context, options) {
-	  // Public variables.
-	  /**
-	   * EarlyReflections {@link EarlyReflections EarlyReflections} submodule.
-	   * @member {AudioNode} early
-	   * @memberof Room
-	   * @instance
-	   */
-	  /**
-	   * LateReflections {@link LateReflections LateReflections} submodule.
-	   * @member {AudioNode} late
-	   * @memberof Room
-	   * @instance
-	   */
-	  /**
-	   * Ambisonic (multichannel) output {@link
-	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
-	   * @member {AudioNode} output
-	   * @memberof Room
-	   * @instance
-	   */
-
-	  // Use defaults for undefined arguments.
-	  if (options == undefined) {
-	    options = new Object();
-	  }
-	  if (options.listenerPosition == undefined) {
-	    options.listenerPosition = Utils.DEFAULT_POSITION;
-	  }
-	  if (options.dimensions == undefined) {
-	    options.dimensions = EarlyReflections.DEFAULT_DIMENSIONS;
-	  }
-	  if (options.materials == undefined) {
-	    options.materials = Room.DEFAULT_MATERIALS;
-	  }
-	  if (options.speedOfSound == undefined) {
-	    options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
-	  }
-	  if (options.useLateReflections == undefined) {
-	    options.useLateReflections = Room.USE_LATE_REFLECTIONS;
-	  }
-
-	  // Sanitize room-properties-related arguments.
-	  options.dimensions = _sanitizeDimensions(options.dimensions);
-	  var absorptionCoefficients = _getCoefficientsFromMaterials(options.materials);
-	  var reflectionCoefficients =
-	    _computeReflectionCoefficients(absorptionCoefficients);
-
-	  // Construct submodules for early and late reflections.
-	  this.early = new EarlyReflections(context, {
-	    dimensions : options.dimensions,
-	    coefficients : reflectionCoefficients,
-	    speedOfSound : options.speedOfSound,
-	    listenerPosition : options.listenerPosition
-	  });
-
-	  this._useLateReflections = options.useLateReflections;
-	  this.speedOfSound = options.speedOfSound;
-
-	  // Construct auxillary audio nodes.
-	  this.output = context.createGain();
-	  this.early.output.connect(this.output);
-
-	  // Only construct the late reflections if not disabled.
-	  if (this._useLateReflections) {
-	    var durations = _getDurationsFromProperties(options.dimensions,
-	      absorptionCoefficients, options.speedOfSound);
-	    this.late = new LateReflections(context, {
-	      durations : durations
-	    });
-
-	    this._merger = context.createChannelMerger(4);
-
-	    this.late.output.connect(this._merger, 0, 0);
-	    this._merger.connect(this.output);
-	  }
-	}
-
-	/**
-	 * Set the room's dimensions and wall materials.
-	 * @param {Object} dimensions Room dimensions (in meters). Defaults to
-	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
-	 * @param {Object} materials Named acoustic materials per wall. Defaults to
-	 * {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
-	 */
-	Room.prototype.setProperties = function (dimensions, materials) {
-	  // Compute late response, skip if disabled.
-	  if (this._useLateReflections) {
-	    var absorptionCoefficients = _getCoefficientsFromMaterials(materials);
-	    var durations = _getDurationsFromProperties(dimensions,
-	      absorptionCoefficients, this.speedOfSound);
-	    this.late.setDurations(durations);
-	  }
-
-	  // Compute early response.
-	  this.early.speedOfSound = this.speedOfSound;
-	  var reflectionCoefficients =
-	    _computeReflectionCoefficients(absorptionCoefficients);
-	  this.early.setRoomProperties(dimensions, reflectionCoefficients);
-	}
-
-	/**
-	 * Set the listener's position (in meters), where origin is the center of
-	 * the room.
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
-	 */
-	Room.prototype.setListenerPosition = function (x, y, z) {
-	  this.early.speedOfSound = this.speedOfSound;
-	  this.early.setListenerPosition(x, y, z);
-
-	  // Disable room effects if the listener is outside the room boundaries.
-	  var distance = this.getDistanceOutsideRoom(x, y, z);
-	  var gain = 1;
-	  if (distance > Utils.EPSILON_FLOAT) {
-	    gain = 1 - distance / Room.LISTENER_MAX_OUTSIDE_ROOM_DISTANCE;
-
-	    // Clamp gain between 0 and 1.
-	    gain = Math.max(0, Math.min(1, gain));
-	  }
-	  this.output.gain.value = gain;
-	}
-
-	/**
-	 * Compute distance outside room of provided position (in meters).
-	 * @param {Number} x
-	 * @param {Number} y
-	 * @param {Number} z
-	 * @returns {Number}
-	 * Distance outside room (in meters). Returns 0 if inside room.
-	 */
-	Room.prototype.getDistanceOutsideRoom = function (x, y, z) {
-	  var dx = Math.max(0, -this.early._halfDimensions.width - x,
-	    x - this.early._halfDimensions.width);
-	  var dy = Math.max(0, -this.early._halfDimensions.height - y,
-	    y - this.early._halfDimensions.height);
-	  var dz = Math.max(0, -this.early._halfDimensions.depth - z,
-	    z - this.early._halfDimensions.depth);
-	  return Math.sqrt(dx * dx + dy * dy + dz * dz);
-	}
 
 	// Static constants.
 	/**
@@ -11353,7 +11224,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  'linoleum-on-concrete' :
 	  [0.020, 0.020, 0.020, 0.030, 0.030, 0.030, 0.030, 0.020, 0.040],
 	  'marble' :
-	  [0.010, 0.010, 0.010, 0.010, 0.010, 0.010, 0.020, 0.020, 0.0400],
+	  [0.010, 0.010, 0.010, 0.010, 0.010, 0.010, 0.020, 0.020, 0.040],
 	  'metal' :
 	  [0.030, 0.035, 0.040, 0.040, 0.050, 0.050, 0.050, 0.070, 0.090],
 	  'parquet-on-concrete' :
@@ -11377,6 +11248,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  'uniform' :
 	  [0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500, 0.500]
 	}
+
+
 	/**
 	 * Default materials that use strings from
 	 * {@linkcode Room.MATERIAL_COEFFICIENTS MATERIAL_COEFFICIENTS}
@@ -11386,43 +11259,58 @@ return /******/ (function(modules) { // webpackBootstrap
 	  left : 'transparent', right : 'transparent', front : 'transparent',
 	  back : 'transparent', down : 'transparent', up : 'transparent'
 	};
+
+
 	/**
 	 * The number of bands to average over when computing reflection coefficients.
 	 * @type {Number}
 	 */
 	Room.NUMBER_AVERAGING_BANDS = 3;
+
+
 	/**
 	 * The starting band to average over when computing reflection coefficients.
 	 * @type {Number}
 	 */
 	Room.STARTING_AVERAGING_BAND = 4;
+
+
 	/**
 	 * The minimum threshold for room volume.
 	 * Room model is disabled if volume is below this value.
 	 * @type {Number} */
 	Room.MIN_ROOM_VOLUME = 1e-4;
+
+
 	/**
 	 * Air absorption coefficients per frequency band.
 	 * @type {Float32Array}
 	 */
 	Room.AIR_ABSORPTION_COEFFICIENTS =
 	  [0.0006, 0.0006, 0.0007, 0.0008, 0.0010, 0.0015, 0.0026, 0.0060, 0.0207];
+
+
 	/**
 	 * A scalar correction value to ensure Sabine and Eyring produce the same RT60
 	 * value at the cross-over threshold.
 	 * @type {Number} */
 	Room.EYRING_CORRECTION = 1.38;
+
+
 	/**
 	 * Maximum outside-the-room distance to attenuate far-field listener by.
 	 * @type {Number}
 	 */
 	Room.LISTENER_MAX_OUTSIDE_ROOM_DISTANCE = 1;
+
+
 	/**
 	 * Set to 'true' by default. Can be disabled to improve performance on low-power
 	 * devices.
 	 * @type {Boolean}
 	 */
 	Room.USE_LATE_REFLECTIONS = true;
+
 
 	// Helper functions.
 	function _getCoefficientsFromMaterials (materials) {
@@ -11456,6 +11344,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return coefficients;
 	}
 
+
 	function _sanitizeCoefficients (coefficients) {
 	  if (coefficients == undefined) {
 	    coefficients = {};
@@ -11470,6 +11359,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return coefficients;
 	}
 
+
 	function _sanitizeDimensions (dimensions) {
 	  if (dimensions == undefined) {
 	    dimensions = {};
@@ -11481,6 +11371,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	  return dimensions;
 	}
+
 
 	function _getDurationsFromProperties (dimensions, coefficients, speedOfSound) {
 	  var durations = new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
@@ -11533,6 +11424,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  return durations;
 	}
 
+
 	function _computeReflectionCoefficients (absorptionCoefficients) {
 	  var reflectionCoefficients = [];
 	  for (var property in EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS) {
@@ -11551,6 +11443,161 @@ return /******/ (function(modules) { // webpackBootstrap
 	  }
 	  return reflectionCoefficients;
 	}
+
+
+	/**
+	 * @class Room
+	 * @description Model that manages early and late reflections using acoustic
+	 * properties and listener position relative to a rectangular room.
+	 * @param {AudioContext} context
+	 * Associated {@link
+	https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+	 * @param {Object} options
+	 * @param {Float32Array} options.listenerPosition
+	 * The listener's initial position (in meters), where origin is the center of
+	 * the room. Defaults to {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+	 * @param {Object} options.dimensions Room dimensions (in meters). Defaults to
+	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} options.materials Named acoustic materials per wall.
+	 * Defaults to {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+	 * @param {Number} options.speedOfSound
+	 * (in meters/second). Defaults to
+	 * {@linkcode DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
+	 */
+	function Room (context, options) {
+	  // Public variables.
+	  /**
+	   * EarlyReflections {@link EarlyReflections EarlyReflections} submodule.
+	   * @member {AudioNode} early
+	   * @memberof Room
+	   * @instance
+	   */
+	  /**
+	   * LateReflections {@link LateReflections LateReflections} submodule.
+	   * @member {AudioNode} late
+	   * @memberof Room
+	   * @instance
+	   */
+	  /**
+	   * Ambisonic (multichannel) output {@link
+	   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+	   * @member {AudioNode} output
+	   * @memberof Room
+	   * @instance
+	   */
+
+	  // Use defaults for undefined arguments.
+	  if (options == undefined) {
+	    options = new Object();
+	  }
+	  if (options.listenerPosition == undefined) {
+	    options.listenerPosition = Utils.DEFAULT_POSITION.slice();
+	  }
+	  if (options.dimensions == undefined) {
+	    Object.assign(options.dimensions, EarlyReflections.DEFAULT_DIMENSIONS);
+	  }
+	  if (options.materials == undefined) {
+	    Object.assign(options.materials, EarlyReflections.DEFAULT_MATERIALS);
+	  }
+	  if (options.speedOfSound == undefined) {
+	    options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
+	  }
+
+	  // Sanitize room-properties-related arguments.
+	  options.dimensions = _sanitizeDimensions(options.dimensions);
+	  var absorptionCoefficients = _getCoefficientsFromMaterials(options.materials);
+	  var reflectionCoefficients =
+	    _computeReflectionCoefficients(absorptionCoefficients);
+	  var durations = _getDurationsFromProperties(options.dimensions,
+	    absorptionCoefficients, options.speedOfSound);
+
+	  // Construct submodules for early and late reflections.
+	  this.early = new EarlyReflections(context, {
+	    dimensions : options.dimensions,
+	    coefficients : reflectionCoefficients,
+	    speedOfSound : options.speedOfSound,
+	    listenerPosition : options.listenerPosition
+	  });
+	  this.late = new LateReflections(context, {
+	    durations : durations
+	  });
+
+	  this.speedOfSound = options.speedOfSound;
+
+	  // Construct auxillary audio nodes.
+	  this.output = context.createGain();
+	  this.early.output.connect(this.output);
+	  this._merger = context.createChannelMerger(4);
+
+	  this.late.output.connect(this._merger, 0, 0);
+	  this._merger.connect(this.output);
+	}
+
+
+	/**
+	 * Set the room's dimensions and wall materials.
+	 * @param {Object} dimensions Room dimensions (in meters). Defaults to
+	 * {@linkcode EarlyReflections.DEFAULT_DIMENSIONS DEFAULT_DIMENSIONS}.
+	 * @param {Object} materials Named acoustic materials per wall. Defaults to
+	 * {@linkcode Room.DEFAULT_MATERIALS DEFAULT_MATERIALS}.
+	 */
+	Room.prototype.setProperties = function (dimensions, materials) {
+	  // Compute late response.
+	  var absorptionCoefficients = _getCoefficientsFromMaterials(materials);
+	  var durations = _getDurationsFromProperties(dimensions,
+	    absorptionCoefficients, this.speedOfSound);
+	  this.late.setDurations(durations);
+
+	  // Compute early response.
+	  this.early.speedOfSound = this.speedOfSound;
+	  var reflectionCoefficients =
+	    _computeReflectionCoefficients(absorptionCoefficients);
+	  this.early.setRoomProperties(dimensions, reflectionCoefficients);
+	}
+
+
+	/**
+	 * Set the listener's position (in meters), where origin is the center of
+	 * the room.
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 */
+	Room.prototype.setListenerPosition = function (x, y, z) {
+	  this.early.speedOfSound = this.speedOfSound;
+	  this.early.setListenerPosition(x, y, z);
+
+	  // Disable room effects if the listener is outside the room boundaries.
+	  var distance = this.getDistanceOutsideRoom(x, y, z);
+	  var gain = 1;
+	  if (distance > Utils.EPSILON_FLOAT) {
+	    gain = 1 - distance / Room.LISTENER_MAX_OUTSIDE_ROOM_DISTANCE;
+
+	    // Clamp gain between 0 and 1.
+	    gain = Math.max(0, Math.min(1, gain));
+	  }
+	  this.output.gain.value = gain;
+	}
+
+
+	/**
+	 * Compute distance outside room of provided position (in meters).
+	 * @param {Number} x
+	 * @param {Number} y
+	 * @param {Number} z
+	 * @returns {Number}
+	 * Distance outside room (in meters). Returns 0 if inside room.
+	 */
+	Room.prototype.getDistanceOutsideRoom = function (x, y, z) {
+	  var dx = Math.max(0, -this.early._halfDimensions.width - x,
+	    x - this.early._halfDimensions.width);
+	  var dy = Math.max(0, -this.early._halfDimensions.height - y,
+	    y - this.early._halfDimensions.height);
+	  var dz = Math.max(0, -this.early._halfDimensions.depth - z,
+	    z - this.early._halfDimensions.depth);
+	  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+	}
+
 
 	module.exports = Room;
 
@@ -11584,6 +11631,74 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	// Internal dependencies.
 	var Utils = __webpack_require__(4);
+
+
+	// Static constants.
+	/** The default bandwidth (in octaves) of the center frequencies.
+	 * @type {Number}
+	 */
+	LateReflections.DEFAULT_BANDWIDTH = 1;
+
+
+	/** The default multiplier applied when computing tail lengths.
+	 * @type {Number}
+	 */
+	LateReflections.DURATION_MULTIPLIER = 1;
+
+
+	/**
+	 * The late reflections pre-delay (in milliseconds).
+	 * @type {Number}
+	 */
+	LateReflections.DEFAULT_PREDELAY = 1.5;
+
+
+	/**
+	 * The length of the beginning of the impulse response to apply a
+	 * half-Hann window to.
+	 * @type {Number}
+	 */
+	LateReflections.DEFAULT_TAIL_ONSET = 3.8;
+
+
+	/**
+	 * The default gain (linear).
+	 * @type {Number}
+	 */
+	LateReflections.DEFAULT_GAIN = 0.01;
+
+
+	/**
+	 * The maximum impulse response length (in seconds).
+	 * @type {Number}
+	 */
+	LateReflections.MAX_DURATION = 3;
+
+
+	/**
+	 * Center frequencies of the multiband late reflections.
+	 * Nine bands are computed by: 31.25 * 2^(0:8).
+	 * @type {Array}
+	 */
+	LateReflections.FREQUENCY_BANDS = [
+	  31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000
+	];
+
+
+	/**
+	 * The number of frequency bands.
+	 */
+	LateReflections.NUMBER_FREQUENCY_BANDS =
+	  LateReflections.FREQUENCY_BANDS.length;
+
+
+	/**
+	 * The default multiband RT60 durations (in seconds).
+	 * @type {Float32Array}
+	 */
+	LateReflections.DEFAULT_DURATIONS =
+	  new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
+
 
 	/**
 	 * @class LateReflections
@@ -11629,7 +11744,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    options = new Object();
 	  }
 	  if (options.durations == undefined) {
-	    options.durations = LateReflections.DEFAULT_DURATIONS;
+	    options.durations = LateReflections.DEFAULT_DURATIONS.slice();
 	  }
 	  if (options.predelay == undefined) {
 	    options.predelay = LateReflections.DEFAULT_PREDELAY;
@@ -11670,6 +11785,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Compute IR using RT60 values.
 	  this.setDurations(options.durations);
 	}
+
 
 	/**
 	 * Re-compute a new impulse response by providing Multiband RT60 durations.
@@ -11725,7 +11841,6 @@ return /******/ (function(modules) { // webpackBootstrap
 	  for (var i = 0; i < LateReflections.NUMBER_FREQUENCY_BANDS; i++) {
 	  //for (var i = 0; i < 1; i++) {
 	    // Compute decay rate.
-	    //TODO(bitllama): Remove global usage.
 	    var decayRate = -Utils.LOG1000 / durationsSamples[i];
 
 	    // Construct a standard one-zero, two-pole bandpass filter:
@@ -11770,56 +11885,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._convolver.buffer = buffer;
 	}
 
-	// Static constants.
-	/** The default bandwidth (in octaves) of the center frequencies.
-	 * @type {Number}
-	 */
-	LateReflections.DEFAULT_BANDWIDTH = 1;
-	/** The default multiplier applied when computing tail lengths.
-	 * @type {Number}
-	 */
-	LateReflections.DURATION_MULTIPLIER = 1;
-	/**
-	 * The late reflections pre-delay (in milliseconds).
-	 * @type {Number}
-	 */
-	LateReflections.DEFAULT_PREDELAY = 1.5;
-	/**
-	 * The length of the beginning of the impulse response to apply a
-	 * half-Hann window to.
-	 * @type {Number}
-	 */
-	LateReflections.DEFAULT_TAIL_ONSET = 3.8;
-	/**
-	 * The default gain (linear).
-	 * @type {Number}
-	 */
-	LateReflections.DEFAULT_GAIN = 0.01;
-	/**
-	 * The maximum impulse response length (in seconds).
-	 * @type {Number}
-	 */
-	LateReflections.MAX_DURATION = 3;
-	/**
-	 * Center frequencies of the multiband late reflections.
-	 * Nine bands are computed by: 31.25 * 2^(0:8).
-	 * @type {Array}
-	 */
-	LateReflections.FREQUENCY_BANDS = [
-	  31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000
-	];
-	/**
-	 * The number of frequency bands.
-	 */
-	LateReflections.NUMBER_FREQUENCY_BANDS = LateReflections.FREQUENCY_BANDS.length;
-	/**
-	 * The default multiband RT60 durations (in seconds).
-	 * @type {Float32Array}
-	 */
-	LateReflections.DEFAULT_DURATIONS =
-	  new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
 
 	module.exports = LateReflections;
+
 
 /***/ }),
 /* 12 */
@@ -11850,6 +11918,56 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	// Internal dependencies.
 	var Utils = __webpack_require__(4);
+
+
+	// Static constants.
+	/**
+	 * The maximum delay (in seconds) of a single wall reflection.
+	 * @type {Number}
+	 */
+	EarlyReflections.MAX_DURATION = 0.5;
+
+
+	/**
+	 * The -12dB cutoff frequency (in Hertz) for the lowpass filter applied to
+	 * all reflections.
+	 * @type {Number}
+	 */
+	EarlyReflections.CUTOFF_FREQUENCY = 6400; // Uses -12dB cutoff.
+
+
+	/**
+	 * The default reflection coefficients (where 0 = no reflection, 1 = perfect
+	 * reflection, -1 = mirrored reflection (180-degrees out of phase)).
+	 * @type {Object}
+	 */
+	EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS = {
+	  left : 0, right : 0, front : 0, back : 0, down : 0, up : 0
+	};
+
+
+	/**
+	 * The minimum distance we consider the listener to be to any given wall.
+	 * @type {Number}
+	 */
+	EarlyReflections.MIN_DISTANCE = 1;
+
+
+	/**
+	 * Default room dimensions (in meters).
+	 * @type {Object}
+	 */
+	EarlyReflections.DEFAULT_DIMENSIONS = {
+	  width : 0, height : 0, depth : 0
+	};
+
+
+	/**
+	 * The multiplier to apply to distances from the listener to each wall.
+	 * @type {Number}
+	 */
+	EarlyReflections.REFLECTIONS_MULTIPLIER = 1;
+
 
 	/**
 	 * @class EarlyReflections
@@ -11902,10 +12020,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	    options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
 	  }
 	  if (options.listenerPosition == undefined) {
-	    options.listenerPosition = Utils.DEFAULT_POSITION;
+	    options.listenerPosition = Utils.DEFAULT_POSITION.slice();
 	  }
 	  if (options.coefficients == undefined) {
-	    options.coefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+	    options.coefficients =
+	      EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS.slice();
 	  }
 
 	  // Assign room's speed of sound.
@@ -11975,6 +12094,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this.setRoomProperties(options.dimensions, options.coefficients);
 	}
 
+
 	/**
 	 * Set the listener's position (in meters),
 	 * where [0,0,0] is the center of the room.
@@ -11988,18 +12108,18 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	  // Determine distances to each wall.
 	  var distances = {
-	    left :
-	      1 * (this._halfDimensions.width + x) + EarlyReflections.MIN_DISTANCE,
-	    right :
-	      1 * (this._halfDimensions.width - x) + EarlyReflections.MIN_DISTANCE,
-	    front :
-	      1 * (this._halfDimensions.depth + z) + EarlyReflections.MIN_DISTANCE,
-	    back :
-	      1 * (this._halfDimensions.depth - z) + EarlyReflections.MIN_DISTANCE,
-	    down :
-	      1 * (this._halfDimensions.height + y) + EarlyReflections.MIN_DISTANCE,
-	    up :
-	      1 * (this._halfDimensions.height - y) + EarlyReflections.MIN_DISTANCE,
+	    left : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+	      this._halfDimensions.width + x) + EarlyReflections.MIN_DISTANCE,
+	    right : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+	      this._halfDimensions.width - x) + EarlyReflections.MIN_DISTANCE,
+	    front : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+	      this._halfDimensions.depth + z) + EarlyReflections.MIN_DISTANCE,
+	    back : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+	      this._halfDimensions.depth - z) + EarlyReflections.MIN_DISTANCE,
+	    down : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+	      this._halfDimensions.height + y) + EarlyReflections.MIN_DISTANCE,
+	    up : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+	      this._halfDimensions.height - y) + EarlyReflections.MIN_DISTANCE,
 	  };
 
 	  // Assign delay & attenuation values using distances.
@@ -12013,6 +12133,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    this._gains[property].gain.value = attenuation;
 	  }
 	}
+
 
 	/**
 	 * Set the room's properties which determines the characteristics of
@@ -12046,40 +12167,42 @@ return /******/ (function(modules) { // webpackBootstrap
 	    this._listenerPosition[1], this._listenerPosition[2]);
 	}
 
-	// Static constants.
-	/**
-	 * The maximum delay (in seconds) of a single wall reflection.
-	 * @type {Number}
-	 */
-	EarlyReflections.MAX_DURATION = 0.5;
-	/**
-	 * The -12dB cutoff frequency (in Hertz) for the lowpass filter applied to
-	 * all reflections.
-	 * @type {Number}
-	 */
-	EarlyReflections.CUTOFF_FREQUENCY = 6400; // Uses -12dB cutoff.
-	/**
-	 * The default reflection coefficients (where 0 = no reflection, 1 = perfect
-	 * reflection, -1 = mirrored reflection (180-degrees out of phase)).
-	 * @type {Object}
-	 */
-	EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS = {
-	  left : 0, right : 0, front : 0, back : 0, down : 0, up : 0
-	};
-	/**
-	 * The minimum distance we consider the listener to be to any given wall.
-	 * @type {Number}
-	 */
-	EarlyReflections.MIN_DISTANCE = 1;
-	/**
-	 * Default room dimensions (in meters).
-	 * @type {Object}
-	 */
-	EarlyReflections.DEFAULT_DIMENSIONS = {
-	  width : 0, height : 0, depth : 0
-	};
 
 	module.exports = EarlyReflections;
+
+/***/ }),
+/* 13 */
+/***/ (function(module, exports) {
+
+	/**
+	 * Copyright 2017 Google Inc. All Rights Reserved.
+	 * Licensed under the Apache License, Version 2.0 (the "License");
+	 * you may not use this file except in compliance with the License.
+	 * You may obtain a copy of the License at
+	 *
+	 *     http://www.apache.org/licenses/LICENSE-2.0
+	 *
+	 * Unless required by applicable law or agreed to in writing, software
+	 * distributed under the License is distributed on an "AS IS" BASIS,
+	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+	 * See the License for the specific language governing permissions and
+	 * limitations under the License.
+	 */
+
+	/**
+	 * @file Songbird version.
+	 * @author Andrew Allen <bitllama@google.com>
+	 */
+
+	'use strict';
+
+
+	/**
+	 * Songbird library version
+	 * @type {String}
+	 */
+	module.exports = '0.0.1';
+
 
 /***/ })
 /******/ ])

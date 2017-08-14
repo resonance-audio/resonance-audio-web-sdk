@@ -24,6 +24,74 @@
 // Internal dependencies.
 var Utils = require('./utils.js');
 
+
+// Static constants.
+/** The default bandwidth (in octaves) of the center frequencies.
+ * @type {Number}
+ */
+LateReflections.DEFAULT_BANDWIDTH = 1;
+
+
+/** The default multiplier applied when computing tail lengths.
+ * @type {Number}
+ */
+LateReflections.DURATION_MULTIPLIER = 1;
+
+
+/**
+ * The late reflections pre-delay (in milliseconds).
+ * @type {Number}
+ */
+LateReflections.DEFAULT_PREDELAY = 1.5;
+
+
+/**
+ * The length of the beginning of the impulse response to apply a
+ * half-Hann window to.
+ * @type {Number}
+ */
+LateReflections.DEFAULT_TAIL_ONSET = 3.8;
+
+
+/**
+ * The default gain (linear).
+ * @type {Number}
+ */
+LateReflections.DEFAULT_GAIN = 0.01;
+
+
+/**
+ * The maximum impulse response length (in seconds).
+ * @type {Number}
+ */
+LateReflections.MAX_DURATION = 3;
+
+
+/**
+ * Center frequencies of the multiband late reflections.
+ * Nine bands are computed by: 31.25 * 2^(0:8).
+ * @type {Array}
+ */
+LateReflections.FREQUENCY_BANDS = [
+  31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000
+];
+
+
+/**
+ * The number of frequency bands.
+ */
+LateReflections.NUMBER_FREQUENCY_BANDS =
+  LateReflections.FREQUENCY_BANDS.length;
+
+
+/**
+ * The default multiband RT60 durations (in seconds).
+ * @type {Float32Array}
+ */
+LateReflections.DEFAULT_DURATIONS =
+  new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
+
+
 /**
  * @class LateReflections
  * @description Late-reflections reverberation filter for Ambisonic content.
@@ -68,7 +136,7 @@ function LateReflections (context, options) {
     options = new Object();
   }
   if (options.durations == undefined) {
-    options.durations = LateReflections.DEFAULT_DURATIONS;
+    options.durations = LateReflections.DEFAULT_DURATIONS.slice();
   }
   if (options.predelay == undefined) {
     options.predelay = LateReflections.DEFAULT_PREDELAY;
@@ -109,6 +177,7 @@ function LateReflections (context, options) {
   // Compute IR using RT60 values.
   this.setDurations(options.durations);
 }
+
 
 /**
  * Re-compute a new impulse response by providing Multiband RT60 durations.
@@ -164,7 +233,6 @@ LateReflections.prototype.setDurations = function (durations) {
   for (var i = 0; i < LateReflections.NUMBER_FREQUENCY_BANDS; i++) {
   //for (var i = 0; i < 1; i++) {
     // Compute decay rate.
-    //TODO(bitllama): Remove global usage.
     var decayRate = -Utils.LOG1000 / durationsSamples[i];
 
     // Construct a standard one-zero, two-pole bandpass filter:
@@ -209,53 +277,5 @@ LateReflections.prototype.setDurations = function (durations) {
   this._convolver.buffer = buffer;
 }
 
-// Static constants.
-/** The default bandwidth (in octaves) of the center frequencies.
- * @type {Number}
- */
-LateReflections.DEFAULT_BANDWIDTH = 1;
-/** The default multiplier applied when computing tail lengths.
- * @type {Number}
- */
-LateReflections.DURATION_MULTIPLIER = 1;
-/**
- * The late reflections pre-delay (in milliseconds).
- * @type {Number}
- */
-LateReflections.DEFAULT_PREDELAY = 1.5;
-/**
- * The length of the beginning of the impulse response to apply a
- * half-Hann window to.
- * @type {Number}
- */
-LateReflections.DEFAULT_TAIL_ONSET = 3.8;
-/**
- * The default gain (linear).
- * @type {Number}
- */
-LateReflections.DEFAULT_GAIN = 0.01;
-/**
- * The maximum impulse response length (in seconds).
- * @type {Number}
- */
-LateReflections.MAX_DURATION = 3;
-/**
- * Center frequencies of the multiband late reflections.
- * Nine bands are computed by: 31.25 * 2^(0:8).
- * @type {Array}
- */
-LateReflections.FREQUENCY_BANDS = [
-  31.25, 62.5, 125, 250, 500, 1000, 2000, 4000, 8000
-];
-/**
- * The number of frequency bands.
- */
-LateReflections.NUMBER_FREQUENCY_BANDS = LateReflections.FREQUENCY_BANDS.length;
-/**
- * The default multiband RT60 durations (in seconds).
- * @type {Float32Array}
- */
-LateReflections.DEFAULT_DURATIONS =
-  new Float32Array(LateReflections.NUMBER_FREQUENCY_BANDS);
 
 module.exports = LateReflections;

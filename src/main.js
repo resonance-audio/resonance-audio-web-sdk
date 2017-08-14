@@ -21,11 +21,20 @@
 
  'use strict';
 
+
 // Main module.
 exports.Songbird = require('./songbird.js');
 
+
 // Testable Submodules.
-exports.Songbird.Room = require('./room.js');
 exports.Songbird.Attenuation = require('./attenuation.js');
+exports.Songbird.Directivity = require('./directivity.js');
+exports.Songbird.EarlyReflections = require('./early-reflections.js');
 exports.Songbird.Encoder = require('./encoder.js');
+exports.Songbird.LateReflections = require('./late-reflections.js');
+exports.Songbird.Listener = require('./listener.js');
+exports.Songbird.Room = require('./room.js');
+exports.Songbird.Source = require('./source.js');
+exports.Songbird.Tables = require('./tables.js');
 exports.Songbird.Utils = require('./utils.js');
+exports.Songbird.Version = require('./version.js');

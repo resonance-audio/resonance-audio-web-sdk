@@ -24,6 +24,22 @@
 // Internal dependencies.
 var Utils = require('./utils.js');
 
+
+// Static variables
+/**
+ * The default alpha (i.e. microphone pattern).
+ * @type {Number}
+ */
+Directivity.DEFAULT_ALPHA = 0;
+
+
+/**
+ * The default pattern sharpness (i.e. pattern exponent).
+ * @type {Number}
+ */
+Directivity.DEFAULT_SHARPNESS = 1;
+
+
 /**
  * @class Directivity
  * @description Directivity/occlusion filter.
@@ -35,10 +51,10 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * Determines directivity pattern (0 to 1). See
  * {@link Directivity#setPattern setPattern} for more details. Defaults to
  * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
- * @param {Number} options.exponent
- * Determines the steepness of the directivity pattern (1 to Inf). See
+ * @param {Number} options.sharpness
+ * Determines the sharpness of the directivity pattern (1 to Inf). See
  * {@link Directivity#setPattern setPattern} for more details. Defaults to
- * {@linkcode Directivity.DEFAULT_EXPONENT DEFAULT_EXPONENT}.
+ * {@linkcode Directivity.DEFAULT_SHARPNESS DEFAULT_SHARPNESS}.
  */
 function Directivity (context, options) {
   // Public variables.
@@ -64,8 +80,8 @@ function Directivity (context, options) {
   if (options.alpha == undefined) {
     options.alpha = Directivity.DEFAULT_ALPHA;
   }
-  if (options.exponent == undefined) {
-    options.exponent = Directivity.DEFAULT_EXPONENT;
+  if (options.sharpness == undefined) {
+    options.sharpness = Directivity.DEFAULT_SHARPNESS;
   }
 
   // Create audio node.
@@ -78,12 +94,13 @@ function Directivity (context, options) {
   this._lowpass.frequency.value = context.sampleRate * 0.5;
 
   this._cosTheta = 0;
-  this.setPattern(options.alpha, options.exponent);
+  this.setPattern(options.alpha, options.sharpness);
 
   // Input/Output proxy.
   this.input = this._lowpass;
   this.output = this._lowpass;
 }
+
 
 /**
  * Compute the filter using the source's forward orientation and the listener's
@@ -103,43 +120,33 @@ Directivity.prototype.computeAngle = function (forward, direction) {
   this._lowpass.frequency.value = this._context.sampleRate * 0.5 * coeff;
 }
 
+
 /**
  * Set source's directivity pattern (defined by alpha), where 0 is an
  * omnidirectional pattern, 1 is a bidirectional pattern, 0.5 is a cardiod
- * pattern. The sharpness of the pattern is increased with the exponent.
+ * pattern. The sharpness of the pattern is increased exponenentially.
  * @param {Number} alpha
  * Determines directivity pattern (0 to 1). Defaults to
  * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
- * @param {Number} exponent
- * Determines the steepness of the directivity pattern (1 to Inf). Defaults to
- * {@linkcode Directivity.DEFAULT_EXPONENT DEFAULT_EXPONENT}.
+ * @param {Number} sharpness
+ * Determines the sharpness of the directivity pattern (1 to Inf). Defaults to
+ * {@linkcode Directivity.DEFAULT_SHARPNESS DEFAULT_SHARPNESS}.
  */
-Directivity.prototype.setPattern = function (alpha, exponent) {
+Directivity.prototype.setPattern = function (alpha, sharpness) {
   if (alpha == undefined) {
     alpha = Directivity.DEFAULT_ALPHA;
   }
-  if (exponent == undefined) {
-    exponent = Directivity.DEFAULT_EXPONENT;
+  if (sharpness == undefined) {
+    sharpness = Directivity.DEFAULT_SHARPNESS;
   }
 
   // Clamp and set values.
   this._alpha = Math.min(1, Math.max(0, alpha));
-  this._exponent = Math.max(1, exponent);
+  this._sharpness = Math.max(1, sharpness);
 
   // Update angle calculation using new values.
   this.computeAngle([this._cosTheta * this._cosTheta, 0, 0], [1, 0, 0]);
 }
 
-// Static variables
-/**
- * The default alpha (i.e. microphone pattern).
- * @type {Number}
- */
-Directivity.DEFAULT_ALPHA = 0;
-/**
- * The default exponent (i.e. pattern sharpness).
- * @type {Number}
- */
-Directivity.DEFAULT_EXPONENT = 1;
 
 module.exports = Directivity;

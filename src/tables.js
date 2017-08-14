@@ -20,6 +20,7 @@
 
 'use strict';
 
+
 /**
  * Pre-computed Spherical Harmonics Coefficients.
  *
@@ -4910,6 +4911,7 @@ exports.SPHERICAL_HARMONICS =
     ]
   ]
 ];
+
 
 /**
  * Pre-computed per-band weighting coefficients for producing energy-preserving

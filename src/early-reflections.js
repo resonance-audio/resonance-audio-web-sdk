@@ -24,6 +24,56 @@
 // Internal dependencies.
 var Utils = require('./utils.js');
 
+
+// Static constants.
+/**
+ * The maximum delay (in seconds) of a single wall reflection.
+ * @type {Number}
+ */
+EarlyReflections.MAX_DURATION = 0.5;
+
+
+/**
+ * The -12dB cutoff frequency (in Hertz) for the lowpass filter applied to
+ * all reflections.
+ * @type {Number}
+ */
+EarlyReflections.CUTOFF_FREQUENCY = 6400; // Uses -12dB cutoff.
+
+
+/**
+ * The default reflection coefficients (where 0 = no reflection, 1 = perfect
+ * reflection, -1 = mirrored reflection (180-degrees out of phase)).
+ * @type {Object}
+ */
+EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS = {
+  left : 0, right : 0, front : 0, back : 0, down : 0, up : 0
+};
+
+
+/**
+ * The minimum distance we consider the listener to be to any given wall.
+ * @type {Number}
+ */
+EarlyReflections.MIN_DISTANCE = 1;
+
+
+/**
+ * Default room dimensions (in meters).
+ * @type {Object}
+ */
+EarlyReflections.DEFAULT_DIMENSIONS = {
+  width : 0, height : 0, depth : 0
+};
+
+
+/**
+ * The multiplier to apply to distances from the listener to each wall.
+ * @type {Number}
+ */
+EarlyReflections.REFLECTIONS_MULTIPLIER = 1;
+
+
 /**
  * @class EarlyReflections
  * @description Ray-tracing-based early reflections model.
@@ -75,10 +125,11 @@ function EarlyReflections (context, options) {
     options.speedOfSound = Utils.DEFAULT_SPEED_OF_SOUND;
   }
   if (options.listenerPosition == undefined) {
-    options.listenerPosition = Utils.DEFAULT_POSITION;
+    options.listenerPosition = Utils.DEFAULT_POSITION.slice();
   }
   if (options.coefficients == undefined) {
-    options.coefficients = EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS;
+    options.coefficients =
+      EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS.slice();
   }
 
   // Assign room's speed of sound.
@@ -148,6 +199,7 @@ function EarlyReflections (context, options) {
   this.setRoomProperties(options.dimensions, options.coefficients);
 }
 
+
 /**
  * Set the listener's position (in meters),
  * where [0,0,0] is the center of the room.
@@ -161,18 +213,18 @@ EarlyReflections.prototype.setListenerPosition = function (x, y, z) {
 
   // Determine distances to each wall.
   var distances = {
-    left :
-      1 * (this._halfDimensions.width + x) + EarlyReflections.MIN_DISTANCE,
-    right :
-      1 * (this._halfDimensions.width - x) + EarlyReflections.MIN_DISTANCE,
-    front :
-      1 * (this._halfDimensions.depth + z) + EarlyReflections.MIN_DISTANCE,
-    back :
-      1 * (this._halfDimensions.depth - z) + EarlyReflections.MIN_DISTANCE,
-    down :
-      1 * (this._halfDimensions.height + y) + EarlyReflections.MIN_DISTANCE,
-    up :
-      1 * (this._halfDimensions.height - y) + EarlyReflections.MIN_DISTANCE,
+    left : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+      this._halfDimensions.width + x) + EarlyReflections.MIN_DISTANCE,
+    right : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+      this._halfDimensions.width - x) + EarlyReflections.MIN_DISTANCE,
+    front : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+      this._halfDimensions.depth + z) + EarlyReflections.MIN_DISTANCE,
+    back : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+      this._halfDimensions.depth - z) + EarlyReflections.MIN_DISTANCE,
+    down : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+      this._halfDimensions.height + y) + EarlyReflections.MIN_DISTANCE,
+    up : EarlyReflections.REFLECTIONS_MULTIPLIER * Math.max(0,
+      this._halfDimensions.height - y) + EarlyReflections.MIN_DISTANCE,
   };
 
   // Assign delay & attenuation values using distances.
@@ -186,6 +238,7 @@ EarlyReflections.prototype.setListenerPosition = function (x, y, z) {
     this._gains[property].gain.value = attenuation;
   }
 }
+
 
 /**
  * Set the room's properties which determines the characteristics of
@@ -219,37 +272,5 @@ EarlyReflections.prototype.setRoomProperties = function (dimensions,
     this._listenerPosition[1], this._listenerPosition[2]);
 }
 
-// Static constants.
-/**
- * The maximum delay (in seconds) of a single wall reflection.
- * @type {Number}
- */
-EarlyReflections.MAX_DURATION = 0.5;
-/**
- * The -12dB cutoff frequency (in Hertz) for the lowpass filter applied to
- * all reflections.
- * @type {Number}
- */
-EarlyReflections.CUTOFF_FREQUENCY = 6400; // Uses -12dB cutoff.
-/**
- * The default reflection coefficients (where 0 = no reflection, 1 = perfect
- * reflection, -1 = mirrored reflection (180-degrees out of phase)).
- * @type {Object}
- */
-EarlyReflections.DEFAULT_REFLECTION_COEFFICIENTS = {
-  left : 0, right : 0, front : 0, back : 0, down : 0, up : 0
-};
-/**
- * The minimum distance we consider the listener to be to any given wall.
- * @type {Number}
- */
-EarlyReflections.MIN_DISTANCE = 1;
-/**
- * Default room dimensions (in meters).
- * @type {Object}
- */
-EarlyReflections.DEFAULT_DIMENSIONS = {
-  width : 0, height : 0, depth : 0
-};
 
 module.exports = EarlyReflections;

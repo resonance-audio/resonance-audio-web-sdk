@@ -20,6 +20,7 @@
 
 'use strict';
 
+
 /**
  * Songbird library version
  * @type {String}
