@@ -1,6 +1,6 @@
 # Songbird: Spatial Audio Encoding on the Web
 
-[![Travis](https://travis-ci.org/google/songbird.svg?branch=master)](https://travis-ci.org/google/songbird) [![npm](https://img.shields.io/npm/v/songbird-audio.svg?colorB=4bc51d)](https://www.npmjs.com/package/songbird-audio) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/google/songbird/master/LICENSE) -->
+[![Travis](https://travis-ci.org/google/songbird.svg?branch=master)](https://travis-ci.org/google/songbird) [![npm](https://img.shields.io/npm/v/songbird-audio.svg?colorB=4bc51d)](https://www.npmjs.com/package/songbird-audio) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/google/songbird/master/LICENSE)
 
 Songbird is a real-time spatial audio encoding JavaScript library for WebAudio
 applications. It allows web developers to dynamically spatially-encode
