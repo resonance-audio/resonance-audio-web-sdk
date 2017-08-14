@@ -164,8 +164,7 @@ source.setPosition(x, y, z);
 songbird.setListenerPosition(x, y, z);
 ```
 
-The `Source` and Listener orientations can be set using forward and up vectors
-or using rotation angles:
+The `Source` and Listener orientations can be set using forward and up vectors:
 
 ```js
 // Set Source and Listener orientation.
@@ -173,7 +172,7 @@ source.setOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);
 songbird.setListenerOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);
 ```
 
-Alternatively, the `Source`'s and Listener position and orientation can be set using Three.js modelViewMatrix objects:
+Alternatively, the `Source`'s and Listener position and orientation can be set using Three.js Matrix4 objects:
 
 ```js
 source.setFromMatrix(matrix4);

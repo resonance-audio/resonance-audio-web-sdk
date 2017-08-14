@@ -524,26 +524,26 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	/**
 	 * Set the listener's position and orientation using a Three.js Matrix4 object.
-	 * @param {Object} matrix
+	 * @param {Object} matrix4
 	 * The Three.js Matrix4 object representing the listener's world transform.
 	 */
-	Listener.prototype.setFromMatrix = function (matrix) {
+	Listener.prototype.setFromMatrix = function (matrix4) {
 	  // Update ambisonic rotation matrix internally.
-	  this._tempMatrix4[0] = matrix[0];
-	  this._tempMatrix4[1] = matrix[1];
-	  this._tempMatrix4[2] = matrix[2];
-	  this._tempMatrix4[3] = matrix[4];
-	  this._tempMatrix4[4] = matrix[5];
-	  this._tempMatrix4[5] = matrix[6];
-	  this._tempMatrix4[6] = matrix[8];
-	  this._tempMatrix4[7] = matrix[9];
-	  this._tempMatrix4[8] = matrix[10];
+	  this._tempMatrix4[0] = matrix4.elements[0];
+	  this._tempMatrix4[1] = matrix4.elements[1];
+	  this._tempMatrix4[2] = matrix4.elements[2];
+	  this._tempMatrix4[3] = matrix4.elements[4];
+	  this._tempMatrix4[4] = matrix4.elements[5];
+	  this._tempMatrix4[5] = matrix4.elements[6];
+	  this._tempMatrix4[6] = matrix4.elements[8];
+	  this._tempMatrix4[7] = matrix4.elements[9];
+	  this._tempMatrix4[8] = matrix4.elements[10];
 	  this._renderer.setRotationMatrix(this._tempMatrix4);
 
 	  // Extract position from matrix.
-	  this.position[0] = matrix[12];
-	  this.position[1] = matrix[13];
-	  this.position[2] = matrix[14];
+	  this.position[0] = matrix4.elements[12];
+	  this.position[1] = matrix4.elements[13];
+	  this.position[2] = matrix4.elements[14];
 	}
 
 
@@ -3412,15 +3412,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * The Matrix4 representing the object position and rotation in world space.
 	 */
 	Source.prototype.setFromMatrix = function (matrix4) {
-	  this._right[0] = matrix4[0];
-	  this._right[1] = matrix4[1];
-	  this._right[2] = matrix4[2];
-	  this._up[0] = matrix4[4];
-	  this._up[1] = matrix4[5];
-	  this._up[2] = matrix4[6];
-	  this._forward[0] = matrix4[8];
-	  this._forward[1] = matrix4[9];
-	  this._forward[2] = matrix4[10];
+	  this._right[0] = matrix4.elements[0];
+	  this._right[1] = matrix4.elements[1];
+	  this._right[2] = matrix4.elements[2];
+	  this._up[0] = matrix4.elements[4];
+	  this._up[1] = matrix4.elements[5];
+	  this._up[2] = matrix4.elements[6];
+	  this._forward[0] = matrix4.elements[8];
+	  this._forward[1] = matrix4.elements[9];
+	  this._forward[2] = matrix4.elements[10];
 
 	  // Normalize to remove scaling.
 	  this._right = Utils.normalizeVector(this._right);
@@ -3428,7 +3428,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	  this._forward = Utils.normalizeVector(this._forward);
 
 	  // Update position.
-	  this.setPosition(matrix4[12], matrix4[13], matrix4[14]);
+	  this.setPosition(
+	    matrix4.elements[12], matrix4.elements[13], matrix4.elements[14]);
 	}
 
 
