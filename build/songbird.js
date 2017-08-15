@@ -265,7 +265,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	  // Create a source and push it to the internal sources array, returning
 	  // the object's reference to the user.
 	  var source = new Source(this, options);
-	  //this._sources[this._sources.length] = source;
+	  this._sources[this._sources.length] = source;
 	  return source;
 	}
 
@@ -12205,7 +12205,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	 * Songbird library version
 	 * @type {String}
 	 */
-	module.exports = '0.0.1';
+	module.exports = '0.0.2';
 
 
 /***/ })
