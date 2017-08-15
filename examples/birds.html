@@ -1,0 +1,120 @@
+<!--
+  Copyright 2017 Google Inc. All Rights Reserved.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Flock of birds example.</title>
+  <script src="../build/songbird.js"></script>
+</head>
+<body>
+  <h1>
+    Flock of birds example.
+  </h1>
+  <p>
+  </p>
+  <script>
+    var alpha = 0;
+    var aziPhase = [];
+    var elePhase = [];
+    var aziRate = [];
+    var eleRate = [];
+    var radPhase = [];
+    var radRate = [];
+    var radRange = 20;
+    var radMin = 1;
+    var songbird, audioContext;
+    var birdFilenames = [
+      'resources/bird01.wav',
+      'resources/bird02.wav',
+      'resources/bird03.wav',
+      'resources/bird04.wav',
+      'resources/bird05.wav',
+      'resources/bird06.wav',
+      'resources/bird07.wav',
+      'resources/bird08.wav',
+      'resources/bird09.wav',
+    ];
+    var birdProb = [100, 100, 100, 100, 0, 0, 100, 100, 100];
+    var numberOfProbs = 0;
+    birdProb.forEach(function (elem) {
+      numberOfProbs += elem;
+    });
+    var numberOfBirds = 16;
+    var birdElements = [];
+    var birdElementSources = [];
+    var birdSources = [];
+    var deltaTime = 100;
+
+    function updatePositions () {
+      var x, y, z;
+      for (var i = 0; i < numberOfBirds; i++) {
+        var theta = alpha * aziRate[i] + aziPhase[i];
+        var phi = alpha * eleRate[i] + elePhase[i];
+        var rad = (Math.cos(alpha * radRate[i] + radPhase[i]) / 2 + 0.5) *
+          radRange + radMin;
+        x = Math.sin(theta) * Math.cos(phi) * rad;
+        y = Math.sin(phi) * rad;
+        z = Math.cos(theta) * Math.cos(phi) * rad;
+        birdSources[i].setPosition(x, y, z);
+      }
+      alpha += deltaTime / 1000;
+    }
+
+    var onLoad = function () {
+      audioContext = new AudioContext();
+
+      // Create a (1st-order Ambisonic) Songbird scene.
+      songbird = new Songbird(audioContext, {ambisonicOrder: 3});
+
+      // Send songbird's binaural output to stereo out.
+      songbird.output.connect(audioContext.destination);
+
+      for (var i = 0; i < numberOfBirds; i++) {
+        birdElements[i] = document.createElement('audio');
+        var randProb = Math.round(Math.random() * numberOfProbs);
+        var filenameIndex = 0;
+        for (var j = 0; j < birdProb.length; j++) {
+          randProb -= birdProb[j];
+          if (randProb <= 0) {
+            filenameIndex = j;
+            break;
+          }
+        }
+        birdElements[i].src = birdFilenames[filenameIndex];
+        birdElements[i].loop = true;
+        birdElementSources[i] =
+          audioContext.createMediaElementSource(birdElements[i]);
+        birdSources[i] = songbird.createSource({gain: 1 / numberOfBirds});
+        birdElementSources[i].connect(birdSources[i].input);
+      }
+
+      for (var i = 0; i < numberOfBirds; i++) {
+        aziPhase[i] = Math.random() * Math.PI * 2;
+        aziRate[i] = Math.random() * 2 + 0.1;
+        elePhase[i] = Math.random() * Math.PI * 2;
+        eleRate[i] = Math.random() * 2 + 0.1;
+        radPhase[i] = Math.random() * Math.PI * 2;
+        radRate[i] = Math.random() * 0.1 + 0.01;
+      }
+
+      for (var i = 0; i < numberOfBirds; i++) {
+        birdElements[i].play();
+      }
+      setInterval(updatePositions, deltaTime);
+    };
+    window.addEventListener('load', onLoad);
+</script>
+</body>
