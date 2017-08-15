@@ -20,7 +20,7 @@ Hear Songbird in action:
 The implementation of Songbird is based on the
 [Google spatial media](https://github.com/google/spatial-media) specification.
 It expects mono input to its `Source` instances and outputs
-ambisonic (multichannel) ACN channel layout with SN3D normalization.
+ambisonic (multichannel) ACN channel layout with SN3D normalization. Detailed documentation may be found [here](https://rawgit.com/google/songbird/master/doc/index.html).
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -260,7 +260,7 @@ var sourceOptions = {
 var source = songbird.createSource(sourceOptions);
 ```
 
-See the documentation for more details on all optional arguments.
+See the [documentation](https://rawgit.com/google/songbird/master/doc/index.html) for more details on all optional arguments.
 
 
 ## Porting From PannerNode
