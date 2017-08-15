@@ -43,8 +43,7 @@
 
 
     <section>
-        <article><h1>Songbird: Spatial Audio Encoding on the Web</h1><!-- TODO(bitllama): Add Travis support -->
-<!-- [![Travis](https://img.shields.io/travis/GoogleChrome/omnitone.svg)](https://travis-ci.org/GoogleChrome/omnitone) [![npm](https://img.shields.io/npm/v/omnitone.svg?colorB=4bc51d)](https://www.npmjs.com/package/omnitone) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/GoogleChrome/omnitone/master/LICENSE) -->
+        <article><h1>Songbird: Spatial Audio Encoding on the Web</h1><p><a href="https://travis-ci.org/google/songbird"><img src="https://travis-ci.org/google/songbird.svg?branch=master" alt="Travis"></a> <a href="https://www.npmjs.com/package/songbird-audio"><img src="https://img.shields.io/npm/v/songbird-audio.svg?colorB=4bc51d" alt="npm"></a> <a href="https://raw.githubusercontent.com/google/songbird/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202-brightgreen.svg" alt="GitHub license"></a></p>
 <p>Songbird is a real-time spatial audio encoding JavaScript library for WebAudio
 applications. It allows web developers to dynamically spatially-encode
 streaming audio content into scalable
@@ -52,6 +51,11 @@ streaming audio content into scalable
 rendered using a binaural renderer such as
 <a href="https://github.com/GoogleChrome/omnitone">Omnitone</a> for realistic and
 quality-scalable 3D audio.</p>
+<p>See Songbird in action:</p>
+<ul>
+<li><a href="https://rawgit.com/google/songbird/master/examples/panner-node-vs-songbird.html">PannerNode vs. Songbird example</a></li>
+<li><a href="https://rawgit.com/google/songbird/master/examples/room-model.html">Room model example</a></li>
+</ul>
 <p>The implementation of Songbird is based on the
 <a href="https://github.com/google/spatial-media">Google spatial media</a> specification.
 It expects mono input to its <code>Source</code> instances and outputs
@@ -60,10 +64,11 @@ ambisonic (multichannel) ACN channel layout with SN3D normalization.</p>
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 <p><strong>Table of Contents</strong></p>
 <ul>
-<li><a href="#how-it-works">How it works</a><ul>
+<li><a href="#how-it-works">How it works</a></li>
+<li><a href="#installation">Installation</a></li>
+<li><a href="#usage">Usage</a><ul>
 <li><a href="#hello-world-example">&quot;Hello World&quot; Example</a></li>
 <li><a href="#positioning-sources-and-the-listener">Positioning Sources and the Listener</a></li>
-<li><a href="#source-width-and-directivity">Source width and directivity</a></li>
 <li><a href="#room-properties">Room Properties</a></li>
 </ul>
 </li>
@@ -89,26 +94,19 @@ Binaurally-rendered ambisonic output is generated using
 <a href="https://github.com/GoogleChrome/omnitone">Omnitone</a>, and raw ambisonic output
 is exposed as well.</p>
 <p align="center">
-  <img src="../diagram-songbird.png" alt="Songbird Diagram">
+  <img
+    src="https://cdn.rawgit.com/google/songbird/master/diagram-songbird.png"
+    alt="Songbird Diagram">
 </p>
 
-<!-- TODO(bitllama): Actually put Songbird on NPM -->
-<!-- ## Installation
 
-Songbird is designed to be used for web front-end projects. So [NPM](https://www.npmjs.com/) is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.
+<h2>Installation</h2><p>Songbird is designed to be used for web front-end projects. So <a href="https://www.npmjs.com/">NPM</a> is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.</p>
+<pre class="prettyprint source lang-bash"><code>npm install songbird-audio</code></pre><h2>Usage</h2><p>The first step is to include the library file in an HTML document.</p>
+<pre class="prettyprint source lang-html"><code>&lt;!-- Use Songbird from installed node_modules/ -->
+&lt;script src=&quot;node_modules/songbird-audio/build/songbird.min.js&quot;>&lt;/script>
 
-```bash
-npm install songbird
-``` -->
-<h2>Usage</h2><p>The first step is to include the library file in an HTML document.</p>
-<!-- TODO(bitllama): replace with node_modules/CDN ASAP! -->
-<pre class="prettyprint source lang-html"><code>&lt;script src=&quot;songbird.min.js&quot;>&lt;/script></code></pre><!-- ```html
-<!-- Use Songbird from installed node_modules/ -->
-<!-- <script src="node_modules/Songbird/build/songbird.min.js"></script> -->
-<!-- TODO(bitllama): rawgit/CDN -->
-<!-- if you prefer to use CDN -->
-<!-- <script src="THISISNOTAREALLINKBUTITWILLBESOON.js"></script> -->
-<p>Spatial encoding is done by creating a <code>Songbird</code> scene using an associted
+&lt;!-- if you prefer to use CDN -->
+&lt;script src=&quot;https://cdn.rawgit.com/google/songbird/master/build/songbird.min.js&quot;>&lt;/script></code></pre><p>Spatial encoding is done by creating a <code>Songbird</code> scene using an associted
 <code>AudioContext</code> and then creating any number of associated <code>Source</code> objects
 using <code>Songbird.createSource()</code>. The <code>Songbird</code> scene models a physical
 listener while adding room reflections and reverberation. The <code>Source</code>
@@ -116,7 +114,7 @@ instances model acoustic sound sources. The library is designed to be easily
 integrated into an existing WebAudio audio graph.</p>
 <h3>&quot;Hello World&quot; Example</h3><p>Let's see how we can create a scene and generate some audio. Let's begin by
 constructing an <code>AudioContext</code> and <code>Songbird</code> scene and connecting it to the
-audio output.</p>
+audio output. You can view a live demo of this example <a href="https://rawgit.com/google/songbird/master/examples/hello-world.html">here</a>.</p>
 <pre class="prettyprint source lang-js"><code>var audioContext = new AudioContext();
 
 // Create a (1st-order Ambisonic) Songbird scene.
@@ -164,13 +162,14 @@ source.setPosition(-0.707, -0.707, 0);
 audioElement.play();</code></pre><h3>Positioning Sources and the Listener</h3><p><code>Source</code> objects can be placed with cartesian coordinates relative to the origin (center of the room). Songbird uses a right-handed coordinate system, similar to OpenGL and Three.js.</p>
 <pre class="prettyprint source lang-js"><code>// Or Source's and Listener's positions.
 source.setPosition(x, y, z);
-songbird.setListenerPosition(x, y, z);</code></pre><p>The <code>Source</code> and Listener orientations can be set using forward and up vectors
-or using rotation angles:</p>
+songbird.setListenerPosition(x, y, z);</code></pre><p>The <code>Source</code> and Listener orientations can be set using forward and up vectors:</p>
 <pre class="prettyprint source lang-js"><code>// Set Source and Listener orientation.
 source.setOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);
-songbird.setListenerOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);</code></pre><p>Alternatively, the <code>Source</code>'s and Listener position and orientation can be set using Three.js modelViewMatrix objects:</p>
+songbird.setListenerOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);</code></pre><p>Alternatively, the <code>Source</code>'s and Listener position and orientation can be set using Three.js Matrix4 objects:</p>
 <pre class="prettyprint source lang-js"><code>source.setFromMatrix(matrix4);
-songbird.setListenerFromMatrix(matrix4);</code></pre><h3>Source width and directivity</h3><p>...</p>
+songbird.setListenerFromMatrix(matrix4);</code></pre><!-- ### Source width and directivity
+
+... -->
 <h3>Room Properties</h3><p>Room properties can be set to control the characteristics of spatial
 reflections and reverberation. We currently support the following named
 materials:</p>
@@ -239,12 +238,8 @@ library and to manage dependencies.</p>
 npm run build       # build a non-minified library.
 npm run watch       # recompile whenever any source file changes.
 npm run build-all   # build a minified library and copy static resources.
-npm run doc         # generate documentation.</code></pre><h2>Testing</h2><!-- TODO(bitllama): Actually setup Travis -->
-<!-- Songbird uses [Travis](https://travis-ci.org/) and [Karma]
-(https://karma-runner.github.io/1.0/index.html) test runner for continuous
-integration (The index HTML page for the local testing is deprecated in
-v0.2.1). -->
-<p>To run the test suite locally, clone the repository, install dependencies and launch the test runner:</p>
+npm run doc         # generate documentation.</code></pre><h2>Testing</h2><p>Songbird uses <a href="https://travis-ci.org/">Travis</a> and <a href="https://karma-runner.github.io/1.0/index.html">Karma</a> test runner for continuous
+integration. To run the test suite locally, clone the repository, install dependencies and launch the test runner:</p>
 <pre class="prettyprint source lang-bash"><code>npm test</code></pre><p>Note that unit tests require the promisified version of <code>OfflineAudioContext</code>,
 so they might not run on non-spec-compliant browsers. Songbird's Travis CI is
 using the latest stable version of Chrome.</p>
@@ -488,7 +483,7 @@ of mobile browsers.</p>
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.3</a> on Mon Aug 14 2017 10:18:29 GMT-0700 (PDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.3</a> on Mon Aug 14 2017 17:23:23 GMT-0700 (PDT)
 </footer>
 
 <script> prettyPrint(); </script>

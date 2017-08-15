@@ -26,9 +26,10 @@ ambisonic (multichannel) ACN channel layout with SN3D normalization.
 **Table of Contents**
 
 - [How it works](#how-it-works)
+- [Installation](#installation)
+- [Usage](#usage)
   - ["Hello World" Example](#hello-world-example)
   - [Positioning Sources and the Listener](#positioning-sources-and-the-listener)
-  - [Source width and directivity](#source-width-and-directivity)
   - [Room Properties](#room-properties)
 - [Porting From PannerNode](#porting-from-pannernode)
 - [Building](#building)
