@@ -11,9 +11,10 @@ rendered using a binaural renderer such as
 quality-scalable 3D audio.
 
 
-See Songbird in action:
+Hear Songbird in action:
 - [PannerNode vs. Songbird example](https://rawgit.com/google/songbird/master/examples/panner-node-vs-songbird.html)
 - [Room model example](https://rawgit.com/google/songbird/master/examples/room-model.html)
+- [Flock of Birds](https://rawgit.com/google/songbird/master/examples/birds.html)
 
 
 The implementation of Songbird is based on the
