@@ -59,7 +59,7 @@ is exposed as well.
 
 <p align="center">
   <img
-    src="https://cdn.rawgit.com/google/songbird/master/diagram-songbird.png"
+    src="https://cdn.rawgit.com/google/songbird/master/doc/diagram-songbird.png"
     alt="Songbird Diagram">
 </p>
 
@@ -235,7 +235,8 @@ var songbirdOptions = {
   listenerForward: [1, 0, 0],
   listenerUp: [0, 1, 0],
   dimensions: { width: 3, height: 4, depth: 5 },
-  materials: { left: 'uniform', right: 'uniform', down: 'uniform', up: 'uniform', front: 'uniform', back: 'uniform' },
+  materials: { left: 'uniform', right: 'uniform', down: 'uniform',
+    up: 'uniform', front: 'uniform', back: 'uniform' },
   speedOfSound: 340
 };
 var songbird = new Songbird(audioContext, songbirdOptions)
