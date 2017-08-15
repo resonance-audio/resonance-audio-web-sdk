@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: encoder.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: encoder.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @license
+ * Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * @file Spatially encodes input using weighted spherical harmonics.
+ * @author Andrew Allen &lt;bitllama@google.com>
+ */
+
+'use strict';
+
+// Internal dependencies.
+var Tables = require('./tables.js');
+var Utils = require('./utils.js');
+
+
+// Static constants.
+/**
+ * Default azimuth (in degrees). Suitable range is 0 to 360.
+ * @type {Number}
+ */
+Encoder.DEFAULT_AZIMUTH = 0;
+
+
+/**
+ * Default elevation (in degres).
+ * Suitable range is from -90 (below) to 90 (above).
+ * @type {Number}
+ */
+Encoder.DEFAULT_ELEVATION = 0;
+
+
+/**
+ * The maximum allowed ambisonic order, specified by the
+ * {@linkcode Tables.SPHERICAL_HARMONICS spherical harmonics table}.
+ * @type {Number}
+ */
+Encoder.MAX_ORDER = Tables.SPHERICAL_HARMONICS[0][0].length / 2;
+
+
+/**
+ * The default ambisonic order.
+ * @type {Number}
+ */
+Encoder.DEFAULT_AMBISONIC_ORDER = 1;
+
+
+/**
+ * The default source width.
+ * @type {Number}
+ */
+Encoder.DEFAULT_SOURCE_WIDTH = 0;
+
+
+/**
+ * @class Encoder
+ * @description Spatially encodes input using weighted spherical harmonics.
+ * @param {AudioContext} context
+ * Associated {@link
+https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+ * @param {Object} options
+ * @param {Number} options.ambisonicOrder
+ * Desired ambisonic Order. Defaults to
+ * {@linkcode Encoder.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
+ * @param {Number} options.azimuth
+ * Azimuth (in degrees). Defaults to
+ * {@linkcode Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+ * @param {Number} options.elevation
+ * Elevation (in degrees). Defaults to
+ * {@linkcode Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+ * @param {Number} options.sourceWidth
+ * Source width (in degrees). Where 0 degrees is a point source and 360 degrees
+ * is an omnidirectional source. Defaults to
+ * {@linkcode Encoder.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
+ */
+function Encoder (context, options) {
+  // Public variables.
+  /**
+   * Mono (1-channel) input {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+   * @member {AudioNode} input
+   * @memberof Encoder
+   * @instance
+   */
+  /**
+   * Ambisonic (multichannel) output {@link
+   * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
+   * @member {AudioNode} output
+   * @memberof Encoder
+   * @instance
+   */
+
+  // Use defaults for undefined arguments.
+  if (options == undefined) {
+    options = new Object();
+  }
+  if (options.ambisonicOrder == undefined) {
+    options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
+  }
+  if (options.azimuth == undefined) {
+    options.azimuth = Encoder.DEFAULT_AZIMUTH;
+  }
+  if (options.elevation == undefined) {
+    options.elevation = Encoder.DEFAULT_ELEVATION;
+  }
+  if (options.sourceWidth == undefined) {
+    options.sourceWidth = Encoder.DEFAULT_SOURCE_WIDTH;
+  }
+
+  // Assign fixed ambisonic order.
+  // TODO(bitllama): Support dynamic orders?
+  if (options.ambisonicOrder > Encoder.MAX_ORDER) {
+    Utils.log('(Error):\nUnable to render ambisonic order',
+      options.ambisonicOrder, '(Max order is', Encoder.MAX_ORDER,
+      ')\nUsing max order instead.');
+    options.ambisonicOrder = Encoder.MAX_ORDER;
+  }
+  this._ambisonicOrder = options.ambisonicOrder;
+
+  // Create audio graph.
+  var num_channels = (this._ambisonicOrder + 1) * (this._ambisonicOrder + 1);
+  this._merger = context.createChannelMerger(num_channels);
+  this._masterGain = context.createGain();
+  this._channelGain = new Array(num_channels);
+  for (var i = 0; i &lt; num_channels; i++) {
+    this._channelGain[i] = context.createGain();
+    this._masterGain.connect(this._channelGain[i]);
+    this._channelGain[i].connect(this._merger, 0, i);
+  }
+
+  // Set initial angle and source width.
+  this._azimuth = options.azimuth;
+  this._elevation = options.elevation;
+  this.setSourceWidth(options.sourceWidth);
+
+  // Input/Output proxy.
+  this.input = this._masterGain;
+  this.output = this._merger;
+}
+
+
+/**
+ * Set the direction of the encoded source signal.
+ * @param {Number} azimuth
+ * Azimuth (in degrees). Defaults to
+ * {@linkcode Encoder.DEFAULT_AZIMUTH DEFAULT_AZIMUTH}.
+ * @param {Number} elevation
+ * Elevation (in degrees). Defaults to
+ * {@linkcode Encoder.DEFAULT_ELEVATION DEFAULT_ELEVATION}.
+ */
+Encoder.prototype.setDirection = function (azimuth, elevation) {
+  // Format input direction to nearest indices.
+  if (azimuth == undefined || isNaN(azimuth)) {
+    azimuth = Encoder.DEFAULT_AZIMUTH;
+  }
+  if (elevation == undefined || isNaN(elevation)) {
+    elevation = Encoder.DEFAULT_ELEVATION;
+  }
+
+  // Store the formatted input (for updating source width).
+  this._azimuth = azimuth;
+  this._elevation = elevation;
+
+  // Format direction for index lookups.
+  var azimuth = Math.round(azimuth % 360);
+  if (azimuth &lt; 0) {
+    azimuth += 360;
+  }
+  elevation = Math.round(Math.min(90, Math.max(-90, elevation))) + 90;
+
+  // Assign gains to each output.
+  for (var i = 1; i &lt;= this._ambisonicOrder; i++) {
+    var degreeWeight = Tables.MAX_RE_WEIGHTS[this._spreadIndex][i - 1];
+    for (var j = -i; j &lt;= i; j++) {
+      var acnChannel = (i * i) + i + j;
+      var elevationIndex = i * (i + 1) / 2 + Math.abs(j) - 1;
+      var val = Tables.SPHERICAL_HARMONICS[1][elevation][elevationIndex];
+      if (j != 0) {
+        var azimuthIndex = Encoder.MAX_ORDER + j - 1;
+        if (j &lt; 0) {
+          azimuthIndex = Encoder.MAX_ORDER + j;
+        }
+        val *= Tables.SPHERICAL_HARMONICS[0][azimuth][azimuthIndex];
+      }
+      this._channelGain[acnChannel].gain.value = val * degreeWeight;
+    }
+  }
+}
+
+
+/**
+ * Set the source width (in degrees). Where 0 degrees is a point source and 360
+ * degrees is an omnidirectional source. Defaults to
+ * {@linkcode Encoder.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
+ * @param {Number} sourceWidth (in degrees).
+ */
+Encoder.prototype.setSourceWidth = function (sourceWidth) {
+  // The MAX_RE_WEIGHTS is a 360x(MAX_ORDER+1) size table.
+  this._spreadIndex = Math.min(359, Math.max(0, Math.round(sourceWidth)));
+  this.setDirection(this._azimuth, this._elevation);
+}
+
+
+module.exports = Encoder;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Attenuation.html">Attenuation</a></li><li><a href="Directivity.html">Directivity</a></li><li><a href="EarlyReflections.html">EarlyReflections</a></li><li><a href="Encoder.html">Encoder</a></li><li><a href="FOAConvolver.html">FOAConvolver</a></li><li><a href="FOAPhaseMatchedFilter.html">FOAPhaseMatchedFilter</a></li><li><a href="FOAVirtualSpeaker.html">FOAVirtualSpeaker</a></li><li><a href="HOAConvolver.html">HOAConvolver</a></li><li><a href="LateReflections.html">LateReflections</a></li><li><a href="Listener.html">Listener</a></li><li><a href="Room.html">Room</a></li><li><a href="Songbird.html">Songbird</a></li><li><a href="Source.html">Source</a></li></ul><h3>Global</h3><ul><li><a href="global.html#crossProduct">crossProduct</a></li><li><a href="global.html#DEFAULT_FORWARD">DEFAULT_FORWARD</a></li><li><a href="global.html#DEFAULT_POSITION">DEFAULT_POSITION</a></li><li><a href="global.html#DEFAULT_RIGHT">DEFAULT_RIGHT</a></li><li><a href="global.html#DEFAULT_SPEED_OF_SOUND">DEFAULT_SPEED_OF_SOUND</a></li><li><a href="global.html#DEFAULT_UP">DEFAULT_UP</a></li><li><a href="global.html#DEGREES_TO_RADIANS">DEGREES_TO_RADIANS</a></li><li><a href="global.html#EPSILON_FLOAT">EPSILON_FLOAT</a></li><li><a href="global.html#getNumberOfChannelsFromAmbisonicOrder">getNumberOfChannelsFromAmbisonicOrder</a></li><li><a href="global.html#hamiltonProduct">hamiltonProduct</a></li><li><a href="global.html#invertMatrix4">invertMatrix4</a></li><li><a href="global.html#log">log</a></li><li><a href="global.html#LOG2_DIV2">LOG2_DIV2</a></li><li><a href="global.html#LOG1000">LOG1000</a></li><li><a href="global.html#MAX_RE_WEIGHTS">MAX_RE_WEIGHTS</a></li><li><a href="global.html#normalizeVector">normalizeVector</a></li><li><a href="global.html#RADIANS_TO_DEGREES">RADIANS_TO_DEGREES</a></li><li><a href="global.html#rotateVector">rotateVector</a></li><li><a href="global.html#SPHERICAL_HARMONICS">SPHERICAL_HARMONICS</a></li><li><a href="global.html#toQuaternion">toQuaternion</a></li><li><a href="global.html#TWENTY_FOUR_LOG10">TWENTY_FOUR_LOG10</a></li><li><a href="global.html#TWO_PI">TWO_PI</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.3</a> on Tue Aug 15 2017 08:13:55 GMT-0700 (PDT)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

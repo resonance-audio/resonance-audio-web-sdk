@@ -42,261 +42,2113 @@
 
 
 
-    <section>
-        <article><h1>Songbird: Spatial Audio Encoding on the Web</h1><p><a href="https://travis-ci.org/google/songbird"><img src="https://travis-ci.org/google/songbird.svg?branch=master" alt="Travis"></a> <a href="https://www.npmjs.com/package/songbird-audio"><img src="https://img.shields.io/npm/v/songbird-audio.svg?colorB=4bc51d" alt="npm"></a> <a href="https://raw.githubusercontent.com/google/songbird/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202-brightgreen.svg" alt="GitHub license"></a></p>
-<p>Songbird is a real-time spatial audio encoding JavaScript library for WebAudio
-applications. It allows web developers to dynamically spatially-encode
-streaming audio content into scalable
-<a href="https://en.wikipedia.org/wiki/Ambisonics">ambisonics</a> signal, which can be
-rendered using a binaural renderer such as
-<a href="https://github.com/GoogleChrome/omnitone">Omnitone</a> for realistic and
-quality-scalable 3D audio.</p>
-<p>Hear Songbird in action:</p>
-<ul>
-<li><a href="https://rawgit.com/google/songbird/master/examples/panner-node-vs-songbird.html">PannerNode vs. Songbird example</a></li>
-<li><a href="https://rawgit.com/google/songbird/master/examples/room-model.html">Room model example</a></li>
-<li><a href="https://rawgit.com/google/songbird/master/examples/birds.html">Flock of Birds</a></li>
-</ul>
-<p>The implementation of Songbird is based on the
-<a href="https://github.com/google/spatial-media">Google spatial media</a> specification.
-It expects mono input to its <code>Source</code> instances and outputs
-ambisonic (multichannel) ACN channel layout with SN3D normalization. Detailed documentation may be found <a href="https://rawgit.com/google/songbird/master/doc/index.html">here</a>.</p>
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-<p><strong>Table of Contents</strong></p>
-<ul>
-<li><a href="#how-it-works">How it works</a></li>
-<li><a href="#installation">Installation</a></li>
-<li><a href="#usage">Usage</a><ul>
-<li><a href="#hello-world-example">&quot;Hello World&quot; Example</a></li>
-<li><a href="#positioning-sources-and-the-listener">Positioning Sources and the Listener</a></li>
-<li><a href="#room-properties">Room Properties</a></li>
-<li><a href="#creation-arguments">Creation Arguments</a></li>
-</ul>
-</li>
-<li><a href="#porting-from-pannernode">Porting From PannerNode</a></li>
-<li><a href="#building">Building</a></li>
-<li><a href="#testing">Testing</a><ul>
-<li><a href="#testing-songbird-locally">Testing Songbird Locally</a></li>
-</ul>
-</li>
-<li><a href="#audio-codec-compatibility">Audio Codec Compatibility</a></li>
-<li><a href="#related-resources">Related Resources</a></li>
-<li><a href="#acknowledgments">Acknowledgments</a></li>
-<li><a href="#support">Support</a></li>
-<li><a href="#license">License</a></li>
-</ul>
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-<h2>How it works</h2><p>Songbird is a JavaScript API that supports real-time spatial audio encoding for
-the Web using Higher-Order Ambisonics (HOA). This is accomplished by attached
-audio input to a <code>Source</code> which has associated spatial object parameters.
-<code>Source</code> objects are attached to a <code>Songbird</code> instance, which models the
-listener as well as the room environment the listener and sources are in.
-Binaurally-rendered ambisonic output is generated using
-<a href="https://github.com/GoogleChrome/omnitone">Omnitone</a>, and raw ambisonic output
-is exposed as well.</p>
-<p align="center">
-  <img
-    src="https://cdn.rawgit.com/google/songbird/master/doc/diagram-songbird.png"
-    alt="Songbird Diagram">
-</p>
 
 
-<h2>Installation</h2><p>Songbird is designed to be used for web front-end projects. So <a href="https://www.npmjs.com/">NPM</a> is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.</p>
-<pre class="prettyprint source lang-bash"><code>npm install songbird-audio</code></pre><h2>Usage</h2><p>The first step is to include the library file in an HTML document.</p>
-<pre class="prettyprint source lang-html"><code>&lt;!-- Use Songbird from installed node_modules/ -->
-&lt;script src=&quot;node_modules/songbird-audio/build/songbird.min.js&quot;>&lt;/script>
-
-&lt;!-- if you prefer to use CDN -->
-&lt;script src=&quot;https://cdn.rawgit.com/google/songbird/master/build/songbird.min.js&quot;>&lt;/script></code></pre><p>Spatial encoding is done by creating a <code>Songbird</code> scene using an associted
-<code>AudioContext</code> and then creating any number of associated <code>Source</code> objects
-using <code>Songbird.createSource()</code>. The <code>Songbird</code> scene models a physical
-listener while adding room reflections and reverberation. The <code>Source</code>
-instances model acoustic sound sources. The library is designed to be easily
-integrated into an existing WebAudio audio graph.</p>
-<h3>&quot;Hello World&quot; Example</h3><p>Let's see how we can create a scene and generate some audio. Let's begin by
-constructing an <code>AudioContext</code> and <code>Songbird</code> scene and connecting it to the
-audio output. You can view a live demo of this example <a href="https://rawgit.com/google/songbird/master/examples/hello-world.html">here</a>.</p>
-<pre class="prettyprint source lang-js"><code>var audioContext = new AudioContext();
-
-// Create a (1st-order Ambisonic) Songbird scene.
-var songbird = new Songbird(audioContext);
-
-// Send songbird's binaural output to stereo out.
-songbird.output.connect(audioContext.destination);</code></pre><p>Next, let's add a room. By default, the room size is 0m x 0m x 0m (i.e. there
-is no room and we are in free space). To define a room, we simply need to
-provide the dimensions in meters (the room's center is the origin). We can also
-define the materials of each of the 6 surfaces (4 walls + ceiling + floor). A
-range of materials are predefined in Songbird, each with different reflection
-properties.</p>
-<pre class="prettyprint source lang-js"><code>// Set room acoustics properties.
-var dimensions = {
-  width : 3.1,
-  height : 2.5,
-  depth : 3.4
-};
-var materials = {
-  left : 'brick-bare',
-  right : 'curtain-heavy',
-  front : 'marble',
-  back : 'glass-thin',
-  down : 'grass',
-  up : 'transparent'
-};
-songbird.setRoomProperties(dimensions, materials);</code></pre><p>Next, we create an audio element, load some audio and feed the audio element
-into the audio graph. We then create a <code>Source</code> and connect the elements
-together. The default position for a <code>Source</code> is the origin.</p>
-<pre class="prettyprint source lang-js"><code>// Create an audio element. Feed into audio graph.
-var audioElement = document.createElement('audio');
-audioElement.src = 'resources/SpeechSample.wav';
-
-var audioElementSource = audioContext.createMediaElementSource(audioElement);
-
-// Create a Source, connect desired audio input to it.
-var source = songbird.createSource();
-audioElementSource.connect(source.input);</code></pre><p>Finally, we can position the source relative to the listener and then playback
-the audio with the familiar <code>.play()</code> method. This will binaurally render the
-scene we have just created.</p>
-<pre class="prettyprint source lang-js"><code>// The source position is relative to the origin (center of the room).
-source.setPosition(-0.707, -0.707, 0);
-
-// Playback the audio.
-audioElement.play();</code></pre><h3>Positioning Sources and the Listener</h3><p><code>Source</code> objects can be placed with cartesian coordinates relative to the origin (center of the room). Songbird uses a right-handed coordinate system, similar to OpenGL and Three.js.</p>
-<pre class="prettyprint source lang-js"><code>// Or Source's and Listener's positions.
-source.setPosition(x, y, z);
-songbird.setListenerPosition(x, y, z);</code></pre><p>The <code>Source</code> and Listener orientations can be set using forward and up vectors:</p>
-<pre class="prettyprint source lang-js"><code>// Set Source and Listener orientation.
-source.setOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);
-songbird.setListenerOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);</code></pre><p>Alternatively, the <code>Source</code>'s and Listener position and orientation can be set using Three.js Matrix4 objects:</p>
-<pre class="prettyprint source lang-js"><code>source.setFromMatrix(matrix4);
-songbird.setListenerFromMatrix(matrix4);</code></pre><!-- ### Source width and directivity
-
-... -->
-<h3>Room Properties</h3><p>Room properties can be set to control the characteristics of spatial
-reflections and reverberation. We currently support the following named
-materials:</p>
-<ul>
-<li>transparent</li>
-<li>acoustic-ceiling-tiles</li>
-<li>brick-bare</li>
-<li>brick-painted</li>
-<li>concrete-block-coarse</li>
-<li>concrete-block-painted</li>
-<li>curtain-heavy</li>
-<li>fiber-glass-insulation</li>
-<li>glass-thin</li>
-<li>glass-thick</li>
-<li>grass</li>
-<li>linoleum-on-concrete</li>
-<li>marble</li>
-<li>metal</li>
-<li>parquet-on-concrete</li>
-<li>plaster-smooth</li>
-<li>plywood-panel</li>
-<li>polished-concrete-or-tile</li>
-<li>sheetrock</li>
-<li>water-or-ice-surface</li>
-<li>wood-ceiling</li>
-<li>wood-panel</li>
-<li>uniform</li>
-</ul>
-<h3>Creation Arguments</h3><p>When constructing a <code>Songbird</code> scene, optional scene-related arguments may be provided to override default values.</p>
-<pre class="prettyprint source lang-js"><code>var songbirdOptions = {
-  ambisonicOrder: 1,
-  listenerPosition: [1, 0, 0],
-  listenerForward: [1, 0, 0],
-  listenerUp: [0, 1, 0],
-  dimensions: { width: 3, height: 4, depth: 5 },
-  materials: { left: 'uniform', right: 'uniform', down: 'uniform',
-    up: 'uniform', front: 'uniform', back: 'uniform' },
-  speedOfSound: 340
-};
-var songbird = new Songbird(audioContext, songbirdOptions)</code></pre><p>Likewise, when creating a new <code>Source</code>, source-related optional arguments may be provided:</p>
-<pre class="prettyprint source lang-js"><code>var sourceOptions = {
-  position: [0, 10, 10],
-  forward: [0, 0, -1],
-  up: [0, 1, 0],
-  minDistance: 0.1,
-  maxDistance: 1000,
-  rolloff: 'logarithmic',
-  gain: 0.1,
-  alpha: 0,
-  sharpness: 1,
-  sourceWidth: 0
-}
-var source = songbird.createSource(sourceOptions);</code></pre><p>See the <a href="https://rawgit.com/google/songbird/master/doc/index.html">documentation</a> for more details on all optional arguments.</p>
-<h2>Porting From PannerNode</h2><p>For projects already employing <a href="https://developer.mozilla.org/en-US/docs/Web/API/PannerNode">PannerNode</a>, it is fairly simple to switch to Songbird. Below is a basic <code>PannerNode</code> example:</p>
-<pre class="prettyprint source lang-js"><code>// Create a &quot;PannerNode.&quot;
-var panner = audioContext.createPanner();
-
-// Initialize properties
-panner.panningModel = 'HRTF';
-panner.distanceModel = 'inverse';
-panner.refDistance = 0.1;
-panner.maxDistance = 1000;
-
-// Connect input to &quot;PannerNode&quot;.
-audioElementSource.connect(panner);
-
-// Connect &quot;PannerNode&quot; to audio output.
-panner.connect(audioContext.destination);
-
-// Set &quot;PannerNode&quot; and Listener positions.
-panner.setPosition(x, y, z);
-audioContext.listener.setPosition(x, y, z);</code></pre><p>And below is the same example converted to Songbird:</p>
-<pre class="prettyprint source lang-js"><code>// Create a Songbird &quot;Source&quot; with properties.
-var source = songbird.createSource({
-  rolloff: 'logarithmic',
-  minDistance: 0.1,
-  maxDistance: 1000
-});
-
-// Connect input to &quot;Source.&quot;
-audioElementSource.connect(source.input);
-
-// Connect Songbird’s output to audio output.
-songbird.output.connect(audioContext.destination);
-
-// Set &quot;Source&quot; and Listener positions.
-source.setPosition(x, y, z);
-songbird.setListenerPosition(x, y, z);</code></pre><h2>Building</h2><p>Songbird uses <a href="https://webpack.github.io/">WebPack</a> to build the minified
-library and to manage dependencies.</p>
-<pre class="prettyprint source lang-bash"><code>npm install         # install dependencies.
-npm run build       # build a non-minified library.
-npm run watch       # recompile whenever any source file changes.
-npm run build-all   # build a minified library and copy static resources.
-npm run doc         # generate documentation.</code></pre><h2>Testing</h2><p>Songbird uses <a href="https://travis-ci.org/">Travis</a> and <a href="https://karma-runner.github.io/1.0/index.html">Karma</a> test runner for continuous
-integration. To run the test suite locally, clone the repository, install dependencies and launch the test runner:</p>
-<pre class="prettyprint source lang-bash"><code>npm test</code></pre><p>Note that unit tests require the promisified version of <code>OfflineAudioContext</code>,
-so they might not run on non-spec-compliant browsers. Songbird's Travis CI is
-using the latest stable version of Chrome.</p>
-<h3>Testing Songbird Locally</h3><p>For the local testing with Karma test runner, Chrome/Chromium-based browser is
-required. For Linux distros without Chrome browser, the following set up might
-be necessary for Karma to run properly:</p>
-<pre class="prettyprint source lang-bash"><code># Tested with Ubuntu 16.04
-sudo apt install chromium-browser
-export CHROME_BIN=chromium-browser</code></pre><p>Windows platform has not been tested for local testing.</p>
-<h2>Audio Codec Compatibility</h2><p>Songbird is designed to run any browser that supports Web Audio API, however,
-it does not address the incompatibility issue around various media codecs in
-the browsers. At the time of writing, the decoding of compressed multichannel
-audio via <code>&lt;video&gt;</code> or <code>&lt;audio&gt;</code> elements is not fully supported by the majority
-of mobile browsers.</p>
-<h2>Related Resources</h2><ul>
-<li><a href="https://github.com/googlechrome/omnitone">Omnitone</a></li>
-<li><a href="https://github.com/google/spatial-media">Google Spatial Media</a></li>
-<li><a href="https://webaudio.github.io/web-audio-api/">Web Audio API</a></li>
-<li><a href="https://webvr.info/">WebVR</a></li>
-</ul>
-<h2>Acknowledgments</h2><p>Special thanks to Alper Gungormusler, Hongchan Choi, Marcin Gorzel, and Julius Kammerl for their help on this project.</p>
-<h2>Support</h2><p>If you have found an error in this library, please file an issue at: <a href="https://github.com/Google/songbird/issues">https://github.com/Google/songbird/issues</a>.</p>
-<p>Patches are encouraged, and may be submitted by forking this project and submitting a pull request through GitHub. See CONTRIBUTING for more detail.</p>
-<h2>License</h2><p>Copyright &copy; 2017 Google Inc. All Rights Reserved.</p>
-<p>Licensed under the Apache License, Version 2.0 (the &quot;License&quot;); you may not use this file except in compliance with the License. You may obtain a copy of the License at</p>
-<p><a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a></p>
-<p>Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.</p></article>
-    </section>
 
 
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>attenuation.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Distance-based attenuation filter.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="attenuation.js.html">attenuation.js</a>, <a href="attenuation.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>directivity.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Directivity/occlusion filter.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="directivity.js.html">directivity.js</a>, <a href="directivity.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>early-reflections.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Ray-tracing-based early reflections model.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="early-reflections.js.html">early-reflections.js</a>, <a href="early-reflections.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>encoder.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Spatially encodes input using weighted spherical harmonics.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="encoder.js.html">encoder.js</a>, <a href="encoder.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>late-reflections.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Late reverberation filter for Ambisonic content.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="late-reflections.js.html">late-reflections.js</a>, <a href="late-reflections.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>listener.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Listener model to spatialize sources in an environment.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="listener.js.html">listener.js</a>, <a href="listener.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>main.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Primary namespace for Songbird library.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="main.js.html">main.js</a>, <a href="main.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">A collection of convolvers. Can be used for the optimized FOA
+              binaural rendering. (e.g. SH-MaxRe HRTFs)</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line526">line 526</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Omnitone library common utilities.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line406">line 406</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Omnitone version.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line1397">line 1397</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">An audio channel re-router to resolve different channel layouts
+              between various platforms.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line651">line 651</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">A collection of convolvers. Can be used for the optimized HOA
+              binaural rendering. (e.g. SH-MaxRe HRTFs)</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line2022">line 2022</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Omnitone FOA decoder.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line1431">line 1431</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Omnitone HOA decoder.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line2201">line 2201</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Omnitone library name space and common utilities.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line98">line 98</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Virtual speaker abstraction for first-order-ambisonics
+              decoding.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line1011">line 1011</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Phase matched filter for first-order-ambisonics decoding.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line897">line 897</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Omnitone FOA decoder.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line1106">line 1106</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Sound field rotator for first-order-ambisonics decoding.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line750">line 750</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Audio buffer loading utility.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line270">line 270</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>omnitone.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Sound field rotator for higher-order-ambisonics decoding.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="omnitone.js.html">omnitone.js</a>, <a href="omnitone.js.html#line1643">line 1643</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>room.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Complete room model with early and late reflections.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="room.js.html">room.js</a>, <a href="room.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
 
 
 
@@ -501,16 +2353,317 @@ of mobile browsers.</p>
 
 
 
+
+
+
+<section>
+
+<header>
+    
+        <h2>tables.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Pre-computed lookup tables for encoding ambisonic sources.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="tables.js.html">tables.js</a>, <a href="tables.js.html#line16">line 16</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>utils.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Songbird library common utilities, mathematical constants,
+and default values.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="utils.js.html">utils.js</a>, <a href="utils.js.html#line17">line 17</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+
+
+
+<section>
+
+<header>
+    
+        <h2>version.js</h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+            <div class="description">Songbird version.</div>
+        
+
+        
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-author">Author:</dt>
+    <dd class="tag-author">
+        <ul>
+            <li><a href="mailto:bitllama@google.com">Andrew Allen</a></li>
+        </ul>
+    </dd>
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="version.js.html">version.js</a>, <a href="version.js.html#line16">line 16</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+        
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Songbird.html">Songbird</a></li><li><a href="Source.html">Source</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Attenuation.html">Attenuation</a></li><li><a href="Directivity.html">Directivity</a></li><li><a href="EarlyReflections.html">EarlyReflections</a></li><li><a href="Encoder.html">Encoder</a></li><li><a href="FOAConvolver.html">FOAConvolver</a></li><li><a href="FOAPhaseMatchedFilter.html">FOAPhaseMatchedFilter</a></li><li><a href="FOAVirtualSpeaker.html">FOAVirtualSpeaker</a></li><li><a href="HOAConvolver.html">HOAConvolver</a></li><li><a href="LateReflections.html">LateReflections</a></li><li><a href="Listener.html">Listener</a></li><li><a href="Room.html">Room</a></li><li><a href="Songbird.html">Songbird</a></li><li><a href="Source.html">Source</a></li></ul><h3>Global</h3><ul><li><a href="global.html#crossProduct">crossProduct</a></li><li><a href="global.html#DEFAULT_FORWARD">DEFAULT_FORWARD</a></li><li><a href="global.html#DEFAULT_POSITION">DEFAULT_POSITION</a></li><li><a href="global.html#DEFAULT_RIGHT">DEFAULT_RIGHT</a></li><li><a href="global.html#DEFAULT_SPEED_OF_SOUND">DEFAULT_SPEED_OF_SOUND</a></li><li><a href="global.html#DEFAULT_UP">DEFAULT_UP</a></li><li><a href="global.html#DEGREES_TO_RADIANS">DEGREES_TO_RADIANS</a></li><li><a href="global.html#EPSILON_FLOAT">EPSILON_FLOAT</a></li><li><a href="global.html#getNumberOfChannelsFromAmbisonicOrder">getNumberOfChannelsFromAmbisonicOrder</a></li><li><a href="global.html#hamiltonProduct">hamiltonProduct</a></li><li><a href="global.html#invertMatrix4">invertMatrix4</a></li><li><a href="global.html#log">log</a></li><li><a href="global.html#LOG2_DIV2">LOG2_DIV2</a></li><li><a href="global.html#LOG1000">LOG1000</a></li><li><a href="global.html#MAX_RE_WEIGHTS">MAX_RE_WEIGHTS</a></li><li><a href="global.html#normalizeVector">normalizeVector</a></li><li><a href="global.html#RADIANS_TO_DEGREES">RADIANS_TO_DEGREES</a></li><li><a href="global.html#rotateVector">rotateVector</a></li><li><a href="global.html#SPHERICAL_HARMONICS">SPHERICAL_HARMONICS</a></li><li><a href="global.html#toQuaternion">toQuaternion</a></li><li><a href="global.html#TWENTY_FOUR_LOG10">TWENTY_FOUR_LOG10</a></li><li><a href="global.html#TWO_PI">TWO_PI</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.3</a> on Tue Aug 15 2017 08:11:33 GMT-0700 (PDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.3</a> on Tue Aug 15 2017 08:13:55 GMT-0700 (PDT)
 </footer>
 
 <script> prettyPrint(); </script>

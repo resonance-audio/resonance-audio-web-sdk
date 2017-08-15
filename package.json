@@ -29,7 +29,7 @@
     "watch": "webpack --progress --color --watch",
     "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
     "test": "node_modules/karma/bin/karma start",
-    "doc": "doctoc README.md && jsdoc src/songbird.js src/source.js -R README.md -d doc"
+    "doc": "doctoc README.md && jsdoc src -d doc"
   },
   "repository": {
     "type": "git",

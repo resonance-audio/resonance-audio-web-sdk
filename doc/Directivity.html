@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Class: Directivity</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Class: Directivity</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        <h2><span class="attribs"><span class="type-signature"></span></span>Directivity<span class="signature">(context, options)</span><span class="type-signature"></span></h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+
+    
+
+    
+    <h4 class="name" id="Directivity"><span class="type-signature"></span>new Directivity<span class="signature">(context, options)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Directivity/occlusion filter.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>context</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">AudioContext</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Associated <a href="https://developer.mozilla.org/en-US/docs/Web/API/AudioContext">AudioContext</a>.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>options</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>alpha</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Determines directivity pattern (0 to 1). See
+<a href="Directivity.html#setPattern">setPattern</a> for more details. Defaults to
+<a href="Directivity.html#.DEFAULT_ALPHA"><code>DEFAULT_ALPHA</code></a>.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>sharpness</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Determines the sharpness of the directivity pattern (1 to Inf). See
+<a href="Directivity.html#setPattern">setPattern</a> for more details. Defaults to
+<a href="Directivity.html#.DEFAULT_SHARPNESS"><code>DEFAULT_SHARPNESS</code></a>.</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="directivity.js.html">directivity.js</a>, <a href="directivity.js.html#line43">line 43</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Members</h3>
+
+        
+            
+<h4 class="name" id=".DEFAULT_ALPHA"><span class="type-signature">(static) </span>DEFAULT_ALPHA<span class="type-signature"> :Number</span></h4>
+
+
+
+
+<div class="description">
+    The default alpha (i.e. microphone pattern).
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">Number</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="directivity.js.html">directivity.js</a>, <a href="directivity.js.html#line33">line 33</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id=".DEFAULT_SHARPNESS"><span class="type-signature">(static) </span>DEFAULT_SHARPNESS<span class="type-signature"> :Number</span></h4>
+
+
+
+
+<div class="description">
+    The default pattern sharpness (i.e. pattern exponent).
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">Number</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="directivity.js.html">directivity.js</a>, <a href="directivity.js.html#line40">line 40</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="input"><span class="type-signature"></span>input<span class="type-signature"> :AudioNode</span></h4>
+
+
+
+
+<div class="description">
+    Mono (1-channel) input <a href="https://developer.mozilla.org/en-US/docs/Web/API/AudioNode">AudioNode</a>.
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">AudioNode</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="directivity.js.html">directivity.js</a>, <a href="directivity.js.html#line61">line 61</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="output"><span class="type-signature"></span>output<span class="type-signature"> :AudioNode</span></h4>
+
+
+
+
+<div class="description">
+    Mono (1-channel) output <a href="https://developer.mozilla.org/en-US/docs/Web/API/AudioNode">AudioNode</a>.
+</div>
+
+
+
+    <h5>Type:</h5>
+    <ul>
+        <li>
+            
+<span class="param-type">AudioNode</span>
+
+
+        </li>
+    </ul>
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="directivity.js.html">directivity.js</a>, <a href="directivity.js.html#line68">line 68</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+        
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="computeAngle"><span class="type-signature"></span>computeAngle<span class="signature">(forward, direction)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Compute the filter using the source's forward orientation and the listener's
+position.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>forward</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Float32Array</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The source's forward vector (normalized).</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>direction</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Float32Array</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">The direction from the source to the
+listener (normalized).</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="directivity.js.html">directivity.js</a>, <a href="directivity.js.html#line112">line 112</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="setPattern"><span class="type-signature"></span>setPattern<span class="signature">(alpha, sharpness)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    Set source's directivity pattern (defined by alpha), where 0 is an
+omnidirectional pattern, 1 is a bidirectional pattern, 0.5 is a cardiod
+pattern. The sharpness of the pattern is increased exponenentially.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>alpha</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Determines directivity pattern (0 to 1). Defaults to
+<a href="Directivity.html#.DEFAULT_ALPHA"><code>DEFAULT_ALPHA</code></a>.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>sharpness</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">Number</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Determines the sharpness of the directivity pattern (1 to Inf). Defaults to
+<a href="Directivity.html#.DEFAULT_SHARPNESS"><code>DEFAULT_SHARPNESS</code></a>.</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="directivity.js.html">directivity.js</a>, <a href="directivity.js.html#line135">line 135</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Attenuation.html">Attenuation</a></li><li><a href="Directivity.html">Directivity</a></li><li><a href="EarlyReflections.html">EarlyReflections</a></li><li><a href="Encoder.html">Encoder</a></li><li><a href="FOAConvolver.html">FOAConvolver</a></li><li><a href="FOAPhaseMatchedFilter.html">FOAPhaseMatchedFilter</a></li><li><a href="FOAVirtualSpeaker.html">FOAVirtualSpeaker</a></li><li><a href="HOAConvolver.html">HOAConvolver</a></li><li><a href="LateReflections.html">LateReflections</a></li><li><a href="Listener.html">Listener</a></li><li><a href="Room.html">Room</a></li><li><a href="Songbird.html">Songbird</a></li><li><a href="Source.html">Source</a></li></ul><h3>Global</h3><ul><li><a href="global.html#crossProduct">crossProduct</a></li><li><a href="global.html#DEFAULT_FORWARD">DEFAULT_FORWARD</a></li><li><a href="global.html#DEFAULT_POSITION">DEFAULT_POSITION</a></li><li><a href="global.html#DEFAULT_RIGHT">DEFAULT_RIGHT</a></li><li><a href="global.html#DEFAULT_SPEED_OF_SOUND">DEFAULT_SPEED_OF_SOUND</a></li><li><a href="global.html#DEFAULT_UP">DEFAULT_UP</a></li><li><a href="global.html#DEGREES_TO_RADIANS">DEGREES_TO_RADIANS</a></li><li><a href="global.html#EPSILON_FLOAT">EPSILON_FLOAT</a></li><li><a href="global.html#getNumberOfChannelsFromAmbisonicOrder">getNumberOfChannelsFromAmbisonicOrder</a></li><li><a href="global.html#hamiltonProduct">hamiltonProduct</a></li><li><a href="global.html#invertMatrix4">invertMatrix4</a></li><li><a href="global.html#log">log</a></li><li><a href="global.html#LOG2_DIV2">LOG2_DIV2</a></li><li><a href="global.html#LOG1000">LOG1000</a></li><li><a href="global.html#MAX_RE_WEIGHTS">MAX_RE_WEIGHTS</a></li><li><a href="global.html#normalizeVector">normalizeVector</a></li><li><a href="global.html#RADIANS_TO_DEGREES">RADIANS_TO_DEGREES</a></li><li><a href="global.html#rotateVector">rotateVector</a></li><li><a href="global.html#SPHERICAL_HARMONICS">SPHERICAL_HARMONICS</a></li><li><a href="global.html#toQuaternion">toQuaternion</a></li><li><a href="global.html#TWENTY_FOUR_LOG10">TWENTY_FOUR_LOG10</a></li><li><a href="global.html#TWO_PI">TWO_PI</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.5.3</a> on Tue Aug 15 2017 08:13:55 GMT-0700 (PDT)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
