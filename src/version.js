@@ -25,4 +25,4 @@
  * Songbird library version
  * @type {String}
  */
-module.exports = '0.0.1';
+module.exports = '0.0.2';
