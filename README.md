@@ -32,6 +32,7 @@ ambisonic (multichannel) ACN channel layout with SN3D normalization.
   - ["Hello World" Example](#hello-world-example)
   - [Positioning Sources and the Listener](#positioning-sources-and-the-listener)
   - [Room Properties](#room-properties)
+  - [Creation Arguments](#creation-arguments)
 - [Porting From PannerNode](#porting-from-pannernode)
 - [Building](#building)
 - [Testing](#testing)
@@ -221,6 +222,44 @@ materials:
 - wood-ceiling
 - wood-panel
 - uniform
+
+
+### Creation Arguments
+
+When constructing a `Songbird` scene, optional scene-related arguments may be provided to override default values.
+
+```js
+var songbirdOptions = {
+  ambisonicOrder: 1,
+  listenerPosition: [1, 0, 0],
+  listenerForward: [1, 0, 0],
+  listenerUp: [0, 1, 0],
+  dimensions: { width: 3, height: 4, depth: 5 },
+  materials: { left: 'uniform', right: 'uniform', down: 'uniform', up: 'uniform', front: 'uniform', back: 'uniform' },
+  speedOfSound: 340
+};
+var songbird = new Songbird(audioContext, songbirdOptions)
+```
+
+Likewise, when creating a new `Source`, source-related optional arguments may be provided:
+
+```js
+var sourceOptions = {
+  position: [0, 10, 10],
+  forward: [0, 0, -1],
+  up: [0, 1, 0],
+  minDistance: 0.1,
+  maxDistance: 1000,
+  rolloff: 'logarithmic',
+  gain: 0.1,
+  alpha: 0,
+  sharpness: 1,
+  sourceWidth: 0
+}
+var source = songbird.createSource(sourceOptions);
+```
+
+See the documentation for more details on all optional arguments.
 
 
 ## Porting From PannerNode
