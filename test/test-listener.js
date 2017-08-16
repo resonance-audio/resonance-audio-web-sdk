@@ -27,7 +27,7 @@ describe('Listener', function () {
 
   it('#setOrientation: verify roll/pitch/yaw functionality.',
     function (done) {
-      //TODO(bitllama)
+      //TODO(bitllama): Fuzz.
       done();
     }
   );
