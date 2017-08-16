@@ -12,15 +12,15 @@ quality-scalable 3D audio.
 
 
 Hear Songbird in action:
-- [PannerNode vs. Songbird example](https://rawgit.com/google/songbird/master/examples/panner-node-vs-songbird.html)
-- [Room model example](https://rawgit.com/google/songbird/master/examples/room-model.html)
-- [Flock of Birds](https://rawgit.com/google/songbird/master/examples/birds.html)
+- [PannerNode vs. Songbird example](https://cdn.rawgit.com/google/songbird/master/examples/panner-node-vs-songbird.html)
+- [Room model example](https://cdn.rawgit.com/google/songbird/master/examples/room-model.html)
+- [Flock of Birds](https://cdn.rawgit.com/google/songbird/master/examples/birds.html)
 
 
 The implementation of Songbird is based on the
 [Google spatial media](https://github.com/google/spatial-media) specification.
 It expects mono input to its `Source` instances and outputs
-ambisonic (multichannel) ACN channel layout with SN3D normalization. Detailed documentation may be found [here](https://rawgit.com/google/songbird/master/doc/index.html).
+ambisonic (multichannel) ACN channel layout with SN3D normalization. Detailed documentation may be found [here](https://cdn.rawgit.com/google/songbird/master/doc/index.html).
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -260,7 +260,7 @@ var sourceOptions = {
 var source = songbird.createSource(sourceOptions);
 ```
 
-See the [documentation](https://rawgit.com/google/songbird/master/doc/index.html) for more details on all optional arguments.
+See the [documentation](https://cdn.rawgit.com/google/songbird/master/doc/index.html) for more details on all optional arguments.
 
 
 ## Porting From PannerNode
