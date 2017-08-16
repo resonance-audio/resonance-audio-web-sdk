@@ -3590,15 +3590,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	/**
 	 * Compute the filter using the source's forward orientation and the listener's
 	 * position.
-	 * @param {Float32Array} forward The source's forward vector (normalized).
+	 * @param {Float32Array} forward The source's forward vector.
 	 * @param {Float32Array} direction The direction from the source to the
-	 * listener (normalized).
+	 * listener.
 	 */
 	Directivity.prototype.computeAngle = function (forward, direction) {
+	  var forwardNorm = Utils.normalizeVector(forward);
+	  var directionNorm = Utils.normalizeVector(direction);
 	  var coeff = 1;
 	  if (this._alpha > Utils.EPSILON_FLOAT) {
-	    var cosTheta = forward[0] * direction[0] + forward[1] * direction[1] +
-	      forward[2] * direction[2];
+	    var cosTheta = forwardNorm[0] * directionNorm[0] +
+	      forwardNorm[1] * directionNorm[1] + forwardNorm[2] * directionNorm[2];
 	    coeff = (1 - this._alpha) + this._alpha * cosTheta;
 	    coeff = Math.pow(Math.abs(coeff), this._exponent);
 	  }
@@ -11407,21 +11409,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	      (coefficients.front[i] + coefficients.back[i]) * frontBackArea;
 	    var meanAbsorbtionArea = absorbtionArea / totalArea;
 
-	    // Compute reverberation using one of two algorithms, depending on area [1].
+	    // Compute reverberation using Eyring equation [1].
 	    // [1] Beranek, Leo L. "Analysis of Sabine and Eyring equations and their
 	    //     application to concert hall audience and chair absorption." The
 	    //     Journal of the Acoustical Society of America, Vol. 120, No. 3.
 	    //     (2006), pp. 1399-1399.
-	    if (meanAbsorbtionArea <= 0.5) {
-	      // Sabine equation.
-	      durations[i] = k * volume / (absorbtionArea + 4 *
-	        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
-	    } else {
-	      // Eyring equation.
-	      durations[i] = Room.EYRING_CORRECTION * k * volume / (-totalArea *
-	        Math.log(1 - meanAbsorbtionArea) + 4 *
-	        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
-	    }
+	    durations[i] = Room.EYRING_CORRECTION * k * volume / (-totalArea *
+	      Math.log(1 - meanAbsorbtionArea) + 4 *
+	      Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
 	  }
 	  return durations;
 	}

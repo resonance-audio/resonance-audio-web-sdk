@@ -266,21 +266,14 @@ function _getDurationsFromProperties (dimensions, coefficients, speedOfSound) {
       (coefficients.front[i] + coefficients.back[i]) * frontBackArea;
     var meanAbsorbtionArea = absorbtionArea / totalArea;
 
-    // Compute reverberation using one of two algorithms, depending on area [1].
+    // Compute reverberation using Eyring equation [1].
     // [1] Beranek, Leo L. "Analysis of Sabine and Eyring equations and their
     //     application to concert hall audience and chair absorption." The
     //     Journal of the Acoustical Society of America, Vol. 120, No. 3.
     //     (2006), pp. 1399-1399.
-    if (meanAbsorbtionArea <= 0.5) {
-      // Sabine equation.
-      durations[i] = k * volume / (absorbtionArea + 4 *
-        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
-    } else {
-      // Eyring equation.
-      durations[i] = Room.EYRING_CORRECTION * k * volume / (-totalArea *
-        Math.log(1 - meanAbsorbtionArea) + 4 *
-        Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
-    }
+    durations[i] = Room.EYRING_CORRECTION * k * volume / (-totalArea *
+      Math.log(1 - meanAbsorbtionArea) + 4 *
+      Room.AIR_ABSORPTION_COEFFICIENTS[i] * volume);
   }
   return durations;
 }
