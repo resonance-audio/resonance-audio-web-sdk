@@ -37,7 +37,6 @@ ambisonic (multichannel) ACN channel layout with SN3D normalization. Detailed do
 - [Building](#building)
 - [Testing](#testing)
   - [Testing Songbird Locally](#testing-songbird-locally)
-- [Audio Codec Compatibility](#audio-codec-compatibility)
 - [Related Resources](#related-resources)
 - [Acknowledgments](#acknowledgments)
 - [Support](#support)
