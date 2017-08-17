@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <script src="../build/songbird.js"></script>
+  <script src="resources/three.js"></script>
+	<script src="resources/DaydreamController.js"></script>
+	<script src="resources/WebVR.js"></script>
+	<title>WebGL demo (w/ 3D FPS-style controls).</title>
+  <style>
+    body { margin: 0 }
+  </style>
+</head>
+<body>
+  <script>
+
+	var scene, camera, dolly, renderer, pointerLock;
+	var geometry, material, mesh;
+
+	var controller;
+
+	var songbird, songbirdSource;
+
+	var position = new THREE.Vector3();
+	var matrix3 = new THREE.Matrix3();
+
+	var moveForward = false;
+	var moveBackward = false;
+	var moveLeft = false;
+	var moveRight = false;
+	var escPressed = false;
+	var azimuth = 0;
+	var elevation = 0;
+  var dimensions = { width: 10, height: 5, depth: 10 };
+	var moveSpeed = 3; // m/s
+	var roomBoundary = 0.9;
+	var instructions;
+	var audioElement;
+	var onMouseMove;
+	var onMouseEnter;
+
+	init();
+	// initSongbird();
+	// animate();
+
+	function init() {
+
+		scene = new THREE.Scene();
+
+		dolly = new THREE.Group();
+		dolly.userData.position = new THREE.Vector3( 0, 0, 1 );
+		dolly.userData.easing = new THREE.Vector3();
+		scene.add( dolly );
+
+		camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 100 );
+		dolly.add( camera );
+
+		var room = new THREE.Mesh(
+			new THREE.BoxGeometry( dimensions.width, dimensions.height, dimensions.depth ),
+			new THREE.MeshPhongMaterial( { side: THREE.BackSide } )
+		);
+		scene.add( room );
+
+		var light = new THREE.PointLight();
+		light.position.set( 0, 3, 0 );
+		scene.add( light );
+
+		geometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
+		material = new THREE.MeshPhongMaterial( { color: 0xff0000 } );
+
+		mesh = new THREE.Mesh( geometry, material );
+		scene.add( mesh );
+
+		renderer = new THREE.WebGLRenderer( { antialias: true } );
+		renderer.setPixelRatio( window.devicePixelRatio );
+		renderer.setSize( window.innerWidth, window.innerHeight );
+		renderer.animate( animate );
+		document.body.appendChild( renderer.domElement );
+
+		renderer.vr.enabled = true;
+
+		var onKeyDown = function (event) {
+			switch (event.keyCode) {
+				case 38:
+				case 87:
+					moveForward = true;
+					break;
+				case 37:
+				case 65:
+					moveLeft = true;
+					break;
+				case 40:
+				case 83:
+					moveBackward = true;
+					break;
+				case 39:
+				case 68:
+					moveRight = true;
+					break;
+				default:
+					escPressed = true;
+					break;
+			}
+		}
+		var onKeyUp = function (event) {
+			switch (event.keyCode) {
+				case 38:
+				case 87:
+					moveForward = false;
+					break;
+				case 37:
+				case 65:
+					moveLeft = false;
+					break;
+				case 40:
+				case 83:
+					moveBackward = false;
+					break;
+				case 39:
+				case 68:
+					moveRight = false;
+					break;
+			}
+		}
+
+		var mousePrevX = 0;
+		var mousePrevY = 0;
+		onMouseMove = function (event) {
+			var deltaX = event.clientX - mousePrevX;
+			var deltaY = event.clientY - mousePrevY;
+			mousePrevX = event.clientX;
+			mousePrevY = event.clientY;
+			azimuth -= deltaX * 0.5 / 180 * Math.PI;
+			elevation -= deltaY * 0.25 / 180 * Math.PI;
+			if (elevation > Math.PI / 2) {
+				elevation = Math.PI / 2;
+			} else if (elevation < -Math.PI / 2) {
+				elevation = Math.PI / 2;
+			}
+		}
+
+		document.addEventListener( 'click', function () {
+			if ( songbird === undefined ) {
+				initSongbird();
+				instructions.style.display = 'none';
+				audioElement.play();
+				mousePrevX = event.clientX;
+				mousePrevY = event.clientY;
+				document.addEventListener('mousemove', onMouseMove, false);
+			}
+		});
+
+		document.addEventListener('keydown', onKeyDown, false);
+		document.addEventListener('keyup', onKeyUp, false);
+
+		controller = new THREE.DaydreamController();
+		controller.addEventListener( 'axischanged', function ( event ) {
+
+			dolly.userData.position.x += event.axes[ 0 ] / 5;
+			dolly.userData.position.z += event.axes[ 1 ] / 5;
+
+		} );
+		scene.add( controller );
+
+		WEBVR.getVRDisplay( function ( display ) {
+
+			renderer.vr.setDevice( display );
+
+			//document.body.appendChild( WEBVR.getButton( display, renderer.domElement ) );
+
+		} );
+
+		instructions = document.createElement('div');
+		instructions.style.position = 'absolute';
+		instructions.style.left = 'calc(50% - 160px)';
+		instructions.style.top = 'calc(50% - 180px)';
+		instructions.style.width = '320px';
+		instructions.style.height = '240px';
+		instructions.style.cursor = 'pointer';
+		instructions.style.fontFamily = 'sans-serif';
+		instructions.style.fontSize = '16px';
+		instructions.style.color = 'rgb(255,255,255)'
+		instructions.style.backgroundColor = 'rgb(0,0,0)';
+		instructions.style.zIndex = 999;
+		instructions.style.border = '1px solid white';
+		instructions.style.padding = '8px';
+		instructions.style.opacity = '0.85';
+		instructions.innerHTML = 'INSTRUCTIONS:<br><br>' +
+			'W/Up   - move forward<br>' +
+			'D/Down - move back<br>' +
+			'A/Left - strafe left<br>' +
+			'D/Right - strafe right<br>' +
+			'Mouse - look around<br>' +
+			'ESC - stop sound / exit controls<br><br>' +
+			'<p style="text-align:center;">Click to begin</p>';
+		document.body.appendChild(instructions);
+
+	}
+
+	function initSongbird() {
+
+		var audioContext = new AudioContext();
+
+		// Create <audio> streaming audio source.
+		audioElement = document.createElement('audio');
+		audioElement.src = 'resources/CubeSound.wav';
+		audioElement.loop = true;
+
+		var audioElementSource = audioContext.createMediaElementSource(audioElement);
+
+		// Initialize Songbird, create listener and source.
+		songbird = new Songbird(audioContext, {
+			ambisonicOrder: 3,
+			dimensions: dimensions,
+			materials: {left: 'brick-bare', right: 'brick-bare', down: 'brick-bare',
+				up: 'brick-bare', front: 'brick-bare', back: 'brick-bare'}});
+		songbird.output.connect(audioContext.destination);
+
+		songbirdSource = songbird.createSource({
+			minDistance: 0.5
+		})
+		audioElementSource.connect(songbirdSource.input);
+		songbirdSource.setPosition(0, 0, 0);
+	}
+
+	var prevTime = performance.now();
+	function animate() {
+
+		if ( escPressed ) {
+			document.removeEventListener('mousemove', onMouseMove, false);
+			document.removeEventListener('mouseenter', onMouseEnter, false);
+			audioElement.pause();
+			instructions.style.display = 'inline';
+			songbird = undefined;
+			escPressed = false;
+		}
+
+		var forward = new THREE.Vector3(0, 0, 0);
+		dolly.rotation.set(0, 0, 0);
+		var right =
+			new THREE.Vector3(1, 0, 0).applyAxisAngle(
+				new THREE.Vector3(0, 1, 0), azimuth);
+		dolly.rotateOnAxis(right, elevation);
+		dolly.rotateOnAxis(new THREE.Vector3(0, 1, 0), azimuth);
+
+		if ( songbird ) {
+
+			songbird.setListenerFromMatrix( camera.matrixWorld );
+
+			controller.update();
+			var time = performance.now();
+			var delta = (time - prevTime) / 1000; // to seconds.
+			prevTime = time;
+
+
+			if (moveForward) {
+				forward.z -= delta * moveSpeed;
+			}
+			if (moveBackward) {
+				forward.z += delta * moveSpeed;
+			}
+			if (moveLeft) {
+				forward.x -= delta * moveSpeed;
+			}
+			if (moveRight) {
+				forward.x += delta * moveSpeed;
+			}
+			forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), azimuth);
+			dolly.userData.position.add(forward);
+			if (dolly.userData.position.x > dimensions.width / 2 * roomBoundary) {
+				dolly.userData.position.x = dimensions.width / 2 * roomBoundary;
+			}
+			if (dolly.userData.position.z > dimensions.depth / 2 * roomBoundary) {
+				dolly.userData.position.z = dimensions.depth / 2 * roomBoundary;
+			}
+			if (dolly.userData.position.x < -dimensions.width / 2 * roomBoundary) {
+				dolly.userData.position.x = -dimensions.width / 2 * roomBoundary;
+			}
+			if (dolly.userData.position.z < -dimensions.depth / 2 * roomBoundary) {
+				dolly.userData.position.z = -dimensions.depth / 2 * roomBoundary;
+			}
+		}
+
+		dolly.userData.easing.subVectors( dolly.userData.position, dolly.position ).multiplyScalar( 0.1 );
+		dolly.position.add( dolly.userData.easing )
+
+		mesh.rotation.x += 0.01;
+		mesh.rotation.y += 0.02;
+
+		renderer.render( scene, camera );
+	}
+
+  </script>
+</body>
+</html>

@@ -5,17 +5,17 @@
 Songbird is a real-time spatial audio encoding JavaScript library for WebAudio
 applications. It allows web developers to dynamically spatially-encode
 streaming audio content into scalable
-[ambisonics](https://en.wikipedia.org/wiki/Ambisonics) signal, which can be
-rendered using a binaural renderer such as
-[Omnitone](https://github.com/GoogleChrome/omnitone) for realistic and
-quality-scalable 3D audio.
+[ambisonics](https://en.wikipedia.org/wiki/Ambisonics) signal, which is rendered
+internally using
+[Omnitone](https://github.com/GoogleChrome/omnitone) to output stereo sound,
+for realistic and quality-scalable 3D audio.
 
 
 Hear Songbird in action:
 - [PannerNode vs. Songbird example](https://cdn.rawgit.com/google/songbird/master/examples/panner-node-vs-songbird.html)
 - [Room model example](https://cdn.rawgit.com/google/songbird/master/examples/room-model.html)
 - [Flock of Birds](https://cdn.rawgit.com/google/songbird/master/examples/birds.html)
-
+- [3D interactive WebGL demo](https://cdn.rawgit.com/google/songbird/master/examples/webgl-demo.html)
 
 The implementation of Songbird is based on the
 [Google spatial media](https://github.com/google/spatial-media) specification.
@@ -33,7 +33,11 @@ ambisonic (multichannel) ACN channel layout with SN3D normalization. Detailed do
   - [Positioning Sources and the Listener](#positioning-sources-and-the-listener)
   - [Room Properties](#room-properties)
   - [Creation Arguments](#creation-arguments)
-- [Porting From PannerNode](#porting-from-pannernode)
+- [Differences to PannerNode](#differences-to-pannernode)
+  - [Cost](#cost)
+  - [Quality](#quality)
+  - [Room Acoustics](#room-acoustics)
+  - [Porting PannerNode projects to Songbird](#porting-pannernode-projects-to-songbird)
 - [Building](#building)
 - [Testing](#testing)
   - [Testing Songbird Locally](#testing-songbird-locally)
@@ -264,9 +268,42 @@ var source = songbird.createSource(sourceOptions);
 See the [documentation](https://cdn.rawgit.com/google/songbird/master/doc/index.html) for more details on all optional arguments.
 
 
-## Porting From PannerNode
+## Differences to PannerNode
 
-For projects already employing [PannerNode](https://developer.mozilla.org/en-US/docs/Web/API/PannerNode), it is fairly simple to switch to Songbird. Below is a basic `PannerNode` example:
+There are several advantages to using Songbird over WebAudio's
+[PannerNode](https://developer.mozilla.org/en-US/docs/Web/API/PannerNode).
+
+- Cost
+- Quality
+- Room Acoustics
+
+### Cost
+
+PannerNode requires two convolutions per encoded source. But because we employ
+ambisonics, there is a fixed cost associated with rendering from Songbird, with
+nominal costs per source. Developers can adjust the desired ambisonic order
+(from 1 to 3) to control the majority of computational costs.
+
+
+### Quality
+
+In addition to controlling computational costs, adjusting the ambisonic order
+controls the quality of spatialization (Higher order typically yields better
+direct source localization). Additionally, we offer direct ambisonic output
+(which bypasses the rendering), allowing developers total control over how to
+render their content.
+
+
+### Room Acoustics
+
+Songbird comes with room modelling effects, which includes both an early and
+late reflection model based on the room properties. These effects are likewise
+ambisonically-encoded and fully spatialized.
+
+
+### Porting PannerNode projects to Songbird
+
+For projects already employing PannerNode, it is fairly simple to switch to Songbird. Below is a basic `PannerNode` example:
 
 ```js
 // Create a "PannerNode."
