@@ -355,15 +355,6 @@ export CHROME_BIN=chromium-browser
 Windows platform has not been tested for local testing.
 
 
-## Audio Codec Compatibility
-
-Songbird is designed to run any browser that supports Web Audio API, however,
-it does not address the incompatibility issue around various media codecs in
-the browsers. At the time of writing, the decoding of compressed multichannel
-audio via `<video>` or `<audio>` elements is not fully supported by the majority
-of mobile browsers.
-
-
 ## Related Resources
 
 * [Omnitone](https://github.com/googlechrome/omnitone)
