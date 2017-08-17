@@ -11,7 +11,7 @@ internally using
 for realistic and quality-scalable 3D audio.
 
 
-Hear Songbird in action:
+Hear Songbird in action (currently the examples only work on laptops/desktops):
 - [PannerNode vs. Songbird example](https://cdn.rawgit.com/google/songbird/master/examples/panner-node-vs-songbird.html)
 - [Room model example](https://cdn.rawgit.com/google/songbird/master/examples/room-model.html)
 - [Flock of Birds](https://cdn.rawgit.com/google/songbird/master/examples/birds.html)
