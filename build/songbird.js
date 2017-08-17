@@ -444,19 +444,29 @@ return /******/ (function(modules) { // webpackBootstrap
 	  var urls = [''];
 	  if (options.ambisonicOrder == 1) {
 	    urls = [
-	      'https://cdn.rawgit.com/google/songbird/master/build/resources/sh_hrir_o_1.wav'
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/foa-1-2.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/foa-3-4.wav'
 	    ];
 	  }
 	  else if (options.ambisonicOrder == 2) {
 	    urls = [
-	      'https://cdn.rawgit.com/google/songbird/master/build/resources/sh_hrir_o_2_ch0-ch7.wav',
-	      'https://cdn.rawgit.com/google/songbird/master/build/resources/sh_hrir_o_2_ch8.wav'
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/soa-1-2.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/soa-3-4.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/soa-5-6.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/soa-7-8.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/soa-9.wav'
 	    ];
 	  }
 	  else if (options.ambisonicOrder == 3) {
 	    urls = [
-	      'https://cdn.rawgit.com/google/songbird/master/build/resources/sh_hrir_o_3_ch0-ch7.wav',
-	      'https://cdn.rawgit.com/google/songbird/master/build/resources/sh_hrir_o_3_ch8-ch15.wav'
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-1-2.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-3-4.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-5-6.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-7-8.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-9-10.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-11-12.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-13-14.wav',
+	      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-15-16.wav',
 	    ];
 	  }
 	  else {
