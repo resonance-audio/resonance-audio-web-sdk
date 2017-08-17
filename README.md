@@ -85,7 +85,7 @@ The first step is to include the library file in an HTML document.
 <script src="https://cdn.rawgit.com/google/songbird/master/build/songbird.min.js"></script>
 ```
 
-Spatial encoding is done by creating a `Songbird` scene using an associted
+Spatial encoding is done by creating a `Songbird` scene using an associated
 `AudioContext` and then creating any number of associated `Source` objects
 using `Songbird.createSource()`. The `Songbird` scene models a physical
 listener while adding room reflections and reverberation. The `Source`
