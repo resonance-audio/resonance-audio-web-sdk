@@ -87,7 +87,8 @@ The first step is to include the library file in an HTML document.
 
 Spatial encoding is done by creating a `Songbird` scene using an associated
 `AudioContext` and then creating any number of associated `Source` objects
-using `Songbird.createSource()`. The `Songbird` scene models a physical
+using `Songbird.createSource()`. Any number of AudioNodes can be connected
+directly to `Source` objects. The `Songbird` scene models a physical
 listener while adding room reflections and reverberation. The `Source`
 instances model acoustic sound sources. The library is designed to be easily
 integrated into an existing WebAudio audio graph.
@@ -135,14 +136,15 @@ songbird.setRoomProperties(dimensions, materials);
 ```
 
 Next, we create an audio element, load some audio and feed the audio element
-into the audio graph. We then create a `Source` and connect the elements
-together. The default position for a `Source` is the origin.
+into the audio graph as an AudioNode. We then create a `Source` and connect the
+AudioNode to it. The default position for a `Source` is the origin.
 
 ```js
 // Create an audio element. Feed into audio graph.
 var audioElement = document.createElement('audio');
 audioElement.src = 'resources/SpeechSample.wav';
 
+// Create an AudioNode from the audio element.
 var audioElementSource = audioContext.createMediaElementSource(audioElement);
 
 // Create a Source, connect desired audio input to it.
