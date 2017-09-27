@@ -86,6 +86,8 @@ The first step is to include the library file in an HTML document.
 
 <!-- if you prefer to use CDN -->
 <script src="https://cdn.rawgit.com/google/songbird/master/build/songbird.min.js"></script>
+or
+<script src="https://cdn.jsdelivr.net/npm/songbird-audio/build/songbird.min.js"></script>
 ```
 
 Spatial encoding is done by creating a `Songbird` scene using an associated
