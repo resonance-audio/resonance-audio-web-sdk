@@ -28,11 +28,14 @@
 	var moveBackward = false;
 	var moveLeft = false;
 	var moveRight = false;
+	var rollLeft = false;
+	var rollRight = false;
 	var escPressed = false;
 	var azimuth = 0;
 	var elevation = 0;
   var dimensions = { width: 10, height: 5, depth: 10 };
 	var moveSpeed = 3; // m/s
+	var rollSpeed = 0.3;
 	var roomBoundary = 0.9;
 	var instructions;
 	var audioElement;
@@ -95,6 +98,12 @@
 				case 68:
 					moveRight = true;
 					break;
+				case 81:
+					rollLeft = true;
+					break;
+				case 69:
+					rollRight = true;
+					break;
 				default:
 					escPressed = true;
 					break;
@@ -117,6 +126,12 @@
 				case 39:
 				case 68:
 					moveRight = false;
+					break;
+				case 81:
+					rollLeft = false;
+					break;
+				case 69:
+					rollRight = false;
 					break;
 			}
 		}
@@ -254,6 +269,12 @@
 			}
 			if (moveRight) {
 				forward.x += delta * moveSpeed;
+			}
+			if (rollLeft) {
+				camera.rotation.z += delta * rollSpeed;
+			}
+			if (rollRight) {
+				camera.rotation.z -= delta * rollSpeed;
 			}
 			forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), azimuth);
 			dolly.userData.position.add(forward);
