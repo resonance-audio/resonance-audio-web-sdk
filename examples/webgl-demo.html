@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
   <script src="../build/songbird.js"></script>
   <script src="resources/three.js"></script>
-	<script src="resources/DaydreamController.js"></script>
 	<title>WebGL demo (w/ 3D FPS-style controls).</title>
   <style>
     body { margin: 0 }
@@ -16,8 +15,6 @@
 
 	var scene, camera, dolly, renderer, pointerLock;
 	var geometry, material, mesh;
-
-	var controller;
 
 	var songbird, songbirdSource;
 
@@ -166,15 +163,6 @@
 		document.addEventListener('keydown', onKeyDown, false);
 		document.addEventListener('keyup', onKeyUp, false);
 
-		controller = new THREE.DaydreamController();
-		controller.addEventListener( 'axischanged', function ( event ) {
-
-			dolly.userData.position.x += event.axes[ 0 ] / 5;
-			dolly.userData.position.z += event.axes[ 1 ] / 5;
-
-		} );
-		scene.add( controller );
-
 		instructions = document.createElement('div');
 		instructions.style.position = 'absolute';
 		instructions.style.left = 'calc(50% - 160px)';
@@ -252,7 +240,6 @@
 
 			songbird.setListenerFromMatrix( camera.matrixWorld );
 
-			controller.update();
 			var time = performance.now();
 			var delta = (time - prevTime) / 1000; // to seconds.
 			prevTime = time;
