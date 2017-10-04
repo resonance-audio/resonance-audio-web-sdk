@@ -6,7 +6,6 @@
   <script src="../build/songbird.js"></script>
   <script src="resources/three.js"></script>
 	<script src="resources/DaydreamController.js"></script>
-	<script src="resources/WebVR.js"></script>
 	<title>WebGL demo (w/ 3D FPS-style controls).</title>
   <style>
     body { margin: 0 }
@@ -77,8 +76,6 @@
 		renderer.setSize( window.innerWidth, window.innerHeight );
 		renderer.animate( animate );
 		document.body.appendChild( renderer.domElement );
-
-		renderer.vr.enabled = true;
 
 		var onKeyDown = function (event) {
 			switch (event.keyCode) {
@@ -162,14 +159,6 @@
 
 		} );
 		scene.add( controller );
-
-		WEBVR.getVRDisplay( function ( display ) {
-
-			renderer.vr.setDevice( display );
-
-			//document.body.appendChild( WEBVR.getButton( display, renderer.domElement ) );
-
-		} );
 
 		instructions = document.createElement('div');
 		instructions.style.position = 'absolute';
