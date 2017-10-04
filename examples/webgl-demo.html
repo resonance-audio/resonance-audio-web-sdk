@@ -230,7 +230,7 @@
 		if ( escPressed ) {
 			document.removeEventListener('mousemove', onMouseMove, false);
 			document.removeEventListener('mouseenter', onMouseEnter, false);
-			audioElement.pause();
+			if ( audioElement ) audioElement.pause();
 			instructions.style.display = 'inline';
 			songbird = undefined;
 			escPressed = false;
