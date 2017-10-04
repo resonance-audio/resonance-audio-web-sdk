@@ -3,14 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-  <script src="../build/songbird.js"></script>
-  <script src="resources/three.js"></script>
 	<title>WebGL demo (w/ 3D FPS-style controls).</title>
   <style>
-    body { margin: 0 }
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
   </style>
 </head>
 <body>
+  <script src="resources/three.js"></script>
+  <script src="../build/songbird.js"></script>
   <script>
 
 	var scene, camera, dolly, renderer, pointerLock;
@@ -30,7 +33,7 @@
 	var escPressed = false;
 	var azimuth = 0;
 	var elevation = 0;
-  var dimensions = { width: 10, height: 5, depth: 10 };
+	var dimensions = { width: 10, height: 5, depth: 10 };
 	var moveSpeed = 3; // m/s
 	var rollSpeed = 0.3;
 	var roomBoundary = 0.9;
