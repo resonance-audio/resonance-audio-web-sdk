@@ -23,28 +23,7 @@
 
 
 // Internal dependencies.
-var Utils = require('./utils.js');
-
-
-// Static constants.
-/** Rolloff models (e.g. 'logarithmic', 'linear', or 'none').
- * @type {Array}
- */
-Attenuation.ROLLOFFS = ['logarithmic', 'linear', 'none'];
-
-
-/** Default rolloff model ('logarithmic').
- * @type {string}
- */
-Attenuation.DEFAULT_ROLLOFF = 'logarithmic';
-
-
-/** @type {Number} */
-Attenuation.DEFAULT_MIN_DISTANCE = 1;
-
-
-/** @type {Number} */
-Attenuation.DEFAULT_MAX_DISTANCE = 1000;
+const Utils = require('./utils.js');
 
 
 /**
@@ -56,16 +35,16 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Object} options
  * @param {Number} options.minDistance
  * Min. distance (in meters). Defaults to
- * {@linkcode Attenuation.DEFAULT_MIN_DISTANCE DEFAULT_MIN_DISTANCE}.
+ * {@linkcode Utils.DEFAULT_MIN_DISTANCE DEFAULT_MIN_DISTANCE}.
  * @param {Number} options.maxDistance
  * Max. distance (in meters). Defaults to
- * {@linkcode Attenuation.DEFAULT_MAX_DISTANCE DEFAULT_MAX_DISTANCE}.
+ * {@linkcode Utils.DEFAULT_MAX_DISTANCE DEFAULT_MAX_DISTANCE}.
  * @param {string} options.rolloff
  * Rolloff model to use, chosen from options in
- * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
- * {@linkcode Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+ * {@linkcode Utils.ATTENUATION_ROLLOFFS ATTENUATION_ROLLOFFS}. Defaults to
+ * {@linkcode Utils.DEFAULT_ATTENUATION_ROLLOFF DEFAULT_ATTENUATION_ROLLOFF}.
  */
-function Attenuation (context, options) {
+function Attenuation(context, options) {
   // Public variables.
   /**
    * Min. distance (in meters).
@@ -96,16 +75,16 @@ function Attenuation (context, options) {
 
   // Use defaults for undefined arguments.
   if (options == undefined) {
-    options = new Object();
+    options = {};
   }
   if (options.minDistance == undefined) {
-    options.minDistance = Attenuation.DEFAULT_MIN_DISTANCE;
+    options.minDistance = Utils.DEFAULT_MIN_DISTANCE;
   }
   if (options.maxDistance == undefined) {
-    options.maxDistance = Attenuation.DEFAULT_MAX_DISTANCE;
+    options.maxDistance = Utils.DEFAULT_MAX_DISTANCE;
   }
   if (options.rolloff == undefined) {
-    options.rolloff = Attenuation.DEFAULT_ROLLOFF;
+    options.rolloff = Utils.DEFAULT_ATTENUATION_ROLLOFF;
   }
 
   // Assign values.
@@ -129,19 +108,19 @@ function Attenuation (context, options) {
  * Set distance from the listener.
  * @param {Number} distance Distance (in meters).
  */
-Attenuation.prototype.setDistance = function (distance) {
-  var gain = 1;
+Attenuation.prototype.setDistance = function(distance) {
+  let gain = 1;
   if (this._rolloff == 'logarithmic') {
     if (distance > this.maxDistance) {
       gain = 0;
     } else if (distance > this.minDistance) {
-      var range = this.maxDistance - this.minDistance;
+      let range = this.maxDistance - this.minDistance;
       if (range > Utils.EPSILON_FLOAT) {
         // Compute the distance attenuation value by the logarithmic curve
         // "1 / (d + 1)" with an offset of |minDistance|.
-        var relativeDistance = distance - this.minDistance;
-        var attenuation = 1 / (relativeDistance + 1);
-        var attenuationMax = 1 / (range + 1);
+        let relativeDistance = distance - this.minDistance;
+        let attenuation = 1 / (relativeDistance + 1);
+        let attenuationMax = 1 / (range + 1);
         gain = (attenuation - attenuationMax) / (1 - attenuationMax);
       }
     }
@@ -149,36 +128,35 @@ Attenuation.prototype.setDistance = function (distance) {
     if (distance > this.maxDistance) {
       gain = 0;
     } else if (distance > this.minDistance) {
-      var range = this.maxDistance - this.minDistance;
+      let range = this.maxDistance - this.minDistance;
       if (range > Utils.EPSILON_FLOAT) {
         gain = (this.maxDistance - distance) / range;
       }
     }
   }
   this._gainNode.gain.value = gain;
-}
+};
 
 
 /**
  * Set rolloff.
  * @param {string} rolloff
  * Rolloff model to use, chosen from options in
- * {@linkcode Attenuation.ROLLOFFS ROLLOFFS}. Defaults to
- * {@linkcode Attenuation.DEFAULT_ROLLOFF DEFAULT_ROLLOFF}.
+ * {@linkcode Utils.ATTENUATION_ROLLOFFS ATTENUATION_ROLLOFFS}.
  */
-Attenuation.prototype.setRolloff = function (rolloff) {
-  var isValidModel = ~Attenuation.ROLLOFFS.indexOf(rolloff);
+Attenuation.prototype.setRolloff = function(rolloff) {
+  let isValidModel = ~Utils.ATTENUATION_ROLLOFFS.indexOf(rolloff);
   if (rolloff == undefined || !isValidModel) {
     if (!isValidModel) {
       Utils.log('Invalid rolloff model (\"' + rolloff +
-        '\"). Using default: \"' + Attenuation.DEFAULT_ROLLOFF + '\".');
+        '\"). Using default: \"' + Utils.DEFAULT_ATTENUATION_ROLLOFF + '\".');
     }
-    rolloff = Attenuation.DEFAULT_ROLLOFF;
+    rolloff = Utils.DEFAULT_ATTENUATION_ROLLOFF;
   } else {
     rolloff = rolloff.toString().toLowerCase();
   }
   this._rolloff = rolloff;
-}
+};
 
 
 module.exports = Attenuation;

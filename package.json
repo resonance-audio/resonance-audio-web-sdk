@@ -13,23 +13,30 @@
   ],
   "devDependencies": {
     "chai": "^3.5.0",
-    "copy-webpack-plugin": "^3.0.1",
+    "copy-webpack-plugin": "^4.0.1",
+    "eslint": "^4.7.0",
+    "eslint-config-google": "^0.9.1",
+    "jsdoc": "^3.5.4",
     "karma": "^1.6.0",
     "karma-chai": "^0.1.0",
     "karma-chrome-launcher": "^2.0.0",
     "karma-mocha": "^1.3.0",
     "karma-mocha-reporter": "^2.2.3",
     "mocha": "^3.0.0",
-    "webpack": "^1.13.0",
-    "doctoc": "^1.3.0",
-    "jsdoc": "^3.5.4"
+    "uglifyjs-webpack-plugin": "^1.0.0-beta.2",
+    "webpack": "^3.6.0",
+    "doctoc": "^1.3.0"
+  },
+  "dependencies": {
+    "omnitone": "^1.0.2"
   },
   "scripts": {
     "build": "webpack --progress --color",
-    "watch": "webpack --progress --color --watch",
     "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
+    "build-doc": "node_modules/.bin/doctoc README.md && node_modules/.bin/jsdoc src/songbird.js src/source.js src/utils.js -R README.md -d doc",
+    "eslint": "node_modules/.bin/eslint src/*.js test/*.js",
     "test": "node_modules/karma/bin/karma start",
-    "doc": "doctoc README.md && jsdoc src -d doc"
+    "watch": "webpack --progress --color --watch"
   },
   "repository": {
     "type": "git",

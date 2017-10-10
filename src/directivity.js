@@ -22,22 +22,7 @@
 'use strict';
 
 // Internal dependencies.
-var Utils = require('./utils.js');
-
-
-// Static variables
-/**
- * The default alpha (i.e. microphone pattern).
- * @type {Number}
- */
-Directivity.DEFAULT_ALPHA = 0;
-
-
-/**
- * The default pattern sharpness (i.e. pattern exponent).
- * @type {Number}
- */
-Directivity.DEFAULT_SHARPNESS = 1;
+const Utils = require('./utils.js');
 
 
 /**
@@ -50,13 +35,14 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Number} options.alpha
  * Determines directivity pattern (0 to 1). See
  * {@link Directivity#setPattern setPattern} for more details. Defaults to
- * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
+ * {@linkcode Utils.DEFAULT_DIRECTIVITY_ALPHA DEFAULT_DIRECTIVITY_ALPHA}.
  * @param {Number} options.sharpness
  * Determines the sharpness of the directivity pattern (1 to Inf). See
  * {@link Directivity#setPattern setPattern} for more details. Defaults to
- * {@linkcode Directivity.DEFAULT_SHARPNESS DEFAULT_SHARPNESS}.
+ * {@linkcode Utils.DEFAULT_DIRECTIVITY_SHARPNESS
+ * DEFAULT_DIRECTIVITY_SHARPNESS}.
  */
-function Directivity (context, options) {
+function Directivity(context, options) {
   // Public variables.
   /**
    * Mono (1-channel) input {@link
@@ -75,13 +61,13 @@ function Directivity (context, options) {
 
   // Use defaults for undefined arguments.
   if (options == undefined) {
-    options = new Object();
+    options = {};
   }
   if (options.alpha == undefined) {
-    options.alpha = Directivity.DEFAULT_ALPHA;
+    options.alpha = Utils.DEFAULT_DIRECTIVITY_ALPHA;
   }
   if (options.sharpness == undefined) {
-    options.sharpness = Directivity.DEFAULT_SHARPNESS;
+    options.sharpness = Utils.DEFAULT_DIRECTIVITY_SHARPNESS;
   }
 
   // Create audio node.
@@ -109,18 +95,18 @@ function Directivity (context, options) {
  * @param {Float32Array} direction The direction from the source to the
  * listener.
  */
-Directivity.prototype.computeAngle = function (forward, direction) {
-  var forwardNorm = Utils.normalizeVector(forward);
-  var directionNorm = Utils.normalizeVector(direction);
-  var coeff = 1;
+Directivity.prototype.computeAngle = function(forward, direction) {
+  let forwardNorm = Utils.normalizeVector(forward);
+  let directionNorm = Utils.normalizeVector(direction);
+  let coeff = 1;
   if (this._alpha > Utils.EPSILON_FLOAT) {
-    var cosTheta = forwardNorm[0] * directionNorm[0] +
+    let cosTheta = forwardNorm[0] * directionNorm[0] +
       forwardNorm[1] * directionNorm[1] + forwardNorm[2] * directionNorm[2];
     coeff = (1 - this._alpha) + this._alpha * cosTheta;
-    coeff = Math.pow(Math.abs(coeff), this._exponent);
+    coeff = Math.pow(Math.abs(coeff), this._sharpness);
   }
   this._lowpass.frequency.value = this._context.sampleRate * 0.5 * coeff;
-}
+};
 
 
 /**
@@ -128,27 +114,19 @@ Directivity.prototype.computeAngle = function (forward, direction) {
  * omnidirectional pattern, 1 is a bidirectional pattern, 0.5 is a cardiod
  * pattern. The sharpness of the pattern is increased exponenentially.
  * @param {Number} alpha
- * Determines directivity pattern (0 to 1). Defaults to
- * {@linkcode Directivity.DEFAULT_ALPHA DEFAULT_ALPHA}.
+ * Determines directivity pattern (0 to 1).
  * @param {Number} sharpness
- * Determines the sharpness of the directivity pattern (1 to Inf). Defaults to
- * {@linkcode Directivity.DEFAULT_SHARPNESS DEFAULT_SHARPNESS}.
+ * Determines the sharpness of the directivity pattern (1 to Inf).
+ * DEFAULT_DIRECTIVITY_SHARPNESS}.
  */
-Directivity.prototype.setPattern = function (alpha, sharpness) {
-  if (alpha == undefined) {
-    alpha = Directivity.DEFAULT_ALPHA;
-  }
-  if (sharpness == undefined) {
-    sharpness = Directivity.DEFAULT_SHARPNESS;
-  }
-
+Directivity.prototype.setPattern = function(alpha, sharpness) {
   // Clamp and set values.
   this._alpha = Math.min(1, Math.max(0, alpha));
   this._sharpness = Math.max(1, sharpness);
 
   // Update angle calculation using new values.
   this.computeAngle([this._cosTheta * this._cosTheta, 0, 0], [1, 0, 0]);
-}
+};
 
 
 module.exports = Directivity;

@@ -1,6 +1,8 @@
 # Songbird: Spatial Audio Encoding on the Web
 
-[![Travis](https://travis-ci.org/google/songbird.svg?branch=master)](https://travis-ci.org/google/songbird) [![npm](https://img.shields.io/npm/v/songbird-audio.svg?colorB=4bc51d)](https://www.npmjs.com/package/songbird-audio) [![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/google/songbird/master/LICENSE)
+[![Travis](https://travis-ci.org/google/songbird.svg?branch=master)](https://travis-ci.org/google/songbird)
+[![npm](https://img.shields.io/npm/v/songbird-audio.svg?colorB=4bc51d)](https://www.npmjs.com/package/songbird-audio)
+[![GitHub license](https://img.shields.io/badge/license-Apache%202-brightgreen.svg)](https://raw.githubusercontent.com/google/songbird/master/LICENSE)
 
 Songbird is a real-time spatial audio encoding JavaScript library for WebAudio
 applications. It allows web developers to dynamically spatially-encode
@@ -20,7 +22,9 @@ Hear Songbird in action (currently the examples only work on laptops/desktops):
 The implementation of Songbird is based on the
 [Google spatial media](https://github.com/google/spatial-media) specification.
 It expects mono input to its `Source` instances and outputs
-ambisonic (multichannel) ACN channel layout with SN3D normalization. Detailed documentation may be found [here](https://cdn.rawgit.com/google/songbird/master/doc/index.html).
+ambisonic (multichannel) ACN channel layout with SN3D normalization. Detailed
+documentation may be found
+[here](https://cdn.rawgit.com/google/songbird/master/doc/index.html).
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -69,7 +73,10 @@ is exposed as well.
 
 ## Installation
 
-Songbird is designed to be used for web front-end projects. So [NPM](https://www.npmjs.com/) is recommended if you want to install the library to your web project. You can also clone this repository and use the library file as usual.
+Songbird is designed to be used for web front-end projects. So
+[NPM](https://www.npmjs.com/) is recommended if you want to install the library
+to your web project. You can also clone this repository and use the library
+file as usual.
 
 ```bash
 npm install songbird-audio
@@ -85,9 +92,13 @@ The first step is to include the library file in an HTML document.
 <script src="node_modules/songbird-audio/build/songbird.min.js"></script>
 
 <!-- if you prefer to use CDN -->
-<script src="https://cdn.rawgit.com/google/songbird/master/build/songbird.min.js"></script>
-or
-<script src="https://cdn.jsdelivr.net/npm/songbird-audio/build/songbird.min.js"></script>
+<script
+  src="https://cdn.rawgit.com/google/songbird/master/build/songbird.min.js">
+</script>
+<!-- or -->
+<script
+  src="https://cdn.jsdelivr.net/npm/songbird-audio/build/songbird.min.js">
+</script>
 ```
 
 Spatial encoding is done by creating a `Songbird` scene using an associated
@@ -103,7 +114,8 @@ integrated into an existing WebAudio audio graph.
 
 Let's see how we can create a scene and generate some audio. Let's begin by
 constructing an `AudioContext` and `Songbird` scene and connecting it to the
-audio output. You can view a live demo of this example [here](https://rawgit.com/google/songbird/master/examples/hello-world.html).
+audio output. You can view a live demo of this example
+[here](https://rawgit.com/google/songbird/master/examples/hello-world.html).
 
 ```js
 var audioContext = new AudioContext();
@@ -120,7 +132,7 @@ is no room and we are in free space). To define a room, we simply need to
 provide the dimensions in meters (the room's center is the origin). We can also
 define the materials of each of the 6 surfaces (4 walls + ceiling + floor). A
 range of materials are predefined in Songbird, each with different reflection
-properties.
+properties. To create hidden/missing walls, select the 'transparent' material.
 
 ```js
 // Set room acoustics properties.
@@ -172,7 +184,9 @@ audioElement.play();
 
 ### Positioning Sources and the Listener
 
-`Source` objects can be placed with cartesian coordinates relative to the origin (center of the room). Songbird uses a right-handed coordinate system, similar to OpenGL and Three.js.
+`Source` objects can be placed with cartesian coordinates relative to the origin
+(center of the room). Songbird uses a right-handed coordinate system, similar
+to OpenGL and Three.js.
 
 ```js
 // Or Source's and Listener's positions.
@@ -188,7 +202,8 @@ source.setOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);
 songbird.setListenerOrientation(forward_x, forward_y, forward_z, up_x, up_y, up_z);
 ```
 
-Alternatively, the `Source`'s and Listener position and orientation can be set using Three.js Matrix4 objects:
+Alternatively, the `Source`'s and Listener position and orientation can be set
+using Three.js Matrix4 objects:
 
 ```js
 source.setFromMatrix(matrix4);
@@ -233,7 +248,8 @@ materials:
 
 ### Creation Arguments
 
-When constructing a `Songbird` scene, optional scene-related arguments may be provided to override default values.
+When constructing a `Songbird` scene, optional scene-related arguments may be
+provided to override default values.
 
 ```js
 var songbirdOptions = {
@@ -249,7 +265,8 @@ var songbirdOptions = {
 var songbird = new Songbird(audioContext, songbirdOptions)
 ```
 
-Likewise, when creating a new `Source`, source-related optional arguments may be provided:
+Likewise, when creating a new `Source`, source-related optional arguments may
+be provided:
 
 ```js
 var sourceOptions = {
@@ -267,7 +284,9 @@ var sourceOptions = {
 var source = songbird.createSource(sourceOptions);
 ```
 
-See the [documentation](https://cdn.rawgit.com/google/songbird/master/doc/index.html) for more details on all optional arguments.
+See the
+[documentation](https://cdn.rawgit.com/google/songbird/master/doc/index.html)
+for more details on all optional arguments.
 
 
 ## Differences to PannerNode
@@ -305,7 +324,8 @@ ambisonically-encoded and fully spatialized.
 
 ### Porting PannerNode projects to Songbird
 
-For projects already employing PannerNode, it is fairly simple to switch to Songbird. Below is a basic `PannerNode` example:
+For projects already employing PannerNode, it is fairly simple to switch to
+Songbird. Below is a basic `PannerNode` example:
 
 ```js
 // Create a "PannerNode."
@@ -359,15 +379,18 @@ library and to manage dependencies.
 npm install         # install dependencies.
 npm run build       # build a non-minified library.
 npm run watch       # recompile whenever any source file changes.
-npm run build-all   # build a minified library and copy static resources.
-npm run doc         # generate documentation.
+npm run build-all   # build a minified library.
+npm run build-doc   # generate documentation.
+npm run eslint      # lint code for ES6 compatibility.
 ```
 
 
 ## Testing
 
-Songbird uses [Travis](https://travis-ci.org/) and [Karma](https://karma-runner.github.io/1.0/index.html) test runner for continuous
-integration. To run the test suite locally, clone the repository, install dependencies and launch the test runner:
+Songbird uses [Travis](https://travis-ci.org/) and
+[Karma](https://karma-runner.github.io/1.0/index.html) test runner for
+continuous integration. To run the test suite locally, clone the repository,
+install dependencies and launch the test runner:
 
 ```bash
 npm test
@@ -403,23 +426,30 @@ Windows platform has not been tested for local testing.
 
 ## Acknowledgments
 
-Special thanks to Alper Gungormusler, Hongchan Choi, Marcin Gorzel, and Julius Kammerl for their help on this project.
+Special thanks to Alper Gungormusler, Hongchan Choi, Marcin Gorzel, and Julius
+Kammerl for their help on this project.
 
 
 ## Support
 
-If you have found an error in this library, please file an issue at: [https://github.com/Google/songbird/issues](https://github.com/Google/songbird/issues).
+If you have found an error in this library, please file an issue at:
+[https://github.com/Google/songbird/issues](https://github.com/Google/songbird/issues).
 
-Patches are encouraged, and may be submitted by forking this project and submitting a pull request through GitHub. See CONTRIBUTING for more detail.
+Patches are encouraged, and may be submitted by forking this project and
+submitting a pull request through GitHub. See CONTRIBUTING for more detail.
 
 
 ## License
 
 Copyright &copy; 2017 Google Inc. All Rights Reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at
 
 [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
 
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
-
+Unless required by applicable law or agreed to in writing, software distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.

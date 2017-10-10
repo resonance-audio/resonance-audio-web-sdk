@@ -14,48 +14,50 @@
  */
 
 /**
- * Test Listener object.
+ * Test Source object.
  */
-describe('Listener', function() {
+describe('Source', function() {
   // This test is async, override timeout threshold to 5 sec.
   this.timeout(5000);
 
   const sampleRate = 48000;
-  const options = {};
+  const songbirdOptions = {};
+  const soundSourceOptions = {minDistance: 1, maxDistance: 1000};
 
   let context;
-  let listener;
+  let songbird;
+  let soundSource;
   let bufferSource;
 
   beforeEach(function() {
+    // Create nodes.
     context =
-      new OfflineAudioContext(2, sampleRate, sampleRate);
-    listener = new Songbird.Listener(context, options);
+      new OfflineAudioContext(1, 1, sampleRate);
+    songbird = new Songbird(context, songbirdOptions);
+    soundSource = songbird.createSource(soundSourceOptions);
     bufferSource = context.createBufferSource();
     bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
     bufferSource.buffer.getChannelData(0)[0] = 1;
 
     // Connect audio graph.
-    bufferSource.connect(listener.input);
-    listener.output.connect(context.destination);
+    bufferSource.connect(soundSource.input);
+    songbird._listener.input.connect(context.destination);
+    soundSource._encoder.output.connect(context.destination);
     bufferSource.start();
   });
 
-  // it('Ensure module produces output.', function(done) {
-  //   context.startRendering().then(function(renderedBuffer) {
-  //     let outputPower = 0;
-  //     for (let i = 0; i < renderedBuffer.numberOfChannels; i++) {
-  //       let buffer = renderedBuffer.getChannelData(i);
-  //       for (let j = 0; j < buffer.length; j++) {
-  //         outputPower += buffer[j] * buffer[j];
-  //       }
-  //     }
-  //     expect(outputPower).to.be.above(0);
-  //     done();
-  //   });
-  // });
-
-  it('Verify module constructor.', function(done) {
-    done();
+  it('Ensure module produces output.', function(done) {
+    soundSource.setPosition(0, 0, 1);
+    context.startRendering().then(function(renderedBuffer) {
+      let outputPower = 0;
+      for (let i = 0; i < renderedBuffer.numberOfChannels; i++) {
+        let buffer = renderedBuffer.getChannelData(i);
+        for (let j = 0; j < buffer.length; j++) {
+          outputPower += buffer[j] * buffer[j];
+        }
+      }
+      expect(outputPower).to.be.above(0);
+      done();
+    });
   });
 });
