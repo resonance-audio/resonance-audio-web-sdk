@@ -3,22 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-  <script src="../build/songbird.js"></script>
-  <script src="resources/three.js"></script>
-	<script src="resources/DaydreamController.js"></script>
-	<script src="resources/WebVR.js"></script>
 	<title>WebGL demo (w/ 3D FPS-style controls).</title>
   <style>
-    body { margin: 0 }
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
   </style>
 </head>
 <body>
+  <script src="resources/three.js"></script>
+  <script src="../build/songbird.js"></script>
   <script>
 
 	var scene, camera, dolly, renderer, pointerLock;
 	var geometry, material, mesh;
-
-	var controller;
 
 	var songbird, songbirdSource;
 
@@ -29,11 +28,14 @@
 	var moveBackward = false;
 	var moveLeft = false;
 	var moveRight = false;
+	var rollLeft = false;
+	var rollRight = false;
 	var escPressed = false;
 	var azimuth = 0;
 	var elevation = 0;
-  var dimensions = { width: 10, height: 5, depth: 10 };
+	var dimensions = { width: 10, height: 5, depth: 10 };
 	var moveSpeed = 3; // m/s
+	var rollSpeed = 0.3;
 	var roomBoundary = 0.9;
 	var instructions;
 	var audioElement;
@@ -78,8 +80,6 @@
 		renderer.animate( animate );
 		document.body.appendChild( renderer.domElement );
 
-		renderer.vr.enabled = true;
-
 		var onKeyDown = function (event) {
 			switch (event.keyCode) {
 				case 38:
@@ -97,6 +97,12 @@
 				case 39:
 				case 68:
 					moveRight = true;
+					break;
+				case 81:
+					rollLeft = true;
+					break;
+				case 69:
+					rollRight = true;
 					break;
 				default:
 					escPressed = true;
@@ -120,6 +126,12 @@
 				case 39:
 				case 68:
 					moveRight = false;
+					break;
+				case 81:
+					rollLeft = false;
+					break;
+				case 69:
+					rollRight = false;
 					break;
 			}
 		}
@@ -153,23 +165,6 @@
 
 		document.addEventListener('keydown', onKeyDown, false);
 		document.addEventListener('keyup', onKeyUp, false);
-
-		controller = new THREE.DaydreamController();
-		controller.addEventListener( 'axischanged', function ( event ) {
-
-			dolly.userData.position.x += event.axes[ 0 ] / 5;
-			dolly.userData.position.z += event.axes[ 1 ] / 5;
-
-		} );
-		scene.add( controller );
-
-		WEBVR.getVRDisplay( function ( display ) {
-
-			renderer.vr.setDevice( display );
-
-			//document.body.appendChild( WEBVR.getButton( display, renderer.domElement ) );
-
-		} );
 
 		instructions = document.createElement('div');
 		instructions.style.position = 'absolute';
@@ -230,7 +225,7 @@
 		if ( escPressed ) {
 			document.removeEventListener('mousemove', onMouseMove, false);
 			document.removeEventListener('mouseenter', onMouseEnter, false);
-			audioElement.pause();
+			if ( audioElement ) audioElement.pause();
 			instructions.style.display = 'inline';
 			songbird = undefined;
 			escPressed = false;
@@ -248,7 +243,6 @@
 
 			songbird.setListenerFromMatrix( camera.matrixWorld );
 
-			controller.update();
 			var time = performance.now();
 			var delta = (time - prevTime) / 1000; // to seconds.
 			prevTime = time;
@@ -265,6 +259,12 @@
 			}
 			if (moveRight) {
 				forward.x += delta * moveSpeed;
+			}
+			if (rollLeft) {
+				camera.rotation.z += delta * rollSpeed;
+			}
+			if (rollRight) {
+				camera.rotation.z -= delta * rollSpeed;
 			}
 			forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), azimuth);
 			dolly.userData.position.add(forward);
