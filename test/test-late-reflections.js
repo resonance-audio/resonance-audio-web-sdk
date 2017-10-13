@@ -14,48 +14,47 @@
  */
 
 /**
- * Test Listener object.
+ * Test LateReflections object.
  */
-describe('Listener', function() {
+describe('LateReflections', function() {
   // This test is async, override timeout threshold to 5 sec.
   this.timeout(5000);
 
   const sampleRate = 48000;
   const options = {};
+  const durations = [1, 1, 1, 1, 1, 1, 1, 1, 1];
 
   let context;
-  let listener;
+  let lateReflections;
   let bufferSource;
 
   beforeEach(function() {
+    // Create nodes.
     context =
-      new OfflineAudioContext(2, sampleRate, sampleRate);
-    listener = new Songbird.Listener(context, options);
+      new OfflineAudioContext(1, 1024, sampleRate);
+    lateReflections = new Songbird.LateReflections(context, options);
     bufferSource = context.createBufferSource();
     bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
     bufferSource.buffer.getChannelData(0)[0] = 1;
 
     // Connect audio graph.
-    bufferSource.connect(listener.input);
-    listener.output.connect(context.destination);
+    bufferSource.connect(lateReflections.input);
+    lateReflections.output.connect(context.destination);
     bufferSource.start();
   });
 
-  // it('Ensure module produces output.', function(done) {
-  //   context.startRendering().then(function(renderedBuffer) {
-  //     let outputPower = 0;
-  //     for (let i = 0; i < renderedBuffer.numberOfChannels; i++) {
-  //       let buffer = renderedBuffer.getChannelData(i);
-  //       for (let j = 0; j < buffer.length; j++) {
-  //         outputPower += buffer[j] * buffer[j];
-  //       }
-  //     }
-  //     expect(outputPower).to.be.above(0);
-  //     done();
-  //   });
-  // });
-
-  it('Verify module constructor.', function(done) {
-    done();
+  it('Ensure module produces output.', function(done) {
+    lateReflections.setDurations(durations);
+    context.startRendering().then(function(renderedBuffer) {
+      let outputPower = 0;
+      for (let i = 0; i < renderedBuffer.numberOfChannels; i++) {
+        let buffer = renderedBuffer.getChannelData(i);
+        for (let j = 0; j < buffer.length; j++) {
+          outputPower += buffer[j] * buffer[j];
+        }
+      }
+      expect(outputPower).to.be.above(0);
+      done();
+    });
   });
 });

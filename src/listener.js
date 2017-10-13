@@ -23,8 +23,9 @@
 
 
 // Internal dependencies.
-var Omnitone = require('./omnitone.js');
-var Utils = require('./utils.js');
+const Omnitone = require('../node_modules/omnitone/build/omnitone.js');
+const Encoder = require('./encoder.js');
+const Utils = require('./utils.js');
 
 
 /**
@@ -33,21 +34,22 @@ var Utils = require('./utils.js');
  * @param {AudioContext} context
  * Associated {@link
 https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
+ * @param {Object} options
  * @param {Number} options.ambisonicOrder
  * Desired ambisonic order. Defaults to
- * {@linkcode Encoder.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
+ * {@linkcode Utils.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
  * @param {Float32Array} options.position
  * Initial position (in meters), where origin is the center of
  * the room. Defaults to
- * {@linkcode DEFAULT_POSITION DEFAULT_POSITION}.
+ * {@linkcode Utils.DEFAULT_POSITION DEFAULT_POSITION}.
  * @param {Float32Array} options.forward
  * The listener's initial forward vector. Defaults to
- * {@linkcode DEFAULT_FORWARD DEFAULT_FORWARD}.
+ * {@linkcode Utils.DEFAULT_FORWARD DEFAULT_FORWARD}.
  * @param {Float32Array} options.up
  * The listener's initial up vector. Defaults to
- * {@linkcode DEFAULT_UP DEFAULT_UP}.
+ * {@linkcode Utils.DEFAULT_UP DEFAULT_UP}.
  */
-function Listener (context, options) {
+function Listener(context, options) {
   // Public variables.
   /**
    * Position (in meters).
@@ -78,10 +80,10 @@ function Listener (context, options) {
    */
   // Use defaults for undefined arguments.
   if (options == undefined) {
-    options = new Object();
+    options = {};
   }
   if (options.ambisonicOrder == undefined) {
-    options.ambisonicOrder = Encoder.DEFAULT_AMBISONIC_ORDER;
+    options.ambisonicOrder = Utils.DEFAULT_AMBISONIC_ORDER;
   }
   if (options.position == undefined) {
     options.position = Utils.DEFAULT_POSITION.slice();
@@ -95,64 +97,41 @@ function Listener (context, options) {
 
   // Member variables.
   this.position = new Float32Array(3);
-  this._tempMatrix4 = new Float32Array(16);
+  this._tempMatrix3 = new Float32Array(9);
 
-  // Select the appropriate HRIR filters using 8-channel chunks since
-  // >8 channels is not yet supported by a majority of browsers.
-  var urls = [''];
-  if (options.ambisonicOrder == 1) {
-    urls = [
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/foa-1-2.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/foa-3-4.wav'
-    ];
-  }
-  else if (options.ambisonicOrder == 2) {
-    urls = [
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/soa-1-2.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/soa-3-4.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/soa-5-6.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/soa-7-8.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/soa-9.wav'
-    ];
-  }
-  else if (options.ambisonicOrder == 3) {
-    urls = [
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-1-2.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-3-4.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-5-6.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-7-8.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-9-10.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-11-12.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-13-14.wav',
-      'https://cdn.rawgit.com/google/songbird/master/build/resources/toa-15-16.wav',
-    ];
-  }
-  else {
-    // TODO(bitllama): Throw an error?!
-  }
+  // Select the appropriate HRIR filters using 2-channel chunks since
+  // multichannel audio is not yet supported by a majority of browsers.
+  this._ambisonicOrder =
+    Encoder.validateAmbisonicOrder(options.ambisonicOrder);
 
-  // Create audio nodes.
+    // Create audio nodes.
   this._context = context;
-  this._renderer = Omnitone.Omnitone.createHOARenderer(context, {
-    ambisonicOrder: options.ambisonicOrder,
-    HRIRUrl: urls
-  });
+  if (this._ambisonicOrder == 1) {
+    this._renderer = Omnitone.Omnitone.createFOARenderer(context, {});
+  } else if (this._ambisonicOrder > 1) {
+    this._renderer = Omnitone.Omnitone.createHOARenderer(context, {
+      ambisonicOrder: this._ambisonicOrder,
+    });
+  }
 
   // These nodes are created in order to safely asynchronously load Omnitone
   // while the rest of Songbird is being created.
   this.input = context.createGain();
-  this.ambisonicOutput = context.createGain();
   this.output = context.createGain();
+  this.ambisonicOutput = context.createGain();
 
   // Initialize Omnitone (async) and connect to audio graph when complete.
-  var that = this;
-  this._renderer.initialize().then(function () {
+  let that = this;
+  this._renderer.initialize().then(function() {
     // Connect pre-rotated soundfield to renderer.
     that.input.connect(that._renderer.input);
 
     // Connect rotated soundfield to ambisonic output.
-    // TODO(bitllama): Make rotator directly accessible in Omnitone.
-    that._renderer._hoaRotator.output.connect(that.ambisonicOutput);
+    if (that._ambisonicOrder > 1) {
+      that._renderer._hoaRotator.output.connect(that.ambisonicOutput);
+    } else {
+      that._renderer._foaRotator.output.connect(that.ambisonicOutput);
+    }
 
     // Connect binaurally-rendered soundfield to binaural output.
     that._renderer.output.connect(that.output);
@@ -166,28 +145,28 @@ function Listener (context, options) {
 
 /**
  * Set the source's orientation using forward and up vectors.
- * @param {Number} forward_x
- * @param {Number} forward_y
- * @param {Number} forward_z
- * @param {Number} up_x
- * @param {Number} up_y
- * @param {Number} up_z
+ * @param {Number} forwardX
+ * @param {Number} forwardY
+ * @param {Number} forwardZ
+ * @param {Number} upX
+ * @param {Number} upY
+ * @param {Number} upZ
  */
-Listener.prototype.setOrientation = function (forward_x, forward_y, forward_z,
-  up_x, up_y, up_z) {
-  var right = Utils.crossProduct([forward_x, forward_y, forward_z],
-    [up_x, up_y, up_z]);
-  this._tempMatrix4[0] = right[0];
-  this._tempMatrix4[1] = right[1];
-  this._tempMatrix4[2] = right[2];
-  this._tempMatrix4[3] = up_x;
-  this._tempMatrix4[4] = up_y;
-  this._tempMatrix4[5] = up_z;
-  this._tempMatrix4[6] = forward_x;
-  this._tempMatrix4[7] = forward_y;
-  this._tempMatrix4[8] = forward_z;
-  this._renderer.setRotationMatrix(this._tempMatrix4);
-}
+Listener.prototype.setOrientation = function(forwardX, forwardY, forwardZ,
+  upX, upY, upZ) {
+  let right = Utils.crossProduct([forwardX, forwardY, forwardZ],
+    [upX, upY, upZ]);
+  this._tempMatrix3[0] = right[0];
+  this._tempMatrix3[1] = right[1];
+  this._tempMatrix3[2] = right[2];
+  this._tempMatrix3[3] = upX;
+  this._tempMatrix3[4] = upY;
+  this._tempMatrix3[5] = upZ;
+  this._tempMatrix3[6] = forwardX;
+  this._tempMatrix3[7] = forwardY;
+  this._tempMatrix3[8] = forwardZ;
+  this._renderer.setRotationMatrix3(this._tempMatrix3);
+};
 
 
 /**
@@ -195,24 +174,24 @@ Listener.prototype.setOrientation = function (forward_x, forward_y, forward_z,
  * @param {Object} matrix4
  * The Three.js Matrix4 object representing the listener's world transform.
  */
-Listener.prototype.setFromMatrix = function (matrix4) {
+Listener.prototype.setFromMatrix = function(matrix4) {
   // Update ambisonic rotation matrix internally.
-  this._tempMatrix4[0] = matrix4.elements[0];
-  this._tempMatrix4[1] = matrix4.elements[1];
-  this._tempMatrix4[2] = matrix4.elements[2];
-  this._tempMatrix4[3] = matrix4.elements[4];
-  this._tempMatrix4[4] = matrix4.elements[5];
-  this._tempMatrix4[5] = matrix4.elements[6];
-  this._tempMatrix4[6] = matrix4.elements[8];
-  this._tempMatrix4[7] = matrix4.elements[9];
-  this._tempMatrix4[8] = matrix4.elements[10];
-  this._renderer.setRotationMatrix(this._tempMatrix4);
+  this._tempMatrix3[0] = matrix4.elements[0];
+  this._tempMatrix3[1] = matrix4.elements[1];
+  this._tempMatrix3[2] = matrix4.elements[2];
+  this._tempMatrix3[3] = matrix4.elements[4];
+  this._tempMatrix3[4] = matrix4.elements[5];
+  this._tempMatrix3[5] = matrix4.elements[6];
+  this._tempMatrix3[6] = matrix4.elements[8];
+  this._tempMatrix3[7] = matrix4.elements[9];
+  this._tempMatrix3[8] = matrix4.elements[10];
+  this._renderer.setRotationMatrix3(this._tempMatrix3);
 
   // Extract position from matrix.
   this.position[0] = matrix4.elements[12];
   this.position[1] = matrix4.elements[13];
   this.position[2] = matrix4.elements[14];
-}
+};
 
 
 module.exports = Listener;

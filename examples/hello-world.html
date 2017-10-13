@@ -17,7 +17,7 @@
 <head>
   <meta charset="utf-8"/>
   <title>"Hello World" example.</title>
-  <script src="../build/songbird.min.js"></script>
+  <script src="../build/songbird.js"></script>
 </head>
 <body>
   <h1>
@@ -28,21 +28,21 @@
     Begins playing sound immediately.
   </p>
   <script>
-    var audioContext = new AudioContext();
+    let audioContext = new AudioContext();
 
     // Create a (1st-order Ambisonic) Songbird scene.
-    var songbird = new Songbird(audioContext);
+    let songbird = new Songbird(audioContext);
 
     // Send songbird's binaural output to stereo out.
     songbird.output.connect(audioContext.destination);
 
     // Set room acoustics properties.
-    var dimensions = {
+    let dimensions = {
       width : 3.1,
       height : 2.5,
       depth : 3.4
     };
-    var materials = {
+    let materials = {
       left : 'brick-bare',
       right : 'curtain-heavy',
       front : 'marble',
@@ -53,14 +53,14 @@
     songbird.setRoomProperties(dimensions, materials);
 
     // Create an audio element. Feed into audio graph.
-    var audioElement = document.createElement('audio');
+    let audioElement = document.createElement('audio');
     audioElement.src = 'resources/CubeSound.wav';
 
-    var audioElementSource =
+    let audioElementSource =
       audioContext.createMediaElementSource(audioElement);
 
     // Create a Source, connect desired audio input to it.
-    var source = songbird.createSource();
+    let source = songbird.createSource();
     audioElementSource.connect(source.input);
 
     // The source position is relative to the origin

@@ -17,7 +17,7 @@
 <head>
   <meta charset="utf-8">
   <title>PannerNode vs Songbird</title>
-  <script src="../build/songbird.min.js"></script>
+  <script src="../build/songbird.js"></script>
 </head>
 <body>
   <h1>PannerNode vs Songbird (w/ 1st and 3rd-order ambisonics)</h1>
@@ -227,8 +227,8 @@
         pannerNode[i] = audioContext.createPanner();
         pannerNode[i].panningModel = 'HRTF';
         pannerNode[i].distanceModel = 'inverse';
-        pannerNode[i].refDistance = Songbird.Attenuation.DEFAULT_MIN_DISTANCE;
-        pannerNode[i].maxDistance = Songbird.Attenuation.DEFAULT_MAX_DISTANCE;
+        pannerNode[i].refDistance = Songbird.Utils.DEFAULT_MIN_DISTANCE;
+        pannerNode[i].maxDistance = Songbird.Utils.DEFAULT_MAX_DISTANCE;
         foaSongbirdSource[i] = foaSongbird.createSource();
         toaSongbirdSource[i] = toaSongbird.createSource();
 

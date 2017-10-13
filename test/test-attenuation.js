@@ -15,52 +15,75 @@
 
 /**
  * Test Attenuation object.
- *
- * Compute and compare expected gains from different distances and roll-off
- * models. Verify capitalization is ignored for setting roll-off model.
  */
-describe('Attenuation', function () {
+describe('Attenuation', function() {
   // This test is async, override timeout threshold to 5 sec.
   this.timeout(5000);
 
-  var sampleRate = 48000;
-  var numTestsPerModel = 1000;
-  var rolloffModels = ['logarithmic', 'linear', 'none'];
-  var options = {minDistance: 1, maxDistance: 1000};
-  var distanceMin = 0;
-  var distanceMax = options.maxDistance * 1.1;
-  var threshold = 1e-7;
+  const sampleRate = 48000;
+  const threshold = 1e-7;
+  const numTestsPerModel = 1000;
+  const rolloffModels = ['logarithmic', 'linear', 'none'];
+  const options = {minDistance: 1, maxDistance: 1000};
+  const distanceMin = 0;
+  const distanceMax = options.maxDistance * 1.1;
 
-  var context;
-  var attenuation;
+  let context;
+  let attenuation;
+  let bufferSource;
 
-  beforeEach(function () {
+  beforeEach(function() {
+    // Create nodes.
     context =
       new OfflineAudioContext(1, 1, sampleRate);
     attenuation = new Songbird.Attenuation(context, options);
+    bufferSource = context.createBufferSource();
+    bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
+    bufferSource.buffer.getChannelData(0)[0] = 1;
+
+    // Connect audio graph.
+    bufferSource.connect(attenuation.input);
+    attenuation.output.connect(context.destination);
+    bufferSource.start();
   });
 
-  it('#setDistance/#setRolloff: verify various configurations.',
-    function (done) {
-      for (var i = 0; i < rolloffModels.length; i++) {
+  it('Ensure module produces output.', function(done) {
+    attenuation.setRolloff('logarithmic');
+    attenuation.setDistance(1);
+    context.startRendering().then(function(renderedBuffer) {
+      let outputPower = 0;
+      for (let i = 0; i < renderedBuffer.numberOfChannels; i++) {
+        let buffer = renderedBuffer.getChannelData(i);
+        for (let j = 0; j < buffer.length; j++) {
+          outputPower += buffer[j] * buffer[j];
+        }
+      }
+      expect(outputPower).to.be.above(0);
+      done();
+    });
+  });
+
+  it('#setDistance/#setRolloff: Verify various configurations.',
+    function(done) {
+      for (let i = 0; i < rolloffModels.length; i++) {
         attenuation.setRolloff(rolloffModels[i]);
-        for (var j = 0; j < numTestsPerModel; j++) {
-          var distance =
+        for (let j = 0; j < numTestsPerModel; j++) {
+          let distance =
             Math.random() * (distanceMax - distanceMin) + distanceMin;
           attenuation.setDistance(distance);
-          var actualGain = attenuation.output.gain.value;
+          let actualGain = attenuation.output.gain.value;
 
           // Compute expected value.
-          var expectedGain = 1;
+          let expectedGain = 1;
           if (rolloffModels[i] == 'logarithmic') {
             if (distance > options.maxDistance) {
               expectedGain = 0;
             } else if (distance > options.minDistance) {
-              var range = options.maxDistance - options.minDistance;
+              let range = options.maxDistance - options.minDistance;
               if (range > threshold) {
-                var relativeDistance = distance - options.minDistance;
-                var atten = 1 / (relativeDistance + 1);
-                var attenMax = 1 / (range + 1);
+                let relativeDistance = distance - options.minDistance;
+                let atten = 1 / (relativeDistance + 1);
+                let attenMax = 1 / (range + 1);
                 expectedGain =
                   (atten - attenMax) / (1 - attenMax);
               }
@@ -69,7 +92,7 @@ describe('Attenuation', function () {
             if (distance > options.maxDistance) {
               expectedGain = 0;
             } else if (distance > options.minDistance) {
-              var range = options.maxDistance - options.minDistance;
+              let range = options.maxDistance - options.minDistance;
               if (range > threshold) {
                 expectedGain = (options.maxDistance - distance) / range;
               }

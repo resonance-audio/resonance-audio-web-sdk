@@ -13,7 +13,7 @@
  * limitations under the License.
  */
 
-var webpack = require('webpack');
+const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 var CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
@@ -24,10 +24,17 @@ module.exports = {
     libraryTarget: 'umd'
   },
   plugins: [
-    new webpack.optimize.UglifyJsPlugin(),
+    new UglifyJSPlugin({
+      uglifyOptions: {
+        mangle: {
+          // To address the 'let' bug in Safari 10. See:
+          // https://github.com/mishoo/UglifyJS2/issues/1753
+          'safari10': true
+        }
+      }
+    }),
     new CopyWebpackPlugin([{
       from: './src/resources',
       to: 'resources'
     }])
-  ]
-};
+  ]};

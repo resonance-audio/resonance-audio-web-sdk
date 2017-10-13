@@ -17,7 +17,7 @@
 <head>
   <meta charset="utf-8">
   <title>Room model example.</title>
-  <script src="../build/songbird.min.js"></script>
+  <script src="../build/songbird.js"></script>
 </head>
 <body>
   <h1>Room Model example.</h1>
@@ -54,9 +54,9 @@
     <select id="eUpMaterial" onchange="updateRoomProperties();"></select>
   </p>
   <p>
-    (A) and (B) are the "Sources" and [L] is the "Listener". Best experienced over
-    headphones. Room dimensions/materials and (A)/(B)/[L] positions are all
-    modifyable in real-time.
+    (A), (B) and (C) are the "Sources" and [L] is the "Listener". Best
+    experienced over headphones. Room dimensions/materials and (A)/(B)/[L]
+    positions are all modifyable in real-time.
   </p>
   <p>
     Source A: <button id="eSourceAPlayback">Play</button>
@@ -64,13 +64,16 @@
   <p>
     Source B: <button id="eSourceBPlayback">Play</button>
   </p>
+  <p>
+    Source C: <button id="eSourceCPlayback">Play</button>
+  </p>
   <canvas id="canvas" width="1024" height="768"></canvas>
   <script>
     // Define source audio files.
     var audioSources = [
-      'resources/CubeSound.wav', 'resources/SpeechSample.wav'
+      'resources/CubeSound.wav', 'resources/SpeechSample.wav',
+      'resources/Music.wav',
     ];
-
 
     // Attach labels to associated input elements.
     var labels = document.getElementsByTagName('label');
@@ -81,7 +84,6 @@
           elem.label = labels[i];
       }
     }
-
 
     // This is used to scale the appropriate dimension.
     var dimensions = {};
@@ -119,12 +121,14 @@
     }
 
 
-    // Initial positions (0=sourceA, 1=sourceB, 2=listener).
-    var initialBallRelativePositions = [[0.4, 0.3], [0.7, 0.8], [0.5, 0.5]];
-    var ballHeightsInPercent = [0.25, -0.05, 0];
-    var ballPositions = [[0, 0], [0, 0], [0, 0]];
-    var ballColors = ['red', 'blue', 'green'];
-    var ballLabels = ['A', 'B', 'L'];
+    // Initial positions (0=sourceA, 1=sourceB, 2=sourceC, 3=listener).
+    var initialBallRelativePositions = [
+      [0.4, 0.3], [0.7, 0.8], [0.1, 0.5], [0.5, 0.5],
+    ];
+    var ballHeightsInPercent = [0.25, -0.05, 0, 0];
+    var ballPositions = [[0, 0], [0, 0], [0, 0], [0, 0]];
+    var ballColors = ['red', 'blue', 'orange', 'green'];
+    var ballLabels = ['A', 'B', 'C', 'L'];
     var ballRadius = 12;
     var ballCurrentIndex = -1;
     var pixelsPerMeter = 64;
@@ -260,7 +264,7 @@
     };
     function populateMaterialDropdowns() {
       // Build drop-down menus.
-      var keys = Object.keys(Songbird.Room.MATERIAL_COEFFICIENTS);
+      var keys = Object.keys(Songbird.Utils.ROOM_MATERIAL_COEFFICIENTS);
       var selects = [
         'eLeftMaterial', 'eRightMaterial', 'eDownMaterial',
         'eUpMaterial', 'eFrontMaterial', 'eBackMaterial'
@@ -316,6 +320,7 @@
       var sourcesPlayback = Array(audioSources.length);
       sourcesPlayback[0] = document.getElementById('eSourceAPlayback');
       sourcesPlayback[1] = document.getElementById('eSourceBPlayback');
+      sourcesPlayback[2] = document.getElementById('eSourceCPlayback');
       for (var i = 0; i < audioSources.length; i++) {
         sourcesPlayback[i].index = i;
         sourcesPlayback[i].onclick = function (event) {

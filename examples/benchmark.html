@@ -1,0 +1,218 @@
+<!--
+  Copyright 2017 Google Inc. All Rights Reserved.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>CPU Benchmark Utility</title>
+  <script src="../build/songbird.js"></script>
+</head>
+<body>
+  <h1>CPU Benchmark Utility</h1>
+  <p>
+    If using <b>Chrome</b>, Press Shift + Esc on Windows or Linux to bring up
+    the Task Manager while running the tests to inspect the CPU usage.
+  </p>
+  <p>
+    <label for="numSources" id="numSourcesLabel">
+      Number of Sources:
+    </label>
+    <input id="numSources" type="number" min="0" max="255" value="0">
+  </p>
+  <p>
+    <label for="ambisonicOrder" id="ambisonicOrderLabel">
+      Ambisonic Order:
+    </label>
+    <select id="ambisonicOrder">
+      <option value="1">First-order</option>
+      <option value="2">Second-order</option>
+      <option value="3">Third-order</option>
+      <option value="-1">PannerNode (disables reverb)</option>
+    </select>
+  </p>
+  <p>
+    <label for="reverbDuration" id="reverbDurationLabel">
+      Reverb Duration:
+    </label>
+    <select id="reverbDuration">
+      <option value="1">Off</option>
+      <option value="2">Short</option>
+      <option value="3">Medium</option>
+      <option value="4">Long</option>
+    </select>
+  </p>
+  <p>
+    <input type="button" id="initializeBenchmark" value="Begin"
+      onclick="initializeBenchmark();">
+  </p>
+  <script>
+    let context = new AudioContext();
+    let audioElement;
+    let audioElementSource;
+    let songbird;
+    let sources = [];
+    let outputGain = context.createGain();
+    outputGain.connect(context.destination);
+
+    function initializeBenchmark() {
+      let button = document.getElementById('initializeBenchmark');
+      if (button.value == 'Begin') {
+        button.value = 'Stop';
+
+        delete songbird;
+        delete sources;
+
+        let numSources =
+            Number(document.getElementById('numSources').value);
+        let ambisonicOrder =
+          Number(document.getElementById('ambisonicOrder').value);
+        if (ambisonicOrder == -1) {
+          /* Use PannerNode. */
+          for (let i = 0; i < numSources; i++) {
+            sources[i] = context.createPanner();
+            sources[i].panningModel = 'HRTF';
+            sources[i].distanceModel = 'inverse';
+            sources[i].refDistance = 0.1;
+            sources[i].maxDistance = 1000;
+            audioElementSource.connect(sources[i]);
+            sources[i].connect(outputGain);
+          }
+        } else {
+          /* Use Songbird. */
+          let roomSize =
+            Number(document.getElementById('reverbDuration').value);
+          let dimensions = {
+            width: 0,
+            height: 0,
+            depth: 0,
+          };
+          let materials = {
+            left: 'transparent',
+            right: 'transparent',
+            front: 'transparent',
+            back: 'transparent',
+            up: 'transparent',
+            down: 'transparent',
+          };
+          switch (roomSize) {
+            case 1:
+            default:
+              dimensions = {
+                width: 0,
+                height: 0,
+                depth: 0,
+              };
+              materials = {
+                left: 'transparent',
+                right: 'transparent',
+                front: 'transparent',
+                back: 'transparent',
+                up: 'transparent',
+                down: 'transparent',
+              };
+              break;
+            case 2:
+              dimensions = {
+                width: 2,
+                height: 2,
+                depth: 2,
+              };
+              materials = {
+                left: 'uniform',
+                right: 'uniform',
+                front: 'uniform',
+                back: 'uniform',
+                up: 'uniform',
+                down: 'uniform',
+              };
+              break;
+            case 3:
+              dimensions = {
+                width: 5,
+                height: 5,
+                depth: 5,
+              };
+              materials = {
+                left: 'uniform',
+                right: 'uniform',
+                front: 'uniform',
+                back: 'uniform',
+                up: 'uniform',
+                down: 'uniform',
+              };
+              break;
+            case 4:
+              dimensions = {
+                width: 20,
+                height: 20,
+                depth: 20,
+              };
+              materials = {
+                left: 'uniform',
+                right: 'uniform',
+                front: 'uniform',
+                back: 'uniform',
+                up: 'uniform',
+                down: 'uniform',
+              };
+              break;
+          }
+
+          songbird = new Songbird(context, {
+            ambisonicOrder: ambisonicOrder,
+            dimensions: dimensions,
+            materials: materials,
+          });
+          sources = [];
+          for (let i = 0; i < numSources; i++) {
+            sources[i] = songbird.createSource();
+            audioElementSource.connect(sources[i].input);
+          }
+          songbird.output.connect(outputGain);
+        }
+        if (numSources > 0) {
+          outputGain.gain.value = 1 / numSources;
+        } else {
+          outputGain.gain.value = 1;
+        }
+        audioElement.play();
+      } else {
+        button.value = 'Begin';
+
+        audioElement.pause();
+        audioElement.currentTime = 0;
+
+        for (let i = 0; i < sources.length; i++) {
+          sources[i].disconnect;
+        }
+
+        audioElementSource.disconnect();
+        if (songbird != undefined) {
+          songbird.output.disconnect();
+        }
+      }
+    };
+
+    let onLoad = function() {
+      audioElement = document.createElement('audio');
+      audioElement.src = 'resources/CubeSound.wav';
+      audioElement.load();
+      audioElement.loop = true;
+      audioElementSource = context.createMediaElementSource(audioElement);
+    };
+    window.addEventListener('load', onLoad);
+  </script>
+</body>
+</html>
