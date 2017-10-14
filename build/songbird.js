@@ -6176,7 +6176,6 @@ Omnitone.createFOADecoder = function(context, videoElement, options) {
  * @return {FOARenderer}
  */
 Omnitone.createFOARenderer = function(context, config) {
-  console.log(config);
   return new FOARenderer(context, config);
 };
 
@@ -6608,7 +6607,6 @@ function FOARenderer(context, config) {
     renderingMode: RenderingMode.AMBISONIC,
   };
 
-  console.log(config);
   if (config.channelMap) {
     if (Array.isArray(config.channelMap) && config.channelMap.length === 4) {
       this._config.channelMap = config.channelMap;
