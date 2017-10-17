@@ -33,8 +33,4 @@ module.exports = {
         }
       }
     }),
-    new CopyWebpackPlugin([{
-      from: './src/resources',
-      to: 'resources'
-    }])
   ]};
