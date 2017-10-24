@@ -1,6 +1,6 @@
 {
   "name": "songbird-audio",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Spatial Audio Encoder in Web Audio API",
   "main": "build/songbird.js",
   "keywords": [
@@ -34,7 +34,7 @@
     "build": "webpack --progress --color",
     "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
     "build-doc": "node_modules/.bin/doctoc README.md && node_modules/.bin/jsdoc src/songbird.js src/source.js src/utils.js -R README.md -d doc",
-    "eslint": "node_modules/.bin/eslint src/*.js test/*.js",
+    "eslint": "node_modules/.bin/eslint examples/*.js src/*.js test/*.js",
     "test": "node_modules/karma/bin/karma start",
     "watch": "webpack --progress --color --watch"
   },

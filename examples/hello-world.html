@@ -13,61 +13,75 @@
   limitations under the License.
 -->
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>"Hello World" example.</title>
-  <script src="../build/songbird.js"></script>
-</head>
-<body>
-  <h1>
-    "Hello World" example.
-  </h1>
-  <p>
-    Position a source front-left to the listener, inside a medium-size room.
-    Begins playing sound immediately.
-  </p>
-  <script>
-    let audioContext = new AudioContext();
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    // Create a (1st-order Ambisonic) Songbird scene.
-    let songbird = new Songbird(audioContext);
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
 
-    // Send songbird's binaural output to stereo out.
-    songbird.output.connect(audioContext.destination);
+    <title>Hello World</title>
+  </head>
+  <body>
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="index.html">Examples</a></li>
+      <li class="breadcrumb-item active">Hello World</li>
+    </ol>
 
-    // Set room acoustics properties.
-    let dimensions = {
-      width : 3.1,
-      height : 2.5,
-      depth : 3.4
-    };
-    let materials = {
-      left : 'brick-bare',
-      right : 'curtain-heavy',
-      front : 'marble',
-      back : 'glass-thin',
-      down : 'grass',
-      up : 'transparent'
-    };
-    songbird.setRoomProperties(dimensions, materials);
+    <div class="container mt-5">
+      <h1>Hello World</h1>
+      <p>Position a source front-left to the listener, inside a medium-size room. Begins playing sound immediately.</p>
+      <hr>
+      <pre>
+let audioContext = new AudioContext();
 
-    // Create an audio element. Feed into audio graph.
-    let audioElement = document.createElement('audio');
-    audioElement.src = 'resources/CubeSound.wav';
+// Create a (1st-order Ambisonic) Songbird scene.
+let songbird = new Songbird(audioContext);
 
-    let audioElementSource =
-      audioContext.createMediaElementSource(audioElement);
+// Send songbird's binaural output to stereo out.
+songbird.output.connect(audioContext.destination);
 
-    // Create a Source, connect desired audio input to it.
-    let source = songbird.createSource();
-    audioElementSource.connect(source.input);
+// Set room acoustics properties.
+let dimensions = {
+  width: 3.1,
+  height: 2.5,
+  depth: 3.4,
+};
+let materials = {
+  left: 'brick-bare',
+  right: 'curtain-heavy',
+  front: 'marble',
+  back: 'glass-thin',
+  down: 'grass',
+  up: 'transparent',
+};
+songbird.setRoomProperties(dimensions, materials);
 
-    // The source position is relative to the origin
-    // (center of the room).
-    source.setPosition(-0.707, -0.707, 0);
+// Create an audio element. Feed into audio graph.
+let audioElement = document.createElement('audio');
+audioElement.src = 'resources/CubeSound.wav';
 
-    // Playback the audio.
-    audioElement.play();
-  </script>
-</body>
+let audioElementSource =
+  audioContext.createMediaElementSource(audioElement);
+
+// Create a Source, connect desired audio input to it.
+let source = songbird.createSource();
+audioElementSource.connect(source.input);
+
+// The source position is relative to the origin
+// (center of the room).
+source.setPosition(-0.707, -0.707, 0);
+
+// Playback the audio.
+audioElement.play();
+
+      </pre>
+    </div>
+
+    <!-- Songbird Javascript -->
+    <script src="../build/songbird.js"></script>
+    <script src="hello-world.js"></script>
+  </body>
+</html>
