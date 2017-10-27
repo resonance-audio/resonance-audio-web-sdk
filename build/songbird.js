@@ -978,16 +978,7 @@ Listener.prototype.setOrientation = function(forwardX, forwardY, forwardZ,
  */
 Listener.prototype.setFromMatrix = function(matrix4) {
   // Update ambisonic rotation matrix internally.
-  this._tempMatrix3[0] = matrix4.elements[0];
-  this._tempMatrix3[1] = matrix4.elements[1];
-  this._tempMatrix3[2] = matrix4.elements[2];
-  this._tempMatrix3[3] = matrix4.elements[4];
-  this._tempMatrix3[4] = matrix4.elements[5];
-  this._tempMatrix3[5] = matrix4.elements[6];
-  this._tempMatrix3[6] = matrix4.elements[8];
-  this._tempMatrix3[7] = matrix4.elements[9];
-  this._tempMatrix3[8] = matrix4.elements[10];
-  this._renderer.setRotationMatrix3(this._tempMatrix3);
+  this._renderer.setRotationMatrix4(matrix4.elements);
 
   // Extract position from matrix.
   this.position[0] = matrix4.elements[12];
@@ -2319,7 +2310,6 @@ function Source(songbird, options) {
   this._attenuation.output.connect(this._directivity.input);
   this._directivity.output.connect(this._encoder.input);
 
-  this.input.connect(this._encoder.input);
   this._encoder.output.connect(songbird._listener.input);
 
   // Assign initial conditions.
@@ -2361,11 +2351,12 @@ Source.prototype._update = function() {
   }
   let distance = Math.sqrt(this._dx[0] * this._dx[0] +
     this._dx[1] * this._dx[1] + this._dx[2] * this._dx[2]);
-
-  // Normalize direction vector.
-  this._dx[0] /= distance;
-  this._dx[1] /= distance;
-  this._dx[2] /= distance;
+  if (distance > 0) {
+    // Normalize direction vector.
+    this._dx[0] /= distance;
+    this._dx[1] /= distance;
+    this._dx[2] /= distance;
+  }
 
   // Compuete angle of direction vector.
   let azimuth = Math.atan2(-this._dx[0], this._dx[2]) *
@@ -5301,7 +5292,7 @@ const HRIRList = [
 ];
 
 
-// Base URL.
+// Base URL. 
 const SourceURL = {
   GITHUB:
       'https://cdn.rawgit.com/GoogleChrome/omnitone/master/build/resources/',
@@ -6176,7 +6167,6 @@ Omnitone.createFOADecoder = function(context, videoElement, options) {
  * @return {FOARenderer}
  */
 Omnitone.createFOARenderer = function(context, config) {
-  console.log(config);
   return new FOARenderer(context, config);
 };
 
@@ -6608,7 +6598,6 @@ function FOARenderer(context, config) {
     renderingMode: RenderingMode.AMBISONIC,
   };
 
-  console.log(config);
   if (config.channelMap) {
     if (Array.isArray(config.channelMap) && config.channelMap.length === 4) {
       this._config.channelMap = config.channelMap;

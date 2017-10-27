@@ -13,61 +13,61 @@
   limitations under the License.
 -->
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>"Hello World" example.</title>
-  <script src="../build/songbird.js"></script>
-</head>
-<body>
-  <h1>
-    "Hello World" example.
-  </h1>
-  <p>
-    Position a source front-left to the listener, inside a medium-size room.
-    Begins playing sound immediately.
-  </p>
-  <script>
-    let audioContext = new AudioContext();
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    // Create a (1st-order Ambisonic) Songbird scene.
-    let songbird = new Songbird(audioContext);
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="resources/bootstrap.min.css">
+    <link rel="stylesheet" href="resources/examples.css">
 
-    // Send songbird's binaural output to stereo out.
-    songbird.output.connect(audioContext.destination);
+    <title>Hello World</title>
+  </head>
+  <body>
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="index.html">Examples</a></li>
+      <li class="breadcrumb-item active">Hello World</li>
+    </ol>
 
-    // Set room acoustics properties.
-    let dimensions = {
-      width : 3.1,
-      height : 2.5,
-      depth : 3.4
-    };
-    let materials = {
-      left : 'brick-bare',
-      right : 'curtain-heavy',
-      front : 'marble',
-      back : 'glass-thin',
-      down : 'grass',
-      up : 'transparent'
-    };
-    songbird.setRoomProperties(dimensions, materials);
+    <div class="container mt-5">
+      <div class="row justify-content-center">
+        <div class="col-lg-5 mb-4">
+          <h1>Hello World</h1>
+          <p class="lead">
+            <img src="resources/headphones.svg" class="icon-lg" alt="headphones">
+            Best experienced over headphones.
+          </p>
+          <p>
+            Positions a source
+            <img src="resources/volume-high.svg" class="icon" alt="source" id="sourceIcon">
+            front-left to the listener
+            <img src="resources/person.svg" class="icon" alt="listener" id="listenerIcon">
+            inside a medium-size room.
+          </p>
 
-    // Create an audio element. Feed into audio graph.
-    let audioElement = document.createElement('audio');
-    audioElement.src = 'resources/CubeSound.wav';
+          <div class="input-group">
+            <span class="input-group-addon">
+              <img src="resources/volume-high.svg" class="icon-button">
+            </span>
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-primary" id="sourceButton">Play</button>
+            </span>
+          </div>
+        </div>
 
-    let audioElementSource =
-      audioContext.createMediaElementSource(audioElement);
+        <div class="col-lg-5 text-center">
+          <div style="width:100%">
+            <canvas id="canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    // Create a Source, connect desired audio input to it.
-    let source = songbird.createSource();
-    audioElementSource.connect(source.input);
-
-    // The source position is relative to the origin
-    // (center of the room).
-    source.setPosition(-0.707, -0.707, 0);
-
-    // Playback the audio.
-    audioElement.play();
-  </script>
-</body>
+    <!-- Songbird Javascript -->
+    <script src="../build/songbird.min.js"></script>
+    <script src="resources/js/canvas-control.js"></script>
+    <script src="resources/js/hello-world.js"></script>
+  </body>
+</html>

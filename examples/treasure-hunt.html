@@ -23,49 +23,50 @@
     <link rel="stylesheet" href="resources/bootstrap.min.css">
     <link rel="stylesheet" href="resources/examples.css">
 
-    <title>Flock of Birds</title>
+    <title>Treasure Hunt</title>
   </head>
   <body>
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="index.html">Examples</a></li>
-      <li class="breadcrumb-item active">Flock of Birds</li>
+      <li class="breadcrumb-item active">Treasure Hunt</li>
     </ol>
 
     <div class="container mt-5">
       <div class="row justify-content-center">
         <div class="col-lg-5 mb-4">
-          <h1>Flock of Birds</h1>
-          <p class="lead">
-            <img src="resources/headphones.svg" class="icon-lg" alt="headphones">
-            Best experienced over headphones.
-          </p>
+          <h1>Treasure Hunt</h1>
           <p>
-            Several birds
-            <img src="resources/media-record.svg" class="icon" alt="bird" id="birdIcon" hidden>
-            <img src="resources/person.svg" class="icon" alt="listener" id="listenerIcon" hidden>
-            flying around the head in different flight patterns.
+            A 3D WebGL demonstration. Click (or touch) and drag to look around.
+            Double-click/double-tap the screen to teleport the cube to another
+            location. See how fast you can look around and locate it.
           </p>
-          <div class="input-group">
-            <span class="input-group-addon">
-              <img src="resources/media-record.svg" class="icon-button">
-            </span>
-            <span class="input-group-btn">
-              <button type="button" class="btn btn-primary" id="sourceButton">Play</button>
-            </span>
+
+          <div id="buttonContainer">
+            <div class="input-group">
+              <span class="input-group-addon noselect">
+                <img src="resources/fullscreen-enter.svg" class="icon-button" id="goFullscreenIcon">
+                <img src="resources/fullscreen-exit.svg" class="icon-button" id="exitFullscreenIcon" hidden>
+              </span>
+              <span class="input-group-btn">
+                <button type="button" class="btn btn-primary" id="sourceButton">Go Fullscreen</button>
+              </span>
+            </div>
           </div>
+
         </div>
 
-        <div class="col-lg-5 text-center">
+        <div class="col-lg-5">
           <div style="width:100%">
-            <canvas id="canvas"></canvas>
+            <div id="renderer" ></div>
           </div>
         </div>
       </div>
+
     </div>
 
     <!-- Songbird Javascript -->
     <script src="../build/songbird.min.js"></script>
-    <script src="resources/js/canvas-control.js"></script>
-    <script src="resources/js/birds.js"></script>
+    <script src="resources/three.js"></script>
+    <script src="resources/js/treasure-hunt.js"></script>
   </body>
 </html>

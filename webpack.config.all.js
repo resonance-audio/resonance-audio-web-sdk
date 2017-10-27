@@ -21,7 +21,7 @@ module.exports = {
   output: {
     path: __dirname + '/build',
     filename: 'songbird.min.js',
-    libraryTarget: 'umd'
+    libraryTarget: 'umd',
   },
   plugins: [
     new UglifyJSPlugin({

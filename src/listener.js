@@ -176,16 +176,7 @@ Listener.prototype.setOrientation = function(forwardX, forwardY, forwardZ,
  */
 Listener.prototype.setFromMatrix = function(matrix4) {
   // Update ambisonic rotation matrix internally.
-  this._tempMatrix3[0] = matrix4.elements[0];
-  this._tempMatrix3[1] = matrix4.elements[1];
-  this._tempMatrix3[2] = matrix4.elements[2];
-  this._tempMatrix3[3] = matrix4.elements[4];
-  this._tempMatrix3[4] = matrix4.elements[5];
-  this._tempMatrix3[5] = matrix4.elements[6];
-  this._tempMatrix3[6] = matrix4.elements[8];
-  this._tempMatrix3[7] = matrix4.elements[9];
-  this._tempMatrix3[8] = matrix4.elements[10];
-  this._renderer.setRotationMatrix3(this._tempMatrix3);
+  this._renderer.setRotationMatrix4(matrix4.elements);
 
   // Extract position from matrix.
   this.position[0] = matrix4.elements[12];

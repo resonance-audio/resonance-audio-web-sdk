@@ -41,21 +41,65 @@
 	var audioElement;
 	var onMouseMove;
 	var onMouseEnter;
-
+let matrix;
 	init();
 	// initSongbird();
 	// animate();
 
-	function init() {
+	var togg = false;
+function toggle() {
+	if (togg == false) {
+		togg = true;
+		updateQuat(0, 0, 1, 90);
+		setObjectPosition(1, 0, 0);
+	} else {
+		togg = false;
+		updateQuat(0, 0, 1, 0);
+		setObjectPosition(0, -1, 0);
+	}
+}
 
+function updateQuat(x, y, z, angle) {
+  let axis = new THREE.Vector3(x, y, z);
+  let deg2rad = Math.PI / 180;
+  let quat = new THREE.Quaternion();
+  quat.setFromAxisAngle(axis, angle * deg2rad);
+	matrix = new THREE.Matrix4().makeRotationFromQuaternion(quat);
+  console.log(matrix.elements);
+  if (songbird !== undefined) {
+		songbird.setListenerFromMatrix(matrix);
+	}
+}
+
+function setObjectPosition(x, y, z) {
+	mesh.position.set(x, y, z);
+	if (songbirdSource !== undefined) {
+		songbirdSource.setPosition(x, y, z);
+	}
+}
+
+function updateAngles(xAngle, yAngle, zAngle) {
+  let deg2rad = Math.PI / 180;
+  let euler = new THREE.Euler(
+    xAngle * deg2rad,
+    yAngle * deg2rad,
+    zAngle * deg2rad,
+    'XYZ');
+  matrix = new THREE.Matrix4().makeRotationFromEuler(euler);
+  console.log(matrix.elements);
+  songbird.setListenerFromMatrix(matrix);
+}
+
+	function init() {
+		updateQuat(0, 0, 1, 0);
 		scene = new THREE.Scene();
 
 		dolly = new THREE.Group();
-		dolly.userData.position = new THREE.Vector3( 0, 0, 1 );
+		dolly.userData.position = new THREE.Vector3( 0, 0, 0 );
 		dolly.userData.easing = new THREE.Vector3();
 		scene.add( dolly );
 
-		camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 100 );
+		camera = new THREE.PerspectiveCamera( 140, window.innerWidth / window.innerHeight, 0.1, 100 );
 		dolly.add( camera );
 
 		var room = new THREE.Mesh(
@@ -73,6 +117,7 @@
 
 		mesh = new THREE.Mesh( geometry, material );
 		scene.add( mesh );
+		mesh.position.set( 1, 0, 0);
 
 		renderer = new THREE.WebGLRenderer( { antialias: true } );
 		renderer.setPixelRatio( window.devicePixelRatio );
@@ -206,17 +251,18 @@
 
 		// Initialize Songbird, create listener and source.
 		songbird = new Songbird(audioContext, {
-			ambisonicOrder: 1,
-			dimensions: dimensions,
-			materials: {left: 'brick-bare', right: 'brick-bare', down: 'brick-bare',
-				up: 'brick-bare', front: 'brick-bare', back: 'brick-bare'}});
+			ambisonicOrder: 3,
+			// dimensions: dimensions,
+			// materials: {left: 'brick-bare', right: 'brick-bare', down: 'brick-bare',
+			// 	up: 'brick-bare', front: 'brick-bare', back: 'brick-bare'}
+		});
 		songbird.output.connect(audioContext.destination);
 
 		songbirdSource = songbird.createSource({
 			minDistance: 0.5
 		})
 		audioElementSource.connect(songbirdSource.input);
-		songbirdSource.setPosition(0, 0, 0);
+		songbirdSource.setPosition(mesh.position.x, mesh.position.y, mesh.position.z);
 	}
 
 	var prevTime = performance.now();
@@ -231,63 +277,65 @@
 			escPressed = false;
 		}
 
-		var forward = new THREE.Vector3(0, 0, 0);
-		dolly.rotation.set(0, 0, 0);
-		var right =
-			new THREE.Vector3(1, 0, 0).applyAxisAngle(
-				new THREE.Vector3(0, 1, 0), azimuth);
-		dolly.rotateOnAxis(right, elevation);
-		dolly.rotateOnAxis(new THREE.Vector3(0, 1, 0), azimuth);
+		//dolly.rot
+		// var forward = new THREE.Vector3(0, 0, 0);
+		// dolly.rotation.set(0, 0, 0);
+		// var right =
+		// 	new THREE.Vector3(1, 0, 0).applyAxisAngle(
+		// 		new THREE.Vector3(0, 1, 0), azimuth);
+		// dolly.rotateOnAxis(right, elevation);
+		// dolly.rotateOnAxis(new THREE.Vector3(0, 1, 0), azimuth);
 
 		if ( songbird ) {
 
 			songbird.setListenerFromMatrix( camera.matrixWorld );
 
-			var time = performance.now();
-			var delta = (time - prevTime) / 1000; // to seconds.
-			prevTime = time;
+			// var time = performance.now();
+			// var delta = (time - prevTime) / 1000; // to seconds.
+			// prevTime = time;
 
 
-			if (moveForward) {
-				forward.z -= delta * moveSpeed;
-			}
-			if (moveBackward) {
-				forward.z += delta * moveSpeed;
-			}
-			if (moveLeft) {
-				forward.x -= delta * moveSpeed;
-			}
-			if (moveRight) {
-				forward.x += delta * moveSpeed;
-			}
-			if (rollLeft) {
-				camera.rotation.z += delta * rollSpeed;
-			}
-			if (rollRight) {
-				camera.rotation.z -= delta * rollSpeed;
-			}
-			forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), azimuth);
-			dolly.userData.position.add(forward);
-			if (dolly.userData.position.x > dimensions.width / 2 * roomBoundary) {
-				dolly.userData.position.x = dimensions.width / 2 * roomBoundary;
-			}
-			if (dolly.userData.position.z > dimensions.depth / 2 * roomBoundary) {
-				dolly.userData.position.z = dimensions.depth / 2 * roomBoundary;
-			}
-			if (dolly.userData.position.x < -dimensions.width / 2 * roomBoundary) {
-				dolly.userData.position.x = -dimensions.width / 2 * roomBoundary;
-			}
-			if (dolly.userData.position.z < -dimensions.depth / 2 * roomBoundary) {
-				dolly.userData.position.z = -dimensions.depth / 2 * roomBoundary;
-			}
+			// if (moveForward) {
+			// 	forward.z -= delta * moveSpeed;
+			// }
+			// if (moveBackward) {
+			// 	forward.z += delta * moveSpeed;
+			// }
+			// if (moveLeft) {
+			// 	forward.x -= delta * moveSpeed;
+			// }
+			// if (moveRight) {
+			// 	forward.x += delta * moveSpeed;
+			// }
+			// if (rollLeft) {
+			// 	camera.rotation.z += delta * rollSpeed;
+			// }
+			// if (rollRight) {
+			// 	camera.rotation.z -= delta * rollSpeed;
+			// }
+			// forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), azimuth);
+			// dolly.userData.position.add(forward);
+			// if (dolly.userData.position.x > dimensions.width / 2 * roomBoundary) {
+			// 	dolly.userData.position.x = dimensions.width / 2 * roomBoundary;
+			// }
+			// if (dolly.userData.position.z > dimensions.depth / 2 * roomBoundary) {
+			// 	dolly.userData.position.z = dimensions.depth / 2 * roomBoundary;
+			// }
+			// if (dolly.userData.position.x < -dimensions.width / 2 * roomBoundary) {
+			// 	dolly.userData.position.x = -dimensions.width / 2 * roomBoundary;
+			// }
+			// if (dolly.userData.position.z < -dimensions.depth / 2 * roomBoundary) {
+			// 	dolly.userData.position.z = -dimensions.depth / 2 * roomBoundary;
+			// }
 		}
 
-		dolly.userData.easing.subVectors( dolly.userData.position, dolly.position ).multiplyScalar( 0.1 );
-		dolly.position.add( dolly.userData.easing )
+		 dolly.userData.easing.subVectors( dolly.userData.position, dolly.position ).multiplyScalar( 0.1 );
+		 dolly.position.add( dolly.userData.easing )
 
 		mesh.rotation.x += 0.01;
 		mesh.rotation.y += 0.02;
 
+		dolly.setRotationFromMatrix(matrix);
 		renderer.render( scene, camera );
 	}
 

@@ -1,0 +1,74 @@
+.icon {
+  width: 24px;
+  height: 24px;
+  border: 1px black solid;
+  padding: 4px;
+}
+
+.icon-lg {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-button {
+  width: 16px;
+  height: 16px;
+}
+
+.code {
+  background-color: #444;
+  color: white;
+  padding: 10px;
+  border: 1px black solid;
+  border-radius: 10px;
+}
+
+.slider {
+  -webkit-appearance: none;  /* Override default CSS styles */
+  appearance: none;
+  width: 100%;
+  height: 43px;
+  outline: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 25px;
+  cursor: pointer;
+  background: #000;
+}
+
+.slider::-moz-range-thumb {
+  width: 10px;
+  height: 25px;
+  cursor: pointer;
+  background: #000;
+}
+
+.fullscreen {
+  z-index: 9998;
+  width: 100%;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+.fullscreenContainer {
+  z-index: 9999;
+  position: fixed;
+  top: 0;
+  left: 50%;
+}
+
+.noselect {
+  -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+     -khtml-user-select: none; /* Konqueror HTML */
+       -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
+}
