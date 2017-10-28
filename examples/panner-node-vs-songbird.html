@@ -20,36 +20,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+    <link rel="stylesheet" href="resources/bootstrap.min.css">
+    <link rel="stylesheet" href="resources/examples.css">
 
-    <title>PannerNode vs Songbird</title>
+    <title>vs. PannerNode</title>
   </head>
   <body>
     <ol class="breadcrumb">
       <li class="breadcrumb-item"><a href="index.html">Examples</a></li>
-      <li class="breadcrumb-item active">PannerNode vs Songbird</li>
+      <li class="breadcrumb-item active">vs. PannerNode</li>
     </ol>
 
     <div class="container mt-5">
-      <h1>PannerNode vs Songbird</h1>
-      <p>
-        Compare PannerNode to 1st and 3rd-order Songbird ambisonics rendering.
-        (S) is the "Source" and [L] is the "Listener". Best experienced over
-        headphones. (S)/[L] positions are modifyable in real-time.
-      </p>
-      <select id="renderingMode" class="form-control mb-3">
-        <option value="none" selected>None (Mono playback)</option>
-        <option value="panner-node">PannerNode</option>
-        <option value="foa">1st-order Ambisonics</option>
-        <option value="toa">3rd-order Ambisonics</option>
-      </select>
-      <button type="button" class="btn btn-primary mb-3" id="eSourcePlayback">Play</button>
-      <div id="canvasDiv" class="text-center" style="width:100%; height: 100%">
-        <canvas id="canvas"></canvas>
+      <div class="row justify-content-center">
+        <div class="col-lg-5 mb-4" id="content">
+          <h1>vs. PannerNode</h1>
+          <p class="lead">
+            <img src="resources/headphones.svg" class="icon-lg" alt="headphones">
+            Best experienced over headphones.
+          </p>
+          <p>
+            Click (or touch) and drag the sound source
+            <img src="resources/volume-high.svg" class="icon" alt="source" id="sourceIcon">
+            to move it front-back/left-right around the listener.
+            <img src="resources/person.svg" class="icon" alt="listener" id="listenerIcon" hidden>
+            Select between different rendering modes to hear how quality is affected.
+          </p>
+
+          <div class="form-group">
+            <label for="renderingMode" class="col-form-label">Rendering mode</label>
+            <select id="renderingMode" class="form-control mb-3">
+              <option value="panner-node">PannerNode</option>
+              <option value="foa" selected>1st-order Ambisonics</option>
+              <option value="toa">3rd-order Ambisonics</option>
+              <option value="none">Mono Playback (No 3D effect)</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <span class="input-group-addon">
+              <img src="resources/volume-high.svg" class="icon-button">
+            </span>
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-primary" id="sourceButton">Play</button>
+            </span>
+          </div>
+        </div>
+
+        <div class="col-lg-5 text-center">
+          <div style="width:100%">
+            <canvas id="canvas"></canvas>
+          </div>
+        </div>
       </div>
     </div>
-    <script src="../build/songbird.js"></script>
-    <script src="canvas-control.js"></script>
-    <script src="panner-node-vs-songbird.js"></script>
+
+    <script src="../build/songbird.min.js"></script>
+    <script src="resources/js/canvas-control.js"></script>
+    <script src="resources/js/panner-node-vs-songbird.js"></script>
   </body>
 </html>

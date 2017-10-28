@@ -13,50 +13,83 @@
   limitations under the License.
 -->
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <title>CPU Benchmark Utility</title>
-  <script src="../build/songbird.js"></script>
-  <script src="benchmark.js"></script>
-</head>
-<body>
-  <h1>CPU Benchmark Utility</h1>
-  <p>
-    If using <b>Chrome</b>, Press Shift + Esc on Windows or Linux to bring up
-    the Task Manager while running the tests to inspect the CPU usage.
-  </p>
-  <p>
-    <label for="numSources" id="numSourcesLabel">
-      Number of Sources:
-    </label>
-    <input id="numSources" type="number" min="0" max="255" value="0">
-  </p>
-  <p>
-    <label for="ambisonicOrder" id="ambisonicOrderLabel">
-      Ambisonic Order:
-    </label>
-    <select id="ambisonicOrder">
-      <option value="1">First-order</option>
-      <option value="2">Second-order</option>
-      <option value="3">Third-order</option>
-      <option value="-1">PannerNode (disables reverb)</option>
-    </select>
-  </p>
-  <p>
-    <label for="reverbDuration" id="reverbDurationLabel">
-      Reverb Duration:
-    </label>
-    <select id="reverbDuration">
-      <option value="1">Off</option>
-      <option value="2">Short</option>
-      <option value="3">Medium</option>
-      <option value="4">Long</option>
-    </select>
-  </p>
-  <p>
-    <input type="button" id="initializeBenchmark" value="Begin"
-      onclick="initializeBenchmark();">
-  </p>
-</body>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="resources/bootstrap.min.css">
+    <link rel="stylesheet" href="resources/examples.css">
+
+    <title>CPU Benchmark Utility</title>
+  </head>
+  <body>
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="index.html">Examples</a></li>
+      <li class="breadcrumb-item active">CPU Benchmark Utility</li>
+    </ol>
+
+    <div class="container mt-5">
+      <div class="row justify-content-center">
+        <div class="col-lg-5 mb-4">
+          <h1>CPU Benchmark Utility</h1>
+          <p>
+            Run an <code>OfflineAudioContext</code> to compute one second of audio
+            at 48kHz (48000 samples). Returns the total elapsed time.
+          </p>
+
+          <div class="form-row">
+            <div class="form-group col-md-3">
+              <label for="numberSourcesNumber" class="col-form-label">Sources</label>
+              <input type="number" class="form-control" id="numberSourcesNumber" value="1" min="1" max="255">
+            </div>
+            <div class="form-group col-md-3">
+              <label for="reverbLengthSelect" class="col-form-label">Reverb</label>
+              <select id="reverbLengthSelect" class="form-control">
+                <option value="none" selected>Off</option>
+                <option value="short">Short</option>
+                <option value="medium">Medium</option>
+                <option value="long">Long</option>
+              </select>
+              </div>
+            <div class="form-group col-md-6">
+              <label for="renderingModeSelect" class="col-form-label">Rendering Mode</label>
+              <select id="renderingModeSelect" class="form-control">
+                <option value="foa" selected>1st-order Ambisonics</option>
+                <option value="toa">3rd-order Ambisonics</option>
+                <option value="panner-node">PannerNode (disables reverb)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="input-group mb-3">
+            <span class="input-group-addon">
+              <img src="resources/dashboard.svg" class="icon-button">
+            </span>
+            <span class="input-group-btn">
+              <button type="button" class="btn btn-primary" id="playback">Begin</button>
+            </span>
+          </div>
+
+          <div class="progress" id="progressBar" hidden>
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" style="width: 100%"></div>
+          </div>
+
+          <div id="statusBar" class="alert alert-primary" role="alert" hidden>
+          </div>
+
+        </div>
+
+        <div class="col-lg-5 text-center">
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Songbird Javascript -->
+    <script src="../build/songbird.min.js"></script>
+    <script src="resources/js/benchmark.js"></script>
+  </body>
 </html>

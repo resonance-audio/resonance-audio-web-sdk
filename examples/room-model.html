@@ -13,62 +13,105 @@
   limitations under the License.
 -->
 <!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Room model example.</title>
-  <script src="../build/songbird.js"></script>
-</head>
-<body>
-  <h1>Room Model example.</h1>
-  <p>Room model example using two sources.</p>
-    <p><b>Room dimensions (in meters)</b><br/>
-    <label for="eWidthNumber" id="eWidthLabel">width</label>
-    <input id="eWidthNumber" type="number" min="0" max="100" value="8.7"
-      onchange="updateDimensions();"/>
-    <label for="eHeightNumber" id="eHeightLabel">height</label>
-    <input id="eHeightNumber" type="number" min="0" max="100" value="4.8"
-      onchange="updateDimensions();"/>
-    <label for="eDepthNumber" id="eDepthLabel">depth</label>
-    <input id="eDepthNumber" type="number" min="0" max="100" value="9.1"
-      onchange="updateDimensions();"/>
-  </p>
-  <p>
-    <b>Room materials</b><br/>
-    <label for="eLeftMaterial" id="eLeftLabel">left</label>
-    <select id="eLeftMaterial" onchange="updateRoomProperties();"></select>
-    <br/>
-    <label for="eRightMaterial" id="eRightLabel">right</label>
-    <select id="eRightMaterial" onchange="updateRoomProperties();"></select>
-    <br/>
-    <label for="eFrontMaterial" id="eFrontLabel">front</label>
-    <select id="eFrontMaterial" onchange="updateRoomProperties();"></select>
-    <br/>
-    <label for="eBackMaterial" id="eBackLabel">back</label>
-    <select id="eBackMaterial" onchange="updateRoomProperties();"></select>
-    <br/>
-    <label for="eDownMaterial" id="eDownLabel">down</label>
-    <select id="eDownMaterial" onchange="updateRoomProperties();"></select>
-    <br/>
-    <label for="eUpMaterial" id="eUpLabel">up</label>
-    <select id="eUpMaterial" onchange="updateRoomProperties();"></select>
-  </p>
-  <p>
-    (A), (B) and (C) are the "Sources" and [L] is the "Listener". Best
-    experienced over headphones. Room dimensions/materials and (A)/(B)/[L]
-    positions are all modifyable in real-time.
-  </p>
-  <p>
-    Source A: <button id="eSourceAPlayback">Play</button>
-  </p>
-  <p>
-    Source B: <button id="eSourceBPlayback">Play</button>
-  </p>
-  <p>
-    Source C: <button id="eSourceCPlayback">Play</button>
-  </p>
-  <canvas id="canvas" width="1024" height="768"></canvas>
-  <script>
-  </script>
-</body>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="resources/bootstrap.min.css">
+    <link rel="stylesheet" href="resources/examples.css">
+
+    <title>Room Models</title>
+  </head>
+  <body>
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="index.html">Examples</a></li>
+      <li class="breadcrumb-item active">Room Models</li>
+    </ol>
+
+    <div class="container mt-5">
+      <div class="row justify-content-center">
+        <div class="col-lg-5 mb-2">
+          <h1>Room Models</h1>
+          <p class="lead">
+            <img src="resources/headphones.svg" class="icon-lg" alt="headphones">
+            Best experienced over headphones.
+          </p>
+          <p>
+            Click (or touch) and drag the sources
+            <img src="resources/volume-high.svg" class="icon" alt="source" id="sourceAIcon">,
+            <img src="resources/microphone.svg" class="icon" alt="source" id="sourceBIcon">,
+            <img src="resources/musical-note.svg" class="icon" alt="source" id="sourceCIcon">
+            and the listener
+            <img src="resources/person.svg" class="icon" alt="source" id="listenerIcon">,
+            to move them front-back/left-right around the room.
+            Select various options of room sizes and wall materials.
+          </p>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="roomDimensionsSelect" class="col-form-label">Room Dimensions</label>
+              <select id="roomDimensionsSelect" class="form-control">
+                <option value="small" selected>Small</option>
+                <option value="medium">Medium</option>
+                <option value="large">Large</option>
+                <option value="huge">Huge</option>
+              </select>
+            </div>
+            <div class="form-group col-md-6">
+              <label for="roomMaterialsSelect" class="col-form-label">Wall Materials</label>
+              <select id="roomMaterialsSelect" class="form-control">
+                <option value="brick" selected>Brick</option>
+                <option value="curtains">Curtains</option>
+                <option value="marble">Marble</option>
+                <option value="outside">Outdoors</option>
+              </select>
+            </div>
+          </div>
+          <div class="row justify-content-center">
+            <div class="col-md-4 mb-2">
+              <div class="input-group">
+                <span class="input-group-addon">
+                  <img src="resources/volume-high.svg" class="icon-button">
+                </span>
+                <span class="input-group-btn">
+                  <button type="button" class="btn btn-primary" id="sourceAButton">Play</button>
+                </span>
+              </div>
+            </div>
+            <div class="col-md-4 mb-2">
+              <div class="input-group">
+                <span class="input-group-addon">
+                  <img src="resources/microphone.svg" class="icon-button">
+                </span>
+                <span class="input-group-btn">
+                  <button type="button" class="btn btn-primary" id="sourceBButton">Play</button>
+                </span>
+              </div>
+            </div>
+            <div class="col-md-4 mb-2">
+              <div class="input-group">
+                <span class="input-group-addon">
+                  <img src="resources/musical-note.svg" class="icon-button">
+                </span>
+                <span class="input-group-btn">
+                  <button type="button" class="btn btn-primary" id="sourceCButton">Play</button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-5 text-center">
+          <div style="width:100%">
+            <canvas id="canvas"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="../build/songbird.min.js"></script>
+    <script src="resources/js/canvas-control.js"></script>
+    <script src="resources/js/room-model.js"></script>
+  </body>
 </html>

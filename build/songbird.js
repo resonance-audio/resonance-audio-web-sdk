@@ -978,16 +978,7 @@ Listener.prototype.setOrientation = function(forwardX, forwardY, forwardZ,
  */
 Listener.prototype.setFromMatrix = function(matrix4) {
   // Update ambisonic rotation matrix internally.
-  this._tempMatrix3[0] = matrix4.elements[0];
-  this._tempMatrix3[1] = matrix4.elements[1];
-  this._tempMatrix3[2] = matrix4.elements[2];
-  this._tempMatrix3[3] = matrix4.elements[4];
-  this._tempMatrix3[4] = matrix4.elements[5];
-  this._tempMatrix3[5] = matrix4.elements[6];
-  this._tempMatrix3[6] = matrix4.elements[8];
-  this._tempMatrix3[7] = matrix4.elements[9];
-  this._tempMatrix3[8] = matrix4.elements[10];
-  this._renderer.setRotationMatrix3(this._tempMatrix3);
+  this._renderer.setRotationMatrix4(matrix4.elements);
 
   // Extract position from matrix.
   this.position[0] = matrix4.elements[12];
@@ -2319,7 +2310,6 @@ function Source(songbird, options) {
   this._attenuation.output.connect(this._directivity.input);
   this._directivity.output.connect(this._encoder.input);
 
-  this.input.connect(this._encoder.input);
   this._encoder.output.connect(songbird._listener.input);
 
   // Assign initial conditions.
@@ -2361,11 +2351,12 @@ Source.prototype._update = function() {
   }
   let distance = Math.sqrt(this._dx[0] * this._dx[0] +
     this._dx[1] * this._dx[1] + this._dx[2] * this._dx[2]);
-
-  // Normalize direction vector.
-  this._dx[0] /= distance;
-  this._dx[1] /= distance;
-  this._dx[2] /= distance;
+  if (distance > 0) {
+    // Normalize direction vector.
+    this._dx[0] /= distance;
+    this._dx[1] /= distance;
+    this._dx[2] /= distance;
+  }
 
   // Compuete angle of direction vector.
   let azimuth = Math.atan2(-this._dx[0], this._dx[2]) *
@@ -5358,7 +5349,107 @@ module.exports = FOAVirtualSpeaker;
  * limitations under the License.
  */
 
+/**
+ * @file Static data manager for HRIR list and URLs. For Omnitone's HRIR list
+ * structure, see src/resources/README.md for the detail.
+ */
 
+
+
+
+const HRIRList = [
+  // Zero-order ambisonic. Not supported. (0 files, 1 channel)
+  null,
+  // First-order ambisonic. (2 files, 4 channels)
+  ['omnitone-foa-1.wav', 'omnitone-foa-2.wav'],
+  // Second-order ambisonic. (5 files, 9 channels)
+  [
+    'omnitone-soa-1.wav', 'omnitone-soa-2.wav', 'omnitone-soa-3.wav',
+    'omnitone-soa-4.wav', 'omnitone-soa-5.wav',
+  ],
+  // Third-order ambisonic. (8 files, 16 channels)
+  [
+    'omnitone-toa-1.wav', 'omnitone-toa-2.wav', 'omnitone-toa-3.wav',
+    'omnitone-toa-4.wav', 'omnitone-toa-5.wav', 'omnitone-toa-6.wav',
+    'omnitone-toa-7.wav', 'omnitone-toa-8.wav',
+  ],
+];
+
+
+// Base URL. 
+const SourceURL = {
+  GITHUB:
+      'https://cdn.rawgit.com/GoogleChrome/omnitone/master/build/resources/',
+};
+
+
+/**
+ * [getPathSet description]
+ * @param {object} [setting] - Setting object.
+ * @param {string} [setting.source="github"] - The base location for the HRIR
+ * set.
+ * @param {number} [setting.ambisonicOrder=1] - Requested ambisonic order.
+ * @return {string[]} pathList - HRIR path set (2~8 URLs)
+ */
+module.exports.getPathList = function(setting) {
+  let filenames;
+  let staticPath;
+  let pathList;
+
+  const setting_ = setting || {ambisonicOrder: 1, source: 'github'};
+
+  switch (setting_.ambisonicOrder) {
+    case 1:
+    case 2:
+    case 3:
+      filenames = HRIRList[setting_.ambisonicOrder];
+      break;
+    default:
+      // Invalid order gets the null path list.
+      filenames = HRIRList[0];
+      break;
+  }
+
+  switch (setting_.source) {
+    case 'github':
+    default:
+      // By default, use GitHub's CDN.
+      staticPath = SourceURL.GITHUB;
+      break;
+  }
+
+  if (filenames) {
+    pathList = [];
+    filenames.forEach(function(filename) {
+      pathList.push(staticPath + filename);
+    });
+  }
+
+  return pathList;
+};
+
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+/**
+ * Copyright 2017 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+  
 /**
  * @file A collection of convolvers. Can be used for the optimized HOA binaural
  * rendering. (e.g. SH-MaxRe HRTFs)

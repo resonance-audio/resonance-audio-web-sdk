@@ -151,7 +151,6 @@ function Source(songbird, options) {
   this._attenuation.output.connect(this._directivity.input);
   this._directivity.output.connect(this._encoder.input);
 
-  this.input.connect(this._encoder.input);
   this._encoder.output.connect(songbird._listener.input);
 
   // Assign initial conditions.
@@ -193,11 +192,12 @@ Source.prototype._update = function() {
   }
   let distance = Math.sqrt(this._dx[0] * this._dx[0] +
     this._dx[1] * this._dx[1] + this._dx[2] * this._dx[2]);
-
-  // Normalize direction vector.
-  this._dx[0] /= distance;
-  this._dx[1] /= distance;
-  this._dx[2] /= distance;
+  if (distance > 0) {
+    // Normalize direction vector.
+    this._dx[0] /= distance;
+    this._dx[1] /= distance;
+    this._dx[2] /= distance;
+  }
 
   // Compuete angle of direction vector.
   let azimuth = Math.atan2(-this._dx[0], this._dx[2]) *
