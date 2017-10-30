@@ -14,9 +14,9 @@
  */
 
 /**
- * Test Songbird object.
+ * Test ResonanceAudio object.
  */
-describe('Songbird', function() {
+describe('ResonanceAudio', function() {
   // This test is async, override timeout threshold to 5 sec.
   this.timeout(5000);
 
@@ -24,20 +24,20 @@ describe('Songbird', function() {
   const options = {};
 
   let context;
-  let songbird;
+  let scene;
   let bufferSource;
 
   beforeEach(function() {
     context =
       new OfflineAudioContext(2, sampleRate, sampleRate);
-    songbird = new Songbird(context, options);
+    scene = new ResonanceAudio(context, options);
     bufferSource = context.createBufferSource();
     bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
     bufferSource.buffer.getChannelData(0)[0] = 1;
 
     // Connect audio graph.
-    bufferSource.connect(songbird.ambisonicInput);
-    songbird.output.connect(context.destination);
+    bufferSource.connect(scene.ambisonicInput);
+    scene.output.connect(context.destination);
     bufferSource.start();
   });
 

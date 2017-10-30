@@ -1,5 +1,6 @@
 const sampleRate = 48000;
 const numberOutputChannels = 2;
+const durationSeconds = 1;
 
 let playback;
 
@@ -97,10 +98,21 @@ function selectDimensionsAndMaterials() {
  */
 function startBenchmark() {
   let audioContext =
-    new OfflineAudioContext(numberOutputChannels, sampleRate, sampleRate);
+    new OfflineAudioContext(numberOutputChannels,
+      durationSeconds * sampleRate, sampleRate);
+  if (typeof webkitOfflineAudioContext !== 'undefined') {
+    playback.textContent = 'Begin';
+    playback.disabled = false;
+    let statusBar = document.getElementById('statusBar');
+    statusBar.innerHTML = 'Benchmarks are unsupported on Safari/iOS.';
+    statusBar.hidden = false;
+    let progressBar = document.getElementById('progressBar');
+    progressBar.hidden = true;
+    return;
+  }
 
   let audioElement = document.createElement('audio');
-  audioElement.src = 'resources/CubeSound.wav';
+  audioElement.src = 'resources/cube-sound.wav';
   audioElement.load();
   audioElement.loop = true;
   let audioElementSource = audioContext.createMediaElementSource(audioElement);
@@ -136,16 +148,16 @@ function startBenchmark() {
   let sources = [];
   if (order > -1) {
     let options = selectDimensionsAndMaterials();
-    let songbird = new Songbird(audioContext, {
+    let scene = new ResonanceAudio(audioContext, {
       ambisonicOrder: order,
       dimensions: options.dimensions,
       materials: options.materials,
     });
     for (let i = 0; i < numberSources; i++) {
-      sources[i] = songbird.createSource();
+      sources[i] = scene.createSource();
       audioElementSource.connect(sources[i].input);
     }
-    songbird.output.connect(audioContext.destination);
+    scene.output.connect(audioContext.destination);
   } else {
     for (let i = 0; i < numberSources; i++) {
       sources[i] = audioContext.createPanner();
@@ -201,6 +213,22 @@ let onLoad = function() {
     } else {
       playback.textContent = 'Begin';
       playback.disabled = false;
+    }
+  });
+  let reverbLength = document.getElementById('reverbLengthSelect');
+  let renderingMode = document.getElementById('renderingModeSelect');
+  renderingMode.addEventListener('change', function(event) {
+    switch (event.target.value) {
+      case 'panner-node':
+      {
+        reverbLength.disabled = true;
+      }
+      break;
+      default:
+      {
+        reverbLength.disabled = false;
+      }
+      break;
     }
   });
 };

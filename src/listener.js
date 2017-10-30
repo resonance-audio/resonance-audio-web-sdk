@@ -115,7 +115,7 @@ function Listener(context, options) {
   }
 
   // These nodes are created in order to safely asynchronously load Omnitone
-  // while the rest of Songbird is being created.
+  // while the rest of the scene is being created.
   this.input = context.createGain();
   this.output = context.createGain();
   this.ambisonicOutput = context.createGain();

@@ -1,4 +1,4 @@
-let numberOfBirds = 16;
+let numberOfBirds = 8;
 let elements;
 let canvasControl;
 let deltaTimeMilliseconds = 33;
@@ -11,14 +11,20 @@ let cohesionWeight = 0.1;
 let separationWeight = 0.15;
 let radiusMinimum = 0.015;
 let radiusRange = 0.025 - radiusMinimum;
+let audioContext;
+let audioElements = [];
 let soundSources = [];
 let intervalCallback;
+let audioReady = false;
 
 /**
  * @param {Object} elements
  * @private
  */
 function updatePositions(elements) {
+  if (!audioReady)
+    return;
+
   for (let i = 0; i < elements.length - 1; i++) {
     let x = (elements[i].x - 0.5) * areaSize / 2;
     let y = (elements[i].z - 0.5) * areaSize / 2;
@@ -123,20 +129,23 @@ function integrateBirdPaths(elements) {
   canvasControl.draw();
 }
 
-let onLoad = function() {
-  let audioContext = new AudioContext();
+/**
+ * @private
+ */
+function initAudio() {
+  audioContext = new (window.AudioContext || window.webkitAudioContext);
   let audioSources = [
-    'resources/bird1.wav',
-    'resources/bird2.wav',
-    'resources/bird3.wav',
-    'resources/bird4.wav',
-    'resources/bird5.wav',
-    'resources/bird6.wav',
+    'resources/bird-1.wav',
+    'resources/bird-2.wav',
+    'resources/bird-3.wav',
+    'resources/bird-4.wav',
+    'resources/bird-5.wav',
+    'resources/bird-6.wav',
   ];
-  let audioElements = [];
   let audioElementSources = [];
   for (let i = 0; i < numberOfBirds; i++) {
-    let birdIndex = Math.round(Math.random() * (audioSources.length - 1));
+    let birdIndex =
+      Math.round(Math.random() * (audioSources.length - 1));
     audioElements[i] = document.createElement('audio');
     audioElements[i].src = audioSources[birdIndex];
     audioElements[i].load();
@@ -145,19 +154,31 @@ let onLoad = function() {
       audioContext.createMediaElementSource(audioElements[i]);
   }
 
-  let songbirdScene = new Songbird(audioContext, {
+  let scene = new ResonanceAudio(audioContext, {
     ambisonicOrder: 3,
+    dimensions: {
+      width: 20, height: 6, depth: 20,
+    },
+    materials: {
+      left: 'transparent', right: 'transparent',
+      front: 'transparent', back: 'transparent',
+      up: 'transparent', down: 'grass',
+    },
   });
   for (let i = 0; i < numberOfBirds; i++) {
-    soundSources[i] = songbirdScene.createSource();
+    soundSources[i] = scene.createSource();
     audioElementSources[i].connect(soundSources[i].input);
   }
 
   let gain = audioContext.createGain();
-  gain.gain.value = 1 / numberOfBirds;
-  songbirdScene.output.connect(gain);
+  gain.gain.value = 1 / (2 * numberOfBirds);
+  scene.output.connect(gain);
   gain.connect(audioContext.destination);
 
+  audioReady = true;
+}
+
+let onLoad = function() {
   let canvas = document.getElementById('canvas');
   elements = [];
   for (let i = 0; i < numberOfBirds; i++) {
@@ -193,19 +214,27 @@ let onLoad = function() {
   // Initialize play button functionality.
   let sourcePlayback = document.getElementById('sourceButton');
   sourcePlayback.onclick = function(event) {
-    if (event.target.textContent === 'Play') {
-      event.target.textContent = 'Pause';
-      intervalCallback =
-        window.setInterval(integrateBirdPaths, deltaTimeMilliseconds, elements);
-      for (let i = 0; i < numberOfBirds; i++) {
-        audioElements[i].play();
+    switch (event.target.textContent) {
+      case 'Play': {
+        if (!audioReady) {
+          initAudio();
+        }
+        event.target.textContent = 'Pause';
+        intervalCallback = window.setInterval(
+          integrateBirdPaths, deltaTimeMilliseconds, elements);
+        for (let i = 0; i < numberOfBirds; i++) {
+          audioElements[i].play();
+        }
       }
-    } else {
-      event.target.textContent = 'Play';
-      window.clearInterval(intervalCallback);
-      for (let i = 0; i < numberOfBirds; i++) {
-        audioElements[i].pause();
+      break;
+      case 'Pause': {
+        event.target.textContent = 'Play';
+        window.clearInterval(intervalCallback);
+        for (let i = 0; i < numberOfBirds; i++) {
+          audioElements[i].pause();
+        }
       }
+      break;
     }
   };
 };

@@ -1,5 +1,7 @@
+let audioContext;
 let canvasControl;
-let songbirdScene;
+let scene;
+let audioElements = [];
 let soundSources = [];
 let sourceIds = ['sourceAButton', 'sourceBButton', 'sourceCButton'];
 let dimensions = {
@@ -40,16 +42,20 @@ let materials = {
 };
 let dimensionSelection = 'small';
 let materialSelection = 'brick';
+let audioReady = false;
 
 /**
  * @private
  */
 function selectRoomProperties() {
+  if (!audioReady)
+    return;
+
   dimensionSelection =
     document.getElementById('roomDimensionsSelect').value;
   materialSelection =
     document.getElementById('roomMaterialsSelect').value;
-  songbirdScene.setRoomProperties(dimensions[dimensionSelection],
+  scene.setRoomProperties(dimensions[dimensionSelection],
     materials[materialSelection]);
   canvasControl.invokeCallback();
 }
@@ -59,6 +65,9 @@ function selectRoomProperties() {
  * @private
  */
 function updatePositions(elements) {
+  if (!audioReady)
+    return;
+
   for (let i = 0; i < elements.length; i++) {
     let x = (elements[i].x - 0.5) * dimensions[dimensionSelection].width / 2;
     let y = 0;
@@ -66,19 +75,21 @@ function updatePositions(elements) {
     if (i < elements.length - 1) {
       soundSources[i].setPosition(x, y, z);
     } else {
-      songbirdScene.setListenerPosition(x, y, z);
+      scene.setListenerPosition(x, y, z);
     }
   }
 }
 
-let onLoad = function() {
-  let audioContext = new AudioContext();
+/**
+ * @private
+ */
+function initAudio() {
+  audioContext = new (window.AudioContext || window.webkitAudioContext);
   let audioSources = [
-    'resources/CubeSound.wav',
-    'resources/SpeechSample.wav',
-    'resources/Music.wav',
+    'resources/cube-sound.wav',
+    'resources/speech-sample.wav',
+    'resources/music.wav',
   ];
-  let audioElements = [];
   let audioElementSources = [];
   for (let i = 0; i < audioSources.length; i++) {
     audioElements[i] = document.createElement('audio');
@@ -89,26 +100,38 @@ let onLoad = function() {
       audioContext.createMediaElementSource(audioElements[i]);
   }
 
-  // Initialize Songbird and create Source(s).
-  songbirdScene = new Songbird(audioContext, {
+  // Initialize scene and create Source(s).
+  scene = new ResonanceAudio(audioContext, {
     ambisonicOrder: 1,
   });
   for (let i = 0; i < audioSources.length; i++) {
-    soundSources[i] = songbirdScene.createSource();
+    soundSources[i] = scene.createSource();
     audioElementSources[i].connect(soundSources[i].input);
   }
-  songbirdScene.output.connect(audioContext.destination);
+  scene.output.connect(audioContext.destination);
 
+  audioReady = true;
+}
+
+let onLoad = function() {
   // Initialize play button functionality.
   for (let i = 0; i < sourceIds.length; i++) {
     let button = document.getElementById(sourceIds[i]);
     button.addEventListener('click', function(event) {
-      if (event.target.textContent == 'Play') {
-        event.target.textContent = 'Pause';
-        audioElements[i].play();
-      } else {
-        event.target.textContent = 'Play';
-        audioElements[i].pause();
+      switch (event.target.textContent) {
+        case 'Play': {
+          if (!audioReady) {
+            initAudio();
+          }
+          event.target.textContent = 'Pause';
+          audioElements[i].play();
+        }
+        break;
+        case 'Pause': {
+          event.target.textContent = 'Play';
+          audioElements[i].pause();
+        }
+        break;
       }
     });
   }

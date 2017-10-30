@@ -34,7 +34,7 @@ describe('Directivity', function() {
   beforeEach(function() {
     context =
       new OfflineAudioContext(1, 1, sampleRate);
-    directivity = new Songbird.Directivity(context, options);
+    directivity = new ResonanceAudio.Directivity(context, options);
     bufferSource = context.createBufferSource();
     bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
     bufferSource.buffer.getChannelData(0)[0] = 1;

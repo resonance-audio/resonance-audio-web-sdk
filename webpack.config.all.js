@@ -20,7 +20,7 @@ module.exports = {
   entry: './src/main.js',
   output: {
     path: __dirname + '/build',
-    filename: 'songbird.min.js',
+    filename: 'resonance-audio.min.js',
     libraryTarget: 'umd',
   },
   plugins: [

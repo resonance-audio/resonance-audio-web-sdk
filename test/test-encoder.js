@@ -242,10 +242,12 @@ describe('Encoder', function() {
   beforeEach(function() {
     // Create nodes.
     expect(ambisonicOrder ==
-      Songbird.Encoder.validateAmbisonicOrder(ambisonicOrder));
+      ResonanceAudio.Encoder.validateAmbisonicOrder(ambisonicOrder));
     context =
       new OfflineAudioContext(numberOfChannels, 1, sampleRate);
-    encoder = new Songbird.Encoder(context, {ambisonicOrder: ambisonicOrder});
+    encoder = new ResonanceAudio.Encoder(context, {
+      ambisonicOrder: ambisonicOrder,
+    });
     bufferSource = context.createBufferSource();
     bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
     bufferSource.buffer.getChannelData(0)[0] = 1;

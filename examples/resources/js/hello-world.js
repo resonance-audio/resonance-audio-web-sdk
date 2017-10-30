@@ -1,11 +1,21 @@
-let onLoad = function() {
-  let audioContext = new AudioContext();
+let audioContext;
+let scene;
+let audioElement;
+let audioElementSource;
+let source;
+let audioReady = false;
 
-  // Create a (1st-order Ambisonic) Songbird scene.
-  let songbird = new Songbird(audioContext);
+/**
+ * @private
+ */
+function initAudio() {
+  audioContext = new (window.AudioContext || window.webkitAudioContext);
 
-  // Send songbird's binaural output to stereo out.
-  songbird.output.connect(audioContext.destination);
+  // Create a (1st-order Ambisonic) ResonanceAudio scene.
+  scene = new ResonanceAudio(audioContext);
+
+  // Send scene's rendered binaural output to stereo out.
+  scene.output.connect(audioContext.destination);
 
   // Set room acoustics properties.
   let dimensions = {
@@ -21,34 +31,45 @@ let onLoad = function() {
     down: 'grass',
     up: 'transparent',
   };
-  songbird.setRoomProperties(dimensions, materials);
+  scene.setRoomProperties(dimensions, materials);
 
   // Create an audio element. Feed into audio graph.
-  let audioElement = document.createElement('audio');
-  audioElement.src = 'resources/CubeSound.wav';
+  audioElement = document.createElement('audio');
+  audioElement.src = 'resources/cube-sound.wav';
   audioElement.load();
   audioElement.loop = true;
 
-  let audioElementSource =
-    audioContext.createMediaElementSource(audioElement);
+  audioElementSource = audioContext.createMediaElementSource(audioElement);
 
   // Create a Source, connect desired audio input to it.
-  let source = songbird.createSource();
+  source = scene.createSource();
   audioElementSource.connect(source.input);
 
   // The source position is relative to the origin
   // (center of the room).
   source.setPosition(-0.707, -0.707, 0);
 
+  audioReady = true;
+}
+
+let onLoad = function() {
   // Initialize play button functionality.
   let sourcePlayback = document.getElementById('sourceButton');
   sourcePlayback.onclick = function(event) {
-    if (event.target.textContent === 'Play') {
-      event.target.textContent = 'Pause';
-      audioElement.play();
-    } else {
-      event.target.textContent = 'Play';
-      audioElement.pause();
+    switch (event.target.textContent) {
+      case 'Play': {
+        if (!audioReady) {
+          initAudio();
+        }
+        event.target.textContent = 'Pause';
+        audioElement.play();
+      }
+      break;
+      case 'Pause': {
+        event.target.textContent = 'Play';
+        audioElement.pause();
+      }
+      break;
     }
   };
 

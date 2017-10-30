@@ -32,7 +32,7 @@ describe('LateReflections', function() {
     // Create nodes.
     context =
       new OfflineAudioContext(1, 1024, sampleRate);
-    lateReflections = new Songbird.LateReflections(context, options);
+    lateReflections = new ResonanceAudio.LateReflections(context, options);
     bufferSource = context.createBufferSource();
     bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
     bufferSource.buffer.getChannelData(0)[0] = 1;

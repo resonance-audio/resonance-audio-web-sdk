@@ -17,7 +17,7 @@ module.exports = {
   entry: './src/main.js',
   output: {
     path: __dirname + '/build',
-    filename: 'songbird.js',
+    filename: 'resonance-audio.js',
     libraryTarget: 'umd'
   }
 };

@@ -15,7 +15,7 @@
  */
 
 /**
- * @file Songbird library name space and common utilities.
+ * @file ResonanceAudio library name space and common utilities.
  * @author Andrew Allen <bitllama@google.com>
  */
 
@@ -31,7 +31,7 @@ const Utils = require('./utils.js');
 
 
 /**
- * @class Songbird
+ * @class ResonanceAudio
  * @description Main class for managing sources, room and listener models.
  * @param {AudioContext} context
  * Associated {@link
@@ -57,13 +57,13 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * (in meters/second). Defaults to
  * {@linkcode Utils.DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
  */
-function Songbird(context, options) {
+function ResonanceAudio(context, options) {
   // Public variables.
   /**
    * Binaurally-rendered stereo (2-channel) output {@link
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}.
    * @member {AudioNode} output
-   * @memberof Songbird
+   * @memberof ResonanceAudio
    * @instance
    */
   /**
@@ -71,7 +71,7 @@ function Songbird(context, options) {
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}
    * (For rendering input soundfields).
    * @member {AudioNode} ambisonicInput
-   * @memberof Songbird
+   * @memberof ResonanceAudio
    * @instance
    */
   /**
@@ -79,7 +79,7 @@ function Songbird(context, options) {
    * https://developer.mozilla.org/en-US/docs/Web/API/AudioNode AudioNode}
    * (For allowing external rendering / post-processing).
    * @member {AudioNode} ambisonicOutput
-   * @memberof Songbird
+   * @memberof ResonanceAudio
    * @instance
    */
 
@@ -175,7 +175,7 @@ function Songbird(context, options) {
  * {@linkcode Utils.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
  * @return {Source}
  */
-Songbird.prototype.createSource = function(options) {
+ResonanceAudio.prototype.createSource = function(options) {
   // Create a source and push it to the internal sources array, returning
   // the object's reference to the user.
   let source = new Source(this, options);
@@ -188,7 +188,7 @@ Songbird.prototype.createSource = function(options) {
  * Set the scene's desired ambisonic order.
  * @param {Number} ambisonicOrder Desired ambisonic order.
  */
-Songbird.prototype.setAmbisonicOrder = function(ambisonicOrder) {
+ResonanceAudio.prototype.setAmbisonicOrder = function(ambisonicOrder) {
   this._ambisonicOrder = Encoder.validateAmbisonicOrder(ambisonicOrder);
 };
 
@@ -198,7 +198,7 @@ Songbird.prototype.setAmbisonicOrder = function(ambisonicOrder) {
  * @param {Object} dimensions Room dimensions (in meters).
  * @param {Object} materials Named acoustic materials per wall.
  */
-Songbird.prototype.setRoomProperties = function(dimensions, materials) {
+ResonanceAudio.prototype.setRoomProperties = function(dimensions, materials) {
   this._room.setProperties(dimensions, materials);
 };
 
@@ -210,7 +210,7 @@ Songbird.prototype.setRoomProperties = function(dimensions, materials) {
  * @param {Number} y
  * @param {Number} z
  */
-Songbird.prototype.setListenerPosition = function(x, y, z) {
+ResonanceAudio.prototype.setListenerPosition = function(x, y, z) {
   // Update listener position.
   this._listener.position[0] = x;
   this._listener.position[1] = y;
@@ -233,7 +233,7 @@ Songbird.prototype.setListenerPosition = function(x, y, z) {
  * @param {Number} upY
  * @param {Number} upZ
  */
-Songbird.prototype.setListenerOrientation = function(forwardX, forwardY,
+ResonanceAudio.prototype.setListenerOrientation = function(forwardX, forwardY,
   forwardZ, upX, upY, upZ) {
   this._listener.setOrientation(forwardX, forwardY, forwardZ, upX, upY, upZ);
 };
@@ -244,7 +244,7 @@ Songbird.prototype.setListenerOrientation = function(forwardX, forwardY,
  * @param {Object} matrix
  * The Three.js Matrix4 object representing the listener's world transform.
  */
-Songbird.prototype.setListenerFromMatrix = function(matrix) {
+ResonanceAudio.prototype.setListenerFromMatrix = function(matrix) {
   this._listener.setFromMatrix(matrix);
 
   // Update the rest of the scene using new listener position.
@@ -257,9 +257,9 @@ Songbird.prototype.setListenerFromMatrix = function(matrix) {
  * Set the speed of sound.
  * @param {Number} speedOfSound
  */
-Songbird.prototype.setSpeedOfSound = function(speedOfSound) {
+ResonanceAudio.prototype.setSpeedOfSound = function(speedOfSound) {
   this._room.speedOfSound = speedOfSound;
 };
 
 
-module.exports = Songbird;
+module.exports = ResonanceAudio;

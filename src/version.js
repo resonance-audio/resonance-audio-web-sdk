@@ -14,7 +14,7 @@
  */
 
 /**
- * @file Songbird version.
+ * @file ResonanceAudio version.
  * @author Andrew Allen <bitllama@google.com>
  */
 
@@ -22,7 +22,7 @@
 
 
 /**
- * Songbird library version
+ * ResonanceAudio library version
  * @type {String}
  */
 module.exports = '0.0.4';

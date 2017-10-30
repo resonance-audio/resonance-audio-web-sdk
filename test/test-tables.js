@@ -20,9 +20,10 @@ describe('Tables', function() {
   // This test is async, override timeout threshold to 5 sec.
   this.timeout(5000);
 
-  let sH = Songbird.Tables.SPHERICAL_HARMONICS;
-  let mRW = Songbird.Tables.MAX_RE_WEIGHTS;
-  let expectedAmbisonicOrder = Songbird.Tables.SPHERICAL_HARMONICS_MAX_ORDER;
+  let sH = ResonanceAudio.Tables.SPHERICAL_HARMONICS;
+  let mRW = ResonanceAudio.Tables.MAX_RE_WEIGHTS;
+  let expectedAmbisonicOrder =
+    ResonanceAudio.Tables.SPHERICAL_HARMONICS_MAX_ORDER;
 
   beforeEach(function() {
   });
@@ -43,13 +44,13 @@ describe('Tables', function() {
 
       expect(sH.length == 2);
       expect(sH[0].length ==
-        Songbird.Tables.SPHERICAL_HARMONICS_AZIMUTH_RESOLUTION);
+        ResonanceAudio.Tables.SPHERICAL_HARMONICS_AZIMUTH_RESOLUTION);
       for (let i = 0; i < sH[0].length; i++) {
         expect(sH[0][i].length == expectedAzimuthLength);
       }
 
       expect(sH[1].length ==
-        Songbird.Tables.SPHERICAL_HARMONICS_ELEVATION_RESOLUTION);
+        ResonanceAudio.Tables.SPHERICAL_HARMONICS_ELEVATION_RESOLUTION);
       for (let i = 0; i < sH[1].length; i++) {
         expect(sH[1][i].length == expectedElevationLength);
       }
@@ -59,7 +60,7 @@ describe('Tables', function() {
 
   it('Verify MAX_RE_WEIGHTS size.',
     function(done) {
-      expect(mRW.length == Songbird.Tables.MAX_RE_WEIGHTS_RESOLUTION);
+      expect(mRW.length == ResonanceAudio.Tables.MAX_RE_WEIGHTS_RESOLUTION);
       for (let i = 0; i < mRW.length; i++) {
         expect(mRW[i].length == expectedAmbisonicOrder + 1);
       }

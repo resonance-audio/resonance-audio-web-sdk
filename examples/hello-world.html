@@ -19,17 +19,43 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="resources/bootstrap.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
     <link rel="stylesheet" href="resources/examples.css">
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
 
     <title>Hello World</title>
   </head>
   <body>
-    <ol class="breadcrumb">
-      <li class="breadcrumb-item"><a href="index.html">Examples</a></li>
-      <li class="breadcrumb-item active">Hello World</li>
-    </ol>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-5">
+      <a class="navbar-brand" href="index.html">
+        <img src="resources/logo30.png" width="30" height="30" class="d-inline-block align-top">
+      </a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item active">
+            <a class="nav-link" href="hello-world.html">Hello World</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="vs-pannernode.html">vs. PannerNode</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="room-models.html">Room Models</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="birds.html">Flock of Birds</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="treasure-hunt.html">Treasure Hunt</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="benchmark.html">CPU Benchmark Utility</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
 
     <div class="container mt-5">
       <div class="row justify-content-center">
@@ -40,7 +66,7 @@
             Best experienced over headphones.
           </p>
           <p>
-            Positions a source
+            Statically position a source
             <img src="resources/volume-high.svg" class="icon" alt="source" id="sourceIcon">
             front-left to the listener
             <img src="resources/person.svg" class="icon" alt="listener" id="listenerIcon">
@@ -65,9 +91,11 @@
       </div>
     </div>
 
-    <!-- Songbird Javascript -->
-    <script src="../build/songbird.min.js"></script>
+    <script src="../build/resonance-audio.min.js"></script>
     <script src="resources/js/canvas-control.js"></script>
     <script src="resources/js/hello-world.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
   </body>
 </html>

@@ -36,7 +36,7 @@ describe('Attenuation', function() {
     // Create nodes.
     context =
       new OfflineAudioContext(1, 1, sampleRate);
-    attenuation = new Songbird.Attenuation(context, options);
+    attenuation = new ResonanceAudio.Attenuation(context, options);
     bufferSource = context.createBufferSource();
     bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
     bufferSource.buffer.getChannelData(0)[0] = 1;

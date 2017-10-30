@@ -30,7 +30,7 @@ describe('Listener', function() {
   beforeEach(function() {
     context =
       new OfflineAudioContext(2, sampleRate, sampleRate);
-    listener = new Songbird.Listener(context, options);
+    listener = new ResonanceAudio.Listener(context, options);
     bufferSource = context.createBufferSource();
     bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
     bufferSource.buffer.getChannelData(0)[0] = 1;

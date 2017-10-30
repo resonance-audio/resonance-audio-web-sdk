@@ -31,7 +31,7 @@ describe('EarlyReflections', function() {
     // Create nodes.
     context =
       new OfflineAudioContext(4, 1024, sampleRate);
-    earlyReflections = new Songbird.EarlyReflections(context, options);
+    earlyReflections = new ResonanceAudio.EarlyReflections(context, options);
     bufferSource = context.createBufferSource();
     bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
     bufferSource.buffer.getChannelData(0)[0] = 1;

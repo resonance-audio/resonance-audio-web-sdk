@@ -1,8 +1,8 @@
 {
-  "name": "songbird-audio",
-  "version": "0.0.4",
-  "description": "Spatial Audio Encoder in Web Audio API",
-  "main": "build/songbird.js",
+  "name": "resonance-audio",
+  "version": "0.0.5",
+  "description": "Resonance Audio library: Spatial Audio for the Web",
+  "main": "build/resonance-audio.js",
   "keywords": [
     "spatial audio",
     "ambisonic",
@@ -33,18 +33,18 @@
   "scripts": {
     "build": "webpack --progress --color",
     "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
-    "build-doc": "doctoc README.md && jsdoc src/songbird.js src/source.js src/utils.js -R README.md -d doc",
+    "build-doc": "doctoc README.md && jsdoc src/resonance-audio.js src/source.js src/utils.js -R README.md -d doc",
     "eslint": "eslint examples/resources/js/*.js src/*.js test/*.js",
     "test": "karma start",
     "watch": "webpack --progress --color --watch"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Google/Songbird"
+    "url": "https://github.com/google/resonance-audio-web-sdk"
   },
-  "homepage": "https://github.com/Google/Songbird",
+  "homepage": "https://github.com/google/resonance-audio-web-sdk",
   "bugs": {
-    "url": "https://github.com/Google/Songbird/issues"
+    "url": "https://github.com/google/resonance-audio-web-sdk/issues"
   },
   "author": "Andrew Allen",
   "license": "Apache-2.0"

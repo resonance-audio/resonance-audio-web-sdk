@@ -15,7 +15,7 @@
  */
 
 /**
- * @file Songbird library common utilities, mathematical constants,
+ * @file ResonanceAudio library common utilities, mathematical constants,
  * and default values.
  * @author Andrew Allen <bitllama@google.com>
  */
@@ -437,14 +437,14 @@ Utils.EPSILON_FLOAT = 1e-8;
 
 
 /**
- * Songbird library logging function.
+ * ResonanceAudio library logging function.
  * @type {Function}
  * @param {any} Message to be printed out.
  * @private
  */
 Utils.log = function() {
   window.console.log.apply(window.console, [
-    '%c[Songbird]%c '
+    '%c[ResonanceAudio]%c '
       + Array.prototype.slice.call(arguments).join(' ') + ' %c(@'
       + performance.now().toFixed(2) + 'ms)',
     'background: #BBDEFB; color: #FF5722; font-weight: 700',

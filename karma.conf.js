@@ -3,7 +3,7 @@ module.exports = function(config) {
     basePath: '',
     frameworks: ['mocha', 'chai'],
     files: [
-      'build/songbird.js',
+      'build/resonance-audio.js',
       'test/test-*.js',
     ],
     reporters: ['mocha'],

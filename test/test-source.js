@@ -21,11 +21,11 @@ describe('Source', function() {
   this.timeout(5000);
 
   const sampleRate = 48000;
-  const songbirdOptions = {};
+  const sceneOptions = {};
   const soundSourceOptions = {minDistance: 1, maxDistance: 1000};
 
   let context;
-  let songbird;
+  let scene;
   let soundSource;
   let bufferSource;
 
@@ -33,15 +33,15 @@ describe('Source', function() {
     // Create nodes.
     context =
       new OfflineAudioContext(1, 1, sampleRate);
-    songbird = new Songbird(context, songbirdOptions);
-    soundSource = songbird.createSource(soundSourceOptions);
+    scene = new ResonanceAudio(context, sceneOptions);
+    soundSource = scene.createSource(soundSourceOptions);
     bufferSource = context.createBufferSource();
     bufferSource.buffer = context.createBuffer(1, 1, sampleRate);
     bufferSource.buffer.getChannelData(0)[0] = 1;
 
     // Connect audio graph.
     bufferSource.connect(soundSource.input);
-    songbird._listener.input.connect(context.destination);
+    scene._listener.input.connect(context.destination);
     soundSource._encoder.output.connect(context.destination);
     bufferSource.start();
   });

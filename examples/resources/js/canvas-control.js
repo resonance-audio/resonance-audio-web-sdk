@@ -37,7 +37,7 @@ function CanvasControl(canvas, elements, callbackFunc) {
         event.preventDefault();
       }
     }
-  });
+  }, true);
 
   canvas.addEventListener('mousemove', function(event) {
     let currentEventTime = Date.now();
@@ -161,11 +161,13 @@ CanvasControl.prototype._cursorDownFunc = function(event) {
   let cursorPosition = this.getCursorPosition(event);
   this._selected = this.getNearestElement(cursorPosition);
   this._cursorUpdateFunc(cursorPosition);
+  document.body.style = 'overflow: hidden;';
 };
 
 CanvasControl.prototype._cursorUpFunc = function(event) {
   this._cursorDown = false;
   this._selected.index = -1;
+  document.body.style = '';
 };
 
 CanvasControl.prototype._cursorMoveFunc = function(event) {

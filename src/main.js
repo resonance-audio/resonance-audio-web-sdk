@@ -15,7 +15,7 @@
  */
 
 /**
- * @file Primary namespace for Songbird library.
+ * @file Primary namespace for ResonanceAudio library.
  * @author Andrew Allen <bitllama@google.com>
  */
 
@@ -23,18 +23,18 @@
 
 
 // Main module.
-exports.Songbird = require('./songbird.js');
+exports.ResonanceAudio = require('./resonance-audio.js');
 
 
 // Testable Submodules.
-exports.Songbird.Attenuation = require('./attenuation.js');
-exports.Songbird.Directivity = require('./directivity.js');
-exports.Songbird.EarlyReflections = require('./early-reflections.js');
-exports.Songbird.Encoder = require('./encoder.js');
-exports.Songbird.LateReflections = require('./late-reflections.js');
-exports.Songbird.Listener = require('./listener.js');
-exports.Songbird.Room = require('./room.js');
-exports.Songbird.Source = require('./source.js');
-exports.Songbird.Tables = require('./tables.js');
-exports.Songbird.Utils = require('./utils.js');
-exports.Songbird.Version = require('./version.js');
+exports.ResonanceAudio.Attenuation = require('./attenuation.js');
+exports.ResonanceAudio.Directivity = require('./directivity.js');
+exports.ResonanceAudio.EarlyReflections = require('./early-reflections.js');
+exports.ResonanceAudio.Encoder = require('./encoder.js');
+exports.ResonanceAudio.LateReflections = require('./late-reflections.js');
+exports.ResonanceAudio.Listener = require('./listener.js');
+exports.ResonanceAudio.Room = require('./room.js');
+exports.ResonanceAudio.Source = require('./source.js');
+exports.ResonanceAudio.Tables = require('./tables.js');
+exports.ResonanceAudio.Utils = require('./utils.js');
+exports.ResonanceAudio.Version = require('./version.js');

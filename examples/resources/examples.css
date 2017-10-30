@@ -1,3 +1,7 @@
+* {
+  font-family: 'Open Sans', sans-serif;
+}
+
 .icon {
   width: 24px;
   height: 24px;
@@ -71,4 +75,12 @@
         -ms-user-select: none; /* Internet Explorer/Edge */
             user-select: none; /* Non-prefixed version, currently
                                   supported by Chrome and Opera */
+}
+
+.breadcrumbIcon {
+  width: 30px;
+  height: 20px;
+  margin: 0px;
+  padding: 0px;
+  margin-right: 0px;
 }

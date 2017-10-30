@@ -32,7 +32,8 @@ const Utils = require('./utils.js');
 /**
  * @class Source
  * @description Source model to spatialize an audio buffer.
- * @param {Songbird} songbird Associated {@link Songbird Songbird} instance.
+ * @param {ResonanceAudio} scene Associated {@link ResonanceAudio
+ * ResonanceAudio} instance.
  * @param {Object} options
  * @param {Float32Array} options.position
  * The source's initial position (in meters), where origin is the center of
@@ -65,7 +66,7 @@ const Utils = require('./utils.js');
  * is an omnidirectional source. Defaults to
  * {@linkcode Utils.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
  */
-function Source(songbird, options) {
+function Source(scene, options) {
   // Public variables.
   /**
    * Mono (1-channel) input {@link
@@ -114,7 +115,7 @@ function Source(songbird, options) {
   }
 
   // Member variables.
-  this._scene = songbird;
+  this._scene = scene;
   this._position = options.position;
   this._forward = options.forward;
   this._up = options.up;
@@ -122,7 +123,7 @@ function Source(songbird, options) {
   this._right = Utils.crossProduct(this._forward, this._up);
 
   // Create audio nodes.
-  let context = songbird._context;
+  let context = scene._context;
   this.input = context.createGain();
   this._directivity = new Directivity(context, {
     alpha: options.alpha,
@@ -136,22 +137,22 @@ function Source(songbird, options) {
     rolloff: options.rolloff,
   });
   this._encoder = new Encoder(context, {
-    ambisonicOrder: songbird._ambisonicOrder,
+    ambisonicOrder: scene._ambisonicOrder,
     sourceWidth: options.sourceWidth,
   });
 
   // Connect nodes.
   this.input.connect(this._toLate);
-  this._toLate.connect(songbird._room.late.input);
+  this._toLate.connect(scene._room.late.input);
 
   this.input.connect(this._attenuation.input);
   this._attenuation.output.connect(this._toEarly);
-  this._toEarly.connect(songbird._room.early.input);
+  this._toEarly.connect(scene._room.early.input);
 
   this._attenuation.output.connect(this._directivity.input);
   this._directivity.output.connect(this._encoder.input);
 
-  this._encoder.output.connect(songbird._listener.input);
+  this._encoder.output.connect(scene._listener.input);
 
   // Assign initial conditions.
   this.setPosition(
