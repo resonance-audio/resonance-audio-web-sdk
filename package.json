@@ -1,6 +1,6 @@
 {
   "name": "songbird-audio",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Spatial Audio Encoder in Web Audio API",
   "main": "build/songbird.js",
   "keywords": [
