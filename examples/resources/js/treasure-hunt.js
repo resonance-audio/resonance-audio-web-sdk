@@ -7,8 +7,8 @@ let isCursorDown = false;
 let cursorDown;
 let screenPercentToHorizontalAngleSpeed = 90;
 let screenPercentToVerticalAngleSpeed = 90;
-let azimuth = 20;
-let elevation = 10;
+let azimuth = 0;
+let elevation = 0;
 let clickTime = 0;
 let songbird;
 let source;
@@ -134,8 +134,8 @@ function animate() {
   let deltaTime = (currTime - prevTime) / 1000;
   prevTime = currTime;
 
-  mesh.rotation.x = Math.PI * 2 * 0.9;//+= rotateSpeed * deltaTime;
-  mesh.rotation.y = Math.PI * 2 * 0.8;//+= rotateSpeed * deltaTime;
+  mesh.rotation.x += rotateSpeed * deltaTime;
+  mesh.rotation.y += rotateSpeed * deltaTime;
 
   renderer.render(scene, camera);
 }

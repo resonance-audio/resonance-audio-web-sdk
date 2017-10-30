@@ -14,10 +14,10 @@ for realistic and quality-scalable 3D audio.
 
 
 Hear Songbird in action (currently the examples only work on laptops/desktops):
-- [PannerNode vs. Songbird example](https://cdn.rawgit.com/google/songbird/master/examples/panner-node-vs-songbird.html)
-- [Room model example](https://cdn.rawgit.com/google/songbird/master/examples/room-model.html)
+- [vs. PannerNode](https://cdn.rawgit.com/google/songbird/master/examples/vs-pannernode.html)
+- [Room Models](https://cdn.rawgit.com/google/songbird/master/examples/room-models.html)
 - [Flock of Birds](https://cdn.rawgit.com/google/songbird/master/examples/birds.html)
-- [3D interactive WebGL demo](https://cdn.rawgit.com/google/songbird/master/examples/webgl-demo.html)
+- [Treasure Hunt](https://cdn.rawgit.com/google/songbird/master/examples/treasure-hunt.html)
 
 The implementation of Songbird is based on the
 [Google spatial media](https://github.com/google/spatial-media) specification.
@@ -404,16 +404,7 @@ using the latest stable version of Chrome.
 ### Testing Songbird Locally
 
 For the local testing with Karma test runner, Chrome/Chromium-based browser is
-required. For Linux distros without Chrome browser, the following set up might
-be necessary for Karma to run properly:
-
-```bash
-# Tested with Ubuntu 16.04
-sudo apt install chromium-browser
-export CHROME_BIN=chromium-browser
-```
-
-Windows platform has not been tested for local testing.
+required. Windows and Linux platforms are supported.
 
 
 ## Related Resources
