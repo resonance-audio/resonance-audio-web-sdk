@@ -33,7 +33,7 @@
   "scripts": {
     "build": "webpack --progress --color",
     "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
-    "build-doc": "doctoc README.md && jsdoc src/resonance-audio.js src/source.js src/utils.js -R README.md -d doc",
+    "build-doc": "jsdoc src/resonance-audio.js src/source.js src/utils.js -R README.md -d doc",
     "eslint": "eslint examples/resources/js/*.js src/*.js test/*.js",
     "test": "karma start",
     "watch": "webpack --progress --color --watch"

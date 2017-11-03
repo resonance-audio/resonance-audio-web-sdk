@@ -31,31 +31,38 @@ const Utils = require('./utils.js');
 
 
 /**
+ * Options for constructing a new ResonanceAudio scene.
+ * @typedef {Object} ResonanceAudio~ResonanceAudioOptions
+ * @property {Number} ambisonicOrder
+ * Desired ambisonic Order. Defaults to
+ * {@linkcode Utils.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
+ * @property {Float32Array} listenerPosition
+ * The listener's initial position (in meters), where origin is the center of
+ * the room. Defaults to {@linkcode Utils.DEFAULT_POSITION DEFAULT_POSITION}.
+ * @property {Float32Array} listenerForward
+ * The listener's initial forward vector.
+ * Defaults to {@linkcode Utils.DEFAULT_FORWARD DEFAULT_FORWARD}.
+ * @property {Float32Array} listenerUp
+ * The listener's initial up vector.
+ * Defaults to {@linkcode Utils.DEFAULT_UP DEFAULT_UP}.
+ * @property {Object} dimensions Room dimensions (in meters). Defaults to
+ * {@linkcode Utils.DEFAULT_ROOM_DIMENSIONS DEFAULT_ROOM_DIMENSIONS}.
+ * @property {Object} materials Named acoustic materials per wall.
+ * Defaults to {@linkcode Utils.DEFAULT_ROOM_MATERIALS DEFAULT_ROOM_MATERIALS}.
+ * @property {Number} speedOfSound
+ * (in meters/second). Defaults to
+ * {@linkcode Utils.DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
+ */
+
+
+/**
  * @class ResonanceAudio
  * @description Main class for managing sources, room and listener models.
  * @param {AudioContext} context
  * Associated {@link
 https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
- * @param {Object} options
- * @param {Number} options.ambisonicOrder
- * Desired ambisonic Order. Defaults to
- * {@linkcode Utils.DEFAULT_AMBISONIC_ORDER DEFAULT_AMBISONIC_ORDER}.
- * @param {Float32Array} options.listenerPosition
- * The listener's initial position (in meters), where origin is the center of
- * the room. Defaults to {@linkcode Utils.DEFAULT_POSITION DEFAULT_POSITION}.
- * @param {Float32Array} options.listenerForward
- * The listener's initial forward vector.
- * Defaults to {@linkcode Utils.DEFAULT_FORWARD DEFAULT_FORWARD}.
- * @param {Float32Array} options.listenerUp
- * The listener's initial up vector.
- * Defaults to {@linkcode Utils.DEFAULT_UP DEFAULT_UP}.
- * @param {Object} options.dimensions Room dimensions (in meters). Defaults to
- * {@linkcode Utils.DEFAULT_ROOM_DIMENSIONS DEFAULT_ROOM_DIMENSIONS}.
- * @param {Object} options.materials Named acoustic materials per wall.
- * Defaults to {@linkcode Utils.DEFAULT_ROOM_MATERIALS DEFAULT_ROOM_MATERIALS}.
- * @param {Number} options.speedOfSound
- * (in meters/second). Defaults to
- * {@linkcode Utils.DEFAULT_SPEED_OF_SOUND DEFAULT_SPEED_OF_SOUND}.
+ * @param {ResonanceAudio~ResonanceAudioOptions} options
+ * Options for constructing a new ResonanceAudio scene.
  */
 function ResonanceAudio(context, options) {
   // Public variables.
@@ -142,37 +149,8 @@ function ResonanceAudio(context, options) {
 
 /**
  * Create a new source for the scene.
- * @param {Object} options
- * @param {Float32Array} options.position
- * The source's initial position (in meters), where origin is the center of
- * the room. Defaults to {@linkcode Utils.DEFAULT_POSITION DEFAULT_POSITION}.
- * @param {Float32Array} options.forward
- * The source's initial forward vector. Defaults to
- * {@linkcode Utils.DEFAULT_FORWARD DEFAULT_FORWARD}.
- * @param {Float32Array} options.up
- * The source's initial up vector. Defaults to
- * {@linkcode Utils.DEFAULT_UP DEFAULT_UP}.
- * @param {Number} options.minDistance
- * Min. distance (in meters). Defaults to
- * {@linkcode Utils.DEFAULT_MIN_DISTANCE DEFAULT_MIN_DISTANCE}.
- * @param {Number} options.maxDistance
- * Max. distance (in meters). Defaults to
- * {@linkcode Utils.DEFAULT_MAX_DISTANCE DEFAULT_MAX_DISTANCE}.
- * @param {string} options.rolloff
- * Rolloff model to use, chosen from options in
- * {@linkcode Utils.ATTENUATION_ROLLOFFS ATTENUATION_ROLLOFFS}. Defaults to
- * {@linkcode Utils.DEFAULT_ATTENUATION_ROLLOFF DEFAULT_ATTENUATION_ROLLOFF}.
- * @param {Number} options.gain Input gain (linear). Defaults to
- * {@linkcode Utils.DEFAULT_SOURCE_GAIN DEFAULT_SOURCE_GAIN}.
- * @param {Number} options.alpha Directivity alpha. Defaults to
- * {@linkcode Utils.DEFAULT_DIRECTIVITY_ALPHA DEFAULT_DIRECTIVITY_ALPHA}.
- * @param {Number} options.sharpness Directivity sharpness. Defaults to
- * {@linkcode Utils.DEFAULT_DIRECTIVITY_SHARPNESS
- * DEFAULT_DIRECTIVITY_SHARPNESS}.
- * @param {Number} options.sourceWidth
- * Source width (in degrees). Where 0 degrees is a point source and 360 degrees
- * is an omnidirectional source. Defaults to
- * {@linkcode Utils.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
+ * @param {Source~SourceOptions} options
+ * Options for constructing a new Source.
  * @return {Source}
  */
 ResonanceAudio.prototype.createSource = function(options) {

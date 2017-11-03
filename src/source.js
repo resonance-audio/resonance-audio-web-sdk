@@ -30,41 +30,48 @@ const Utils = require('./utils.js');
 
 
 /**
+ * Options for constructing a new Source.
+ * @typedef {Object} Source~SourceOptions
+ * @property {Float32Array} position
+ * The source's initial position (in meters), where origin is the center of
+ * the room. Defaults to {@linkcode Utils.DEFAULT_POSITION DEFAULT_POSITION}.
+ * @property {Float32Array} forward
+ * The source's initial forward vector. Defaults to
+ * {@linkcode Utils.DEFAULT_FORWARD DEFAULT_FORWARD}.
+ * @property {Float32Array} up
+ * The source's initial up vector. Defaults to
+ * {@linkcode Utils.DEFAULT_UP DEFAULT_UP}.
+ * @property {Number} minDistance
+ * Min. distance (in meters). Defaults to
+ * {@linkcode Utils.DEFAULT_MIN_DISTANCE DEFAULT_MIN_DISTANCE}.
+ * @property {Number} maxDistance
+ * Max. distance (in meters). Defaults to
+ * {@linkcode Utils.DEFAULT_MAX_DISTANCE DEFAULT_MAX_DISTANCE}.
+ * @property {string} rolloff
+ * Rolloff model to use, chosen from options in
+ * {@linkcode Utils.ATTENUATION_ROLLOFFS ATTENUATION_ROLLOFFS}. Defaults to
+ * {@linkcode Utils.DEFAULT_ATTENUATION_ROLLOFF DEFAULT_ATTENUATION_ROLLOFF}.
+ * @property {Number} gain Input gain (linear). Defaults to
+ * {@linkcode Utils.DEFAULT_SOURCE_GAIN DEFAULT_SOURCE_GAIN}.
+ * @property {Number} alpha Directivity alpha. Defaults to
+ * {@linkcode Utils.DEFAULT_DIRECTIVITY_ALPHA DEFAULT_DIRECTIVITY_ALPHA}.
+ * @property {Number} sharpness Directivity sharpness. Defaults to
+ * {@linkcode Utils.DEFAULT_DIRECTIVITY_SHARPNESS
+ * DEFAULT_DIRECTIVITY_SHARPNESS}.
+ * @property {Number} sourceWidth
+ * Source width (in degrees). Where 0 degrees is a point source and 360 degrees
+ * is an omnidirectional source. Defaults to
+ * {@linkcode Utils.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
+ */
+
+
+/**
  * @class Source
  * @description Source model to spatialize an audio buffer.
  * @param {ResonanceAudio} scene Associated {@link ResonanceAudio
  * ResonanceAudio} instance.
- * @param {Object} options
- * @param {Float32Array} options.position
- * The source's initial position (in meters), where origin is the center of
- * the room. Defaults to {@linkcode Utils.DEFAULT_POSITION DEFAULT_POSITION}.
- * @param {Float32Array} options.forward
- * The source's initial forward vector. Defaults to
- * {@linkcode Utils.DEFAULT_FORWARD DEFAULT_FORWARD}.
- * @param {Float32Array} options.up
- * The source's initial up vector. Defaults to
- * {@linkcode Utils.DEFAULT_UP DEFAULT_UP}.
- * @param {Number} options.minDistance
- * Min. distance (in meters). Defaults to
- * {@linkcode Utils.DEFAULT_MIN_DISTANCE DEFAULT_MIN_DISTANCE}.
- * @param {Number} options.maxDistance
- * Max. distance (in meters). Defaults to
- * {@linkcode Utils.DEFAULT_MAX_DISTANCE DEFAULT_MAX_DISTANCE}.
- * @param {string} options.rolloff
- * Rolloff model to use, chosen from options in
- * {@linkcode Utils.ATTENUATION_ROLLOFFS ATTENUATION_ROLLOFFS}. Defaults to
- * {@linkcode Utils.DEFAULT_ATTENUATION_ROLLOFF DEFAULT_ATTENUATION_ROLLOFF}.
- * @param {Number} options.gain Input gain (linear). Defaults to
- * {@linkcode Utils.DEFAULT_SOURCE_GAIN DEFAULT_SOURCE_GAIN}.
- * @param {Number} options.alpha Directivity alpha. Defaults to
- * {@linkcode Utils.DEFAULT_DIRECTIVITY_ALPHA DEFAULT_DIRECTIVITY_ALPHA}.
- * @param {Number} options.sharpness Directivity sharpness. Defaults to
- * {@linkcode Utils.DEFAULT_DIRECTIVITY_SHARPNESS
- * DEFAULT_DIRECTIVITY_SHARPNESS}.
- * @param {Number} options.sourceWidth
- * Source width (in degrees). Where 0 degrees is a point source and 360 degrees
- * is an omnidirectional source. Defaults to
- * {@linkcode Utils.DEFAULT_SOURCE_WIDTH DEFAULT_SOURCE_WIDTH}.
+ * @param {Source~SourceOptions} options
+ * Options for constructing a new Source.
  */
 function Source(scene, options) {
   // Public variables.
