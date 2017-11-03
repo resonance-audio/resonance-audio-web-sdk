@@ -89,8 +89,8 @@ function _sanitizeCoefficients(coefficients) {
 
 /**
  * Sanitize dimensions.
- * @param {Object} dimensions
- * @return {Object}
+ * @param {Utils~RoomDimensions} dimensions
+ * @return {Utils~RoomDimensions}
  */
 function _sanitizeDimensions(dimensions) {
   if (dimensions == undefined) {
@@ -106,7 +106,7 @@ function _sanitizeDimensions(dimensions) {
 
 /**
  * Compute frequency-dependent reverb durations.
- * @param {Object} dimensions
+ * @param {Utils~RoomDimensions} dimensions
  * @param {Object} coefficients
  * @param {Number} speedOfSound
  * @return {Array}
@@ -196,9 +196,9 @@ https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Float32Array} options.listenerPosition
  * The listener's initial position (in meters), where origin is the center of
  * the room. Defaults to {@linkcode Utils.DEFAULT_POSITION DEFAULT_POSITION}.
- * @param {Object} options.dimensions Room dimensions (in meters). Defaults to
+ * @param {Utils~RoomDimensions} options.dimensions Room dimensions (in meters). Defaults to
  * {@linkcode Utils.DEFAULT_ROOM_DIMENSIONS DEFAULT_ROOM_DIMENSIONS}.
- * @param {Object} options.materials Named acoustic materials per wall.
+ * @param {Utils~RoomMaterials} options.materials Named acoustic materials per wall.
  * Defaults to {@linkcode Utils.DEFAULT_ROOM_MATERIALS DEFAULT_ROOM_MATERIALS}.
  * @param {Number} options.speedOfSound
  * (in meters/second). Defaults to
@@ -278,9 +278,9 @@ function Room(context, options) {
 
 /**
  * Set the room's dimensions and wall materials.
- * @param {Object} dimensions Room dimensions (in meters). Defaults to
+ * @param {Utils~RoomDimensions} dimensions Room dimensions (in meters). Defaults to
  * {@linkcode Utils.DEFAULT_ROOM_DIMENSIONS DEFAULT_ROOM_DIMENSIONS}.
- * @param {Object} materials Named acoustic materials per wall. Defaults to
+ * @param {Utils~RoomMaterials} materials Named acoustic materials per wall. Defaults to
  * {@linkcode Utils.DEFAULT_ROOM_MATERIALS DEFAULT_ROOM_MATERIALS}.
  */
 Room.prototype.setProperties = function(dimensions, materials) {

@@ -32,7 +32,7 @@ const Utils = require('./utils.js');
  * Associated {@link
 https://developer.mozilla.org/en-US/docs/Web/API/AudioContext AudioContext}.
  * @param {Object} options
- * @param {Object} options.dimensions
+ * @param {Utils~RoomDimensions} options.dimensions
  * Room dimensions (in meters). Defaults to
  * {@linkcode Utils.DEFAULT_ROOM_DIMENSIONS DEFAULT_ROOM_DIMENSIONS}.
  * @param {Object} options.coefficients
@@ -214,7 +214,7 @@ EarlyReflections.prototype.setListenerPosition = function(x, y, z) {
 /**
  * Set the room's properties which determines the characteristics of
  * reflections.
- * @param {Object} dimensions
+ * @param {Utils~RoomDimensions} dimensions
  * Room dimensions (in meters). Defaults to
  * {@linkcode Utils.DEFAULT_ROOM_DIMENSIONS DEFAULT_ROOM_DIMENSIONS}.
  * @param {Object} coefficients

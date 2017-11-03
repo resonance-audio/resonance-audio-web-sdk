@@ -437,6 +437,27 @@ Utils.EPSILON_FLOAT = 1e-8;
 
 
 /**
+ * Properties describing the geometry of a room.
+ * @typedef {Object} Utils~RoomDimensions
+ * @property {Number} width (in meters).
+ * @property {Number} height (in meters).
+ * @property {Number} depth (in meters).
+ */
+
+/**
+ * Properties describing the wall materials (from
+ * {@linkcode Utils.ROOM_MATERIAL_COEFFICIENTS ROOM_MATERIAL_COEFFICIENTS})
+ * of a room.
+ * @typedef {Object} Utils~RoomMaterials
+ * @property {String} left Left-wall material name.
+ * @property {String} right Right-wall material name.
+ * @property {String} front Front-wall material name.
+ * @property {String} back Back-wall material name.
+ * @property {String} up Up-wall material name.
+ * @property {String} down Down-wall material name.
+ */
+
+/**
  * ResonanceAudio library logging function.
  * @type {Function}
  * @param {any} Message to be printed out.

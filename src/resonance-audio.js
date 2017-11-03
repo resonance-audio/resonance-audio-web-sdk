@@ -45,9 +45,9 @@ const Utils = require('./utils.js');
  * @property {Float32Array} listenerUp
  * The listener's initial up vector.
  * Defaults to {@linkcode Utils.DEFAULT_UP DEFAULT_UP}.
- * @property {Object} dimensions Room dimensions (in meters). Defaults to
+ * @property {Utils~RoomDimensions} dimensions Room dimensions (in meters). Defaults to
  * {@linkcode Utils.DEFAULT_ROOM_DIMENSIONS DEFAULT_ROOM_DIMENSIONS}.
- * @property {Object} materials Named acoustic materials per wall.
+ * @property {Utils~RoomMaterials} materials Named acoustic materials per wall.
  * Defaults to {@linkcode Utils.DEFAULT_ROOM_MATERIALS DEFAULT_ROOM_MATERIALS}.
  * @property {Number} speedOfSound
  * (in meters/second). Defaults to
