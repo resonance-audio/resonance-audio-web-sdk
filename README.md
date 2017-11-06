@@ -10,4 +10,3 @@ Consult our [online documentation](//developers.google.com/resonance-audio/devel
 
 To learn more about how Resonance Audio works, see
 [https://developers.google.com/resonance-audio/discover/concepts](https://developers.google.com/resonance-audio/discover/concepts)
-
