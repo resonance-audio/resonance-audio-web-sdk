@@ -1,6 +1,6 @@
 {
   "name": "resonance-audio",
-  "version": "0.0.5",
+  "version": "0.1.0",
   "description": "Resonance Audio library: Spatial Audio for the Web",
   "main": "build/resonance-audio.js",
   "keywords": [
@@ -40,11 +40,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/google/resonance-audio-web-sdk"
+    "url": "https://github.com/resonance-audio/resonance-audio-web-sdk"
   },
-  "homepage": "https://github.com/google/resonance-audio-web-sdk",
+  "homepage": "https://github.com/resonance-audio/resonance-audio-web-sdk",
   "bugs": {
-    "url": "https://github.com/google/resonance-audio-web-sdk/issues"
+    "url": "https://github.com/resonance-audio/resonance-audio-web-sdk/issues"
   },
   "author": "Andrew Allen",
   "license": "Apache-2.0"
