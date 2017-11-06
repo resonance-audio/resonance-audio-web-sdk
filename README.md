@@ -1,4 +1,4 @@
-# [Resonance Audio SDK](//developers.google.com/resonance-audio) for Web ![Travis CI](https://travis-ci.org/resonance-audio/resonance-audio-web-sdk.svg?branch=master)
+# [Resonance Audio SDK](//developers.google.com/resonance-audio) for Web [![Travis CI](https://travis-ci.org/resonance-audio/resonance-audio-web-sdk.svg?branch=master)](https://travis-ci.org/resonance-audio/resonance-audio-web-sdk)
 
 Resonance Audio is a real-time JavaScript SDK that lets you add spatial audio to your web applications using [Web Audio](//developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API).
 
