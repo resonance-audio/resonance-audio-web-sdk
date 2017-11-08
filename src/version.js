@@ -25,4 +25,4 @@
  * ResonanceAudio library version
  * @type {String}
  */
-module.exports = '0.1.0';
+module.exports = '1.0.0';

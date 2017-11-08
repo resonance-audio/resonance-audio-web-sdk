@@ -1,6 +1,6 @@
 {
   "name": "resonance-audio",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Resonance Audio library: Spatial Audio for the Web",
   "main": "build/resonance-audio.js",
   "keywords": [
