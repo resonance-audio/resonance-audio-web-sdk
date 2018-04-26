@@ -207,7 +207,6 @@ function initAudio() {
   source = audioScene.createSource();
   audioElement = document.createElement('audio');
   audioElement.src = 'resources/cube-sound.wav';
-  audioElement.crossOrigin = 'anonymous';
   audioElement.load();
   audioElement.loop = true;
   audioElementSource =
