@@ -148,6 +148,7 @@ function initAudio() {
       Math.round(Math.random() * (audioSources.length - 1));
     audioElements[i] = document.createElement('audio');
     audioElements[i].src = audioSources[birdIndex];
+    audioElements[i].crossOrigin = 'anonymous';
     audioElements[i].load();
     audioElements[i].loop = true;
     audioElementSources[i] =

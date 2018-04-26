@@ -36,6 +36,7 @@ function initAudio() {
   // Create an audio element. Feed into audio graph.
   audioElement = document.createElement('audio');
   audioElement.src = 'resources/cube-sound.wav';
+  audioElement.crossOrigin = 'anonymous';
   audioElement.load();
   audioElement.loop = true;
 
