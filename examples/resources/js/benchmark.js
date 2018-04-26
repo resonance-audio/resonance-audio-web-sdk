@@ -113,7 +113,6 @@ function startBenchmark() {
 
   let audioElement = document.createElement('audio');
   audioElement.src = 'resources/cube-sound.wav';
-  audioElement.crossOrigin = 'anonymous';
   audioElement.load();
   audioElement.loop = true;
   let audioElementSource = audioContext.createMediaElementSource(audioElement);
