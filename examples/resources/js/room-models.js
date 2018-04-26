@@ -94,6 +94,7 @@ function initAudio() {
   for (let i = 0; i < audioSources.length; i++) {
     audioElements[i] = document.createElement('audio');
     audioElements[i].src = audioSources[i];
+    audioElements[i].crossOrigin = 'anonymous';
     audioElements[i].load();
     audioElements[i].loop = true;
     audioElementSources[i] =
