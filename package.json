@@ -28,7 +28,7 @@
     "doctoc": "^1.3.0"
   },
   "dependencies": {
-    "omnitone": "^1.0.5"
+    "omnitone": "^1.2.4"
   },
   "scripts": {
     "build": "webpack --progress --color",
