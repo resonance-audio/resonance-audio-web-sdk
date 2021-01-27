@@ -87,7 +87,7 @@ CanvasControl.prototype.draw = function() {
 
   this._context.lineWidth = 5;
   this._context.strokeStyle = '#bbb';
-  this._context.strokeRect(0, 0, canvas.width, canvas.height);
+  this._context.strokeRect(0, 0, this._canvas.width, this._canvas.height);
 
   for (let i = 0; i < this._elements.length; i++) {
     let icon = document.getElementById(this._elements[i].icon);
