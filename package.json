@@ -1,51 +1,51 @@
 {
-  "name": "resonance-audio",
-  "version": "1.0.0",
-  "description": "Resonance Audio library: Spatial Audio for the Web",
-  "main": "build/resonance-audio.js",
-  "keywords": [
-    "spatial audio",
-    "ambisonic",
-    "VR audio",
-    "360 audio",
-    "Web Audio API",
-    "interactive audio"
-  ],
-  "devDependencies": {
-    "chai": "^3.5.0",
-    "copy-webpack-plugin": "^4.0.1",
-    "eslint": "^4.7.0",
-    "eslint-config-google": "^0.9.1",
-    "jsdoc": "^3.5.4",
-    "karma": "^1.6.0",
-    "karma-chai": "^0.1.0",
-    "karma-chrome-launcher": "^2.0.0",
-    "karma-mocha": "^1.3.0",
-    "karma-mocha-reporter": "^2.2.3",
-    "mocha": "^3.0.0",
-    "uglifyjs-webpack-plugin": "^1.0.0-beta.2",
-    "webpack": "^3.6.0",
-    "doctoc": "^1.3.0"
-  },
-  "dependencies": {
-    "omnitone": "^1.0.5"
-  },
-  "scripts": {
-    "build": "webpack --progress --color",
-    "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
-    "build-doc": "jsdoc src/resonance-audio.js src/source.js src/utils.js -R README.md -d doc",
-    "eslint": "eslint examples/resources/js/*.js src/*.js test/*.js",
-    "test": "karma start",
-    "watch": "webpack --progress --color --watch"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/resonance-audio/resonance-audio-web-sdk"
-  },
-  "homepage": "https://github.com/resonance-audio/resonance-audio-web-sdk",
-  "bugs": {
-    "url": "https://github.com/resonance-audio/resonance-audio-web-sdk/issues"
-  },
-  "author": "Andrew Allen",
-  "license": "Apache-2.0"
+    "name": "resonance-audio",
+    "version": "1.0.0",
+    "description": "Resonance Audio library: Spatial Audio for the Web",
+    "main": "build/resonance-audio.js",
+    "keywords": [
+        "spatial audio",
+        "ambisonic",
+        "VR audio",
+        "360 audio",
+        "Web Audio API",
+        "interactive audio"
+    ],
+    "devDependencies": {
+        "chai": "^4.3.4",
+        "copy-webpack-plugin": "^9.0.1",
+        "eslint": "^8.1.0",
+        "eslint-config-google": "^0.14.0",
+        "jsdoc": "^3.6.7",
+        "karma": "^6.3.7",
+        "karma-chai": "^0.1.0",
+        "karma-chrome-launcher": "^3.1.0",
+        "karma-mocha": "^2.0.1",
+        "karma-mocha-reporter": "^2.2.5",
+        "mocha": "^9.1.3",
+        "uglifyjs-webpack-plugin": "^2.2.0",
+        "webpack": "^5.61.0",
+        "doctoc": "^2.1.0"
+    },
+    "dependencies": {
+        "omnitone": "^1.3.0"
+    },
+    "scripts": {
+        "build": "webpack --progress --color",
+        "build-all": "webpack --progress --color && webpack --config webpack.config.all.js --progress --color",
+        "build-doc": "jsdoc src/resonance-audio.js src/source.js src/utils.js -R README.md -d doc",
+        "eslint": "eslint examples/resources/js/*.js src/*.js test/*.js",
+        "test": "karma start",
+        "watch": "webpack --progress --color --watch"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/resonance-audio/resonance-audio-web-sdk"
+    },
+    "homepage": "https://github.com/resonance-audio/resonance-audio-web-sdk",
+    "bugs": {
+        "url": "https://github.com/resonance-audio/resonance-audio-web-sdk/issues"
+    },
+    "author": "Andrew Allen",
+    "license": "Apache-2.0"
 }
