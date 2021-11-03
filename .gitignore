@@ -1,9 +1,8 @@
 .DS_Store
-npm-debug.log
 node_modules/
 pvt/
-package-lock.json
 doc/
+yarn-error.log
 
 .firebaserc
 404.html
