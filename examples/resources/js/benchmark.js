@@ -100,7 +100,7 @@ function startBenchmark() {
   let audioContext =
     new OfflineAudioContext(numberOutputChannels,
       durationSeconds * sampleRate, sampleRate);
-  if (typeof webkitOfflineAudioContext !== 'undefined') {
+  if (typeof audioContext !== 'undefined') {
     playback.textContent = 'Begin';
     playback.disabled = false;
     let statusBar = document.getElementById('statusBar');
@@ -201,8 +201,7 @@ function startBenchmark() {
 }
 
 let onLoad = function() {
-  playback = document.getElementById('playback');
-  playback.addEventListener('click', function(event) {
+  playback = document.getElementById('playback');playback.addEventListener('click', function(event) {
     if (event.target.textContent == 'Begin') {
       playback.disabled = true;
       playback.textContent = 'Please Wait';
